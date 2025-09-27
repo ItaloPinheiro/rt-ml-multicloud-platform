@@ -1,0 +1,58 @@
+# =============================================================================
+# FastAPI Model Serving API Dockerfile
+# =============================================================================
+FROM python:3.11-slim
+
+LABEL maintainer="Italo Pinheiro <italo@example.com>"
+LABEL description="FastAPI ML model serving container"
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    curl \
+    git \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Install Poetry
+ENV POETRY_HOME="/opt/poetry"
+ENV POETRY_CACHE_DIR="/opt/poetry/cache"
+ENV POETRY_VENV_IN_PROJECT=1
+ENV POETRY_NO_INTERACTION=1
+
+RUN pip install poetry==1.7.1
+
+# Copy dependency files
+COPY pyproject.toml poetry.lock ./
+
+# Configure Poetry and install dependencies
+RUN poetry config virtualenvs.create false \
+    && poetry install --no-interaction --no-ansi --only main
+
+# Copy application code
+COPY src ./src
+COPY configs ./configs
+
+# Set environment variables
+ENV PYTHONPATH=/app:$PYTHONPATH
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+
+# Create non-root user
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+RUN chown -R appuser:appuser /app
+USER appuser
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# Expose port
+EXPOSE 8000
+
+# Start the application
+CMD ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
