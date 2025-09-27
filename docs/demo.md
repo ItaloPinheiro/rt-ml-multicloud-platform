@@ -45,14 +45,14 @@ cd rt-ml-multicloud-platform
 docker-compose up -d
 
 # Wait for services to be ready (check with)
-./scripts/health-check.sh
+./scripts/demo/health-check.sh
 ```
 
 ### 2. Load Sample Data
 
 ```bash
 # Load sample transactions and features
-python scripts/load_sample_data.py
+python scripts/demo/load_sample_data.py
 
 # Verify data loading
 curl http://localhost:8000/health

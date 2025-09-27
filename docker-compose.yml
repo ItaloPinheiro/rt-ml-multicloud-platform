@@ -81,7 +81,7 @@ services:
   mlflow-server:
     build:
       context: .
-      dockerfile: infrastructure/docker/mlflow.Dockerfile
+      dockerfile: docker/mlflow.Dockerfile
     container_name: ml-mlflow-server
     ports:
       - "5000:5000"
@@ -134,7 +134,7 @@ services:
   model-api:
     build:
       context: .
-      dockerfile: infrastructure/docker/api.Dockerfile
+      dockerfile: docker/api.Dockerfile
     container_name: ml-model-api
     ports:
       - "8000:8000"
@@ -216,7 +216,7 @@ services:
   beam-runner:
     build:
       context: .
-      dockerfile: infrastructure/docker/beam.Dockerfile
+      dockerfile: docker/beam.Dockerfile
     container_name: ml-beam-runner
     environment:
       BEAM_RUNNER: DirectRunner

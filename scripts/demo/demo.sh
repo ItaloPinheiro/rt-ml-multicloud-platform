@@ -72,6 +72,15 @@ main() {
         print_error "Data generation script not found"
     fi
 
+    # Load sample data
+    print_status "Loading sample data..."
+    if [ -f "scripts/demo/load_sample_data.py" ]; then
+        poetry run python scripts/demo/load_sample_data.py
+        print_success "Sample data loaded"
+    else
+        print_error "Data loading script not found"
+    fi
+
     # Train a demo model
     print_status "Training demo model..."
     if [ -f "scripts/demo/train_model.py" ]; then

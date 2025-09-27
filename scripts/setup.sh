@@ -36,7 +36,7 @@ command_exists() {
 
 # Main setup function
 main() {
-    echo "🚀 Setting up ML Pipeline Platform..."
+    echo "Setting up ML Pipeline Platform..."
     echo "======================================="
 
     # Check prerequisites
