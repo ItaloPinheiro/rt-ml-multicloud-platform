@@ -1,0 +1,406 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v1.0.0)'
+        required: true
+      prerelease:
+        description: 'Mark as pre-release'
+        type: boolean
+        default: false
+
+env:
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  # Validate Release
+  validate-release:
+    name: Validate Release
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Validate tag format
+      if: github.event_name == 'push'
+      run: |
+        TAG=${GITHUB_REF#refs/tags/}
+        if [[ ! $TAG =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+)?$ ]]; then
+          echo "Invalid tag format: $TAG"
+          echo "Expected format: v1.0.0 or v1.0.0-beta"
+          exit 1
+        fi
+        echo "TAG=$TAG" >> $GITHUB_ENV
+
+    - name: Set version from input
+      if: github.event_name == 'workflow_dispatch'
+      run: |
+        echo "TAG=${{ github.event.inputs.version }}" >> $GITHUB_ENV
+
+    - name: Check if tag exists
+      if: github.event_name == 'workflow_dispatch'
+      run: |
+        if git rev-parse "refs/tags/${{ env.TAG }}" >/dev/null 2>&1; then
+          echo "Tag ${{ env.TAG }} already exists"
+          exit 1
+        fi
+
+    - name: Validate changelog
+      run: |
+        if [[ ! -f CHANGELOG.md ]]; then
+          echo "CHANGELOG.md not found"
+          exit 1
+        fi
+
+        # Check if version is mentioned in changelog
+        if ! grep -q "${{ env.TAG }}" CHANGELOG.md; then
+          echo "Version ${{ env.TAG }} not found in CHANGELOG.md"
+          exit 1
+        fi
+
+  # Build Release Artifacts
+  build-artifacts:
+    name: Build Release Artifacts
+    runs-on: ubuntu-latest
+    needs: validate-release
+
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      artifacts-path: ${{ steps.artifacts.outputs.path }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Get version
+      id: version
+      run: |
+        if [[ "${{ github.event_name }}" == "push" ]]; then
+          VERSION=${GITHUB_REF#refs/tags/}
+        else
+          VERSION="${{ github.event.inputs.version }}"
+        fi
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+    - name: Install build dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install build wheel setuptools
+
+    - name: Build Python package
+      run: |
+        python -m build
+
+    - name: Create source archive
+      run: |
+        git archive --format=tar.gz --prefix=ml-pipeline-platform-${{ env.VERSION }}/ HEAD > ml-pipeline-platform-${{ env.VERSION }}.tar.gz
+
+    - name: Generate checksums
+      run: |
+        sha256sum dist/* > checksums.txt
+        sha256sum ml-pipeline-platform-${{ env.VERSION }}.tar.gz >> checksums.txt
+
+    - name: Create artifacts directory
+      id: artifacts
+      run: |
+        mkdir -p release-artifacts
+        cp dist/* release-artifacts/
+        cp ml-pipeline-platform-${{ env.VERSION }}.tar.gz release-artifacts/
+        cp checksums.txt release-artifacts/
+        echo "path=release-artifacts" >> $GITHUB_OUTPUT
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: release-artifacts
+        path: release-artifacts/
+        retention-days: 30
+
+  # Build and Test Docker Images
+  build-release-images:
+    name: Build Release Images
+    runs-on: ubuntu-latest
+    needs: validate-release
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      image-digest: ${{ steps.build.outputs.digest }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Get version
+      id: version
+      run: |
+        if [[ "${{ github.event_name }}" == "push" ]]; then
+          VERSION=${GITHUB_REF#refs/tags/}
+        else
+          VERSION="${{ github.event.inputs.version }}"
+        fi
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+    - name: Build and push release image
+      id: build
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./docker/Dockerfile
+        push: true
+        tags: |
+          ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }}
+          ghcr.io/${{ github.repository }}:latest
+        platforms: linux/amd64,linux/arm64
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Test release image
+      run: |
+        docker run --rm ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }} python -c "
+        import src
+        print('✅ Release image test passed')
+        "
+
+  # Security Scan Release
+  security-scan-release:
+    name: Security Scan Release
+    runs-on: ubuntu-latest
+    needs: build-release-images
+
+    steps:
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: 'ghcr.io/${{ github.repository }}:${{ needs.build-artifacts.outputs.version }}'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+
+    - name: Upload Trivy scan results
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+    - name: Check for critical vulnerabilities
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: 'ghcr.io/${{ github.repository }}:${{ needs.build-artifacts.outputs.version }}'
+        format: 'json'
+        output: 'trivy-results.json'
+        exit-code: '1'
+        severity: 'CRITICAL,HIGH'
+
+  # Generate Release Notes
+  generate-release-notes:
+    name: Generate Release Notes
+    runs-on: ubuntu-latest
+    needs: validate-release
+
+    outputs:
+      release-notes: ${{ steps.notes.outputs.notes }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Get version
+      id: version
+      run: |
+        if [[ "${{ github.event_name }}" == "push" ]]; then
+          VERSION=${GITHUB_REF#refs/tags/}
+        else
+          VERSION="${{ github.event.inputs.version }}"
+        fi
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+    - name: Get previous tag
+      id: prev-tag
+      run: |
+        PREV_TAG=$(git describe --abbrev=0 --tags $(git rev-list --tags --skip=1 --max-count=1) 2>/dev/null || echo "")
+        echo "prev-tag=$PREV_TAG" >> $GITHUB_OUTPUT
+
+    - name: Generate release notes
+      id: notes
+      run: |
+        VERSION="${{ steps.version.outputs.version }}"
+        PREV_TAG="${{ steps.prev-tag.outputs.prev-tag }}"
+
+        echo "# Release $VERSION" > release-notes.md
+        echo "" >> release-notes.md
+
+        # Extract from CHANGELOG.md if it exists
+        if [[ -f CHANGELOG.md ]]; then
+          echo "## What's Changed" >> release-notes.md
+          sed -n "/## \[$VERSION\]/,/## \[/p" CHANGELOG.md | sed '$d' | tail -n +2 >> release-notes.md
+          echo "" >> release-notes.md
+        fi
+
+        # Add commit log if previous tag exists
+        if [[ -n "$PREV_TAG" ]]; then
+          echo "## Commits since $PREV_TAG" >> release-notes.md
+          git log --pretty=format:"- %s (%h)" $PREV_TAG..HEAD >> release-notes.md
+          echo "" >> release-notes.md
+        fi
+
+        # Add image information
+        echo "## Docker Images" >> release-notes.md
+        echo "" >> release-notes.md
+        echo "```bash" >> release-notes.md
+        echo "docker pull ghcr.io/${{ github.repository }}:$VERSION" >> release-notes.md
+        echo "docker pull ghcr.io/${{ github.repository }}:latest" >> release-notes.md
+        echo "```" >> release-notes.md
+        echo "" >> release-notes.md
+
+        # Add deployment information
+        echo "## Deployment" >> release-notes.md
+        echo "" >> release-notes.md
+        echo "### Kubernetes" >> release-notes.md
+        echo "```bash" >> release-notes.md
+        echo "kubectl set image deployment/ml-pipeline-api ml-pipeline-api=ghcr.io/${{ github.repository }}:$VERSION" >> release-notes.md
+        echo "```" >> release-notes.md
+        echo "" >> release-notes.md
+
+        echo "### Docker Compose" >> release-notes.md
+        echo "Update your \`docker-compose.yml\` to use \`ghcr.io/${{ github.repository }}:$VERSION\`" >> release-notes.md
+
+        # Output for GitHub
+        {
+          echo 'notes<<EOF'
+          cat release-notes.md
+          echo EOF
+        } >> $GITHUB_OUTPUT
+
+    - name: Upload release notes
+      uses: actions/upload-artifact@v3
+      with:
+        name: release-notes
+        path: release-notes.md
+
+  # Create GitHub Release
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [build-artifacts, build-release-images, security-scan-release, generate-release-notes]
+    permissions:
+      contents: write
+
+    steps:
+    - name: Download artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: release-artifacts
+        path: release-artifacts/
+
+    - name: Create or update tag
+      if: github.event_name == 'workflow_dispatch'
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git tag -a "${{ github.event.inputs.version }}" -m "Release ${{ github.event.inputs.version }}"
+        git push origin "${{ github.event.inputs.version }}"
+
+    - name: Create GitHub Release
+      id: create-release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ needs.build-artifacts.outputs.version }}
+        release_name: Release ${{ needs.build-artifacts.outputs.version }}
+        body: ${{ needs.generate-release-notes.outputs.release-notes }}
+        draft: false
+        prerelease: ${{ github.event.inputs.prerelease == 'true' }}
+
+    - name: Upload release artifacts
+      run: |
+        for file in release-artifacts/*; do
+          filename=$(basename "$file")
+          curl \
+            -X POST \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Content-Type: application/octet-stream" \
+            --data-binary @"$file" \
+            "${{ steps.create-release.outputs.upload_url }}?name=$filename"
+        done
+
+  # Notify Release
+  notify-release:
+    name: Notify Release
+    runs-on: ubuntu-latest
+    needs: [create-release, build-artifacts]
+    if: success()
+
+    steps:
+    - name: Notify Slack
+      uses: 8398a7/action-slack@v3
+      with:
+        status: success
+        channel: '#releases'
+        webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+        text: |
+          🎉 New release published: ${{ needs.build-artifacts.outputs.version }}
+
+          📦 Docker Image: `ghcr.io/${{ github.repository }}:${{ needs.build-artifacts.outputs.version }}`
+          📋 Release Notes: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ needs.build-artifacts.outputs.version }}
+
+    - name: Update documentation
+      run: |
+        # Trigger documentation update workflow
+        curl -X POST \
+          -H "Accept: application/vnd.github.v3+json" \
+          -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+          https://api.github.com/repos/${{ github.repository }}/dispatches \
+          -d '{"event_type":"update-docs","client_payload":{"version":"${{ needs.build-artifacts.outputs.version }}"}}'
+
+  # Post-release Cleanup
+  post-release-cleanup:
+    name: Post-release Cleanup
+    runs-on: ubuntu-latest
+    needs: [notify-release]
+    if: always()
+
+    steps:
+    - name: Clean up artifacts
+      run: |
+        # Cleanup is handled by GitHub's artifact retention policy
+        echo "Release workflow completed"
+
+    - name: Update milestones
+      if: success()
+      run: |
+        # Close milestone if it exists
+        VERSION="${{ needs.build-artifacts.outputs.version }}"
+        curl -X PATCH \
+          -H "Accept: application/vnd.github.v3+json" \
+          -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+          https://api.github.com/repos/${{ github.repository }}/milestones \
+          -d "{\"title\":\"$VERSION\",\"state\":\"closed\"}" || true

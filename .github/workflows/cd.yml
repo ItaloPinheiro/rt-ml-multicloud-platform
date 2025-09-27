@@ -1,0 +1,371 @@
+name: Continuous Deployment
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  workflow_run:
+    workflows: ["CI Pipeline"]
+    types:
+      - completed
+    branches: [ main ]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  # Build and Push Docker Images
+  build-and-push:
+    name: Build & Push Docker Images
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      image-digest: ${{ steps.build.outputs.digest }}
+      image-tag: ${{ steps.meta.outputs.tags }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=semver,pattern={{major}}
+          type=sha,prefix=sha-
+
+    - name: Build and push Docker image
+      id: build
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./docker/Dockerfile
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        platforms: linux/amd64,linux/arm64
+
+    - name: Generate SBOM
+      uses: anchore/sbom-action@v0
+      with:
+        image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+        format: spdx-json
+        output-file: sbom.spdx.json
+
+    - name: Upload SBOM
+      uses: actions/upload-artifact@v3
+      with:
+        name: sbom
+        path: sbom.spdx.json
+
+  # Deploy to Staging Environment
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    environment: staging
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'v1.28.0'
+
+    - name: Configure kubectl for staging
+      run: |
+        mkdir -p ~/.kube
+        echo "${{ secrets.KUBECONFIG_STAGING }}" | base64 -d > ~/.kube/config
+
+    - name: Update image tag in manifests
+      run: |
+        cd k8s/overlays/staging
+        kustomize edit set image ml-pipeline-api=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
+
+    - name: Deploy to staging
+      run: |
+        kubectl apply -k k8s/overlays/staging/
+        kubectl rollout status deployment/ml-pipeline-api -n ml-pipeline-staging --timeout=300s
+
+    - name: Run smoke tests
+      run: |
+        # Wait for deployment to be ready
+        kubectl wait --for=condition=available --timeout=300s deployment/ml-pipeline-api -n ml-pipeline-staging
+
+        # Get service endpoint
+        STAGING_URL=$(kubectl get service ml-pipeline-api-service -n ml-pipeline-staging -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+
+        # Run smoke tests
+        python scripts/smoke_tests.py --endpoint "http://${STAGING_URL}:8000" --timeout 30
+
+    - name: Notify deployment status
+      uses: 8398a7/action-slack@v3
+      if: always()
+      with:
+        status: ${{ job.status }}
+        channel: '#deployments'
+        webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+        fields: repo,message,commit,author,action,eventName,ref,workflow
+
+  # Integration Tests in Staging
+  staging-integration-tests:
+    name: Staging Integration Tests
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+    environment: staging
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Install test dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements-dev.txt
+
+    - name: Configure kubectl for staging
+      run: |
+        mkdir -p ~/.kube
+        echo "${{ secrets.KUBECONFIG_STAGING }}" | base64 -d > ~/.kube/config
+
+    - name: Get staging endpoint
+      id: endpoint
+      run: |
+        STAGING_URL=$(kubectl get service ml-pipeline-api-service -n ml-pipeline-staging -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+        echo "url=http://${STAGING_URL}:8000" >> $GITHUB_OUTPUT
+
+    - name: Run integration tests against staging
+      env:
+        API_BASE_URL: ${{ steps.endpoint.outputs.url }}
+        ENVIRONMENT: staging
+      run: |
+        pytest tests/e2e/ -v --tb=short --maxfail=5
+
+    - name: Run performance tests
+      env:
+        API_BASE_URL: ${{ steps.endpoint.outputs.url }}
+      run: |
+        python scripts/load_test.py --url ${{ steps.endpoint.outputs.url }} --requests 1000 --concurrency 10
+
+  # Security Scan of Deployed Environment
+  security-scan-staging:
+    name: Security Scan - Staging
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+    environment: staging
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure kubectl
+      run: |
+        mkdir -p ~/.kube
+        echo "${{ secrets.KUBECONFIG_STAGING }}" | base64 -d > ~/.kube/config
+
+    - name: Run Kubernetes security scan
+      run: |
+        # Install kube-score
+        wget https://github.com/zegl/kube-score/releases/download/v1.16.1/kube-score_1.16.1_linux_amd64.tar.gz
+        tar xzf kube-score_1.16.1_linux_amd64.tar.gz
+
+        # Scan deployed resources
+        kubectl get deployments,services,ingress -n ml-pipeline-staging -o yaml | ./kube-score score -
+
+    - name: API security scan
+      run: |
+        # Get staging endpoint
+        STAGING_URL=$(kubectl get service ml-pipeline-api-service -n ml-pipeline-staging -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+
+        # Run OWASP ZAP baseline scan
+        docker run -v $(pwd):/zap/wrk/:rw -t owasp/zap2docker-stable zap-baseline.py \
+          -t "http://${STAGING_URL}:8000" \
+          -J zap-report.json || true
+
+    - name: Upload security scan results
+      uses: actions/upload-artifact@v3
+      with:
+        name: security-scan-results
+        path: zap-report.json
+
+  # Deploy to Production
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [staging-integration-tests, security-scan-staging]
+    environment: production
+    if: startsWith(github.ref, 'refs/tags/v') || (github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch')
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'v1.28.0'
+
+    - name: Configure kubectl for production
+      run: |
+        mkdir -p ~/.kube
+        echo "${{ secrets.KUBECONFIG_PRODUCTION }}" | base64 -d > ~/.kube/config
+
+    - name: Update image tag in production manifests
+      run: |
+        cd k8s/overlays/production
+        kustomize edit set image ml-pipeline-api=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
+
+    - name: Deploy to production (blue-green)
+      run: |
+        # Deploy to blue environment first
+        kubectl apply -k k8s/overlays/production/ --selector=version!=green
+        kubectl rollout status deployment/ml-pipeline-api-blue -n ml-pipeline --timeout=600s
+
+    - name: Run production smoke tests
+      run: |
+        # Wait for blue deployment to be ready
+        kubectl wait --for=condition=available --timeout=300s deployment/ml-pipeline-api-blue -n ml-pipeline
+
+        # Get blue service endpoint
+        BLUE_URL=$(kubectl get service ml-pipeline-api-blue-service -n ml-pipeline -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+
+        # Run smoke tests on blue environment
+        python scripts/smoke_tests.py --endpoint "http://${BLUE_URL}:8000" --timeout 60
+
+    - name: Switch traffic to blue (complete blue-green deployment)
+      run: |
+        # Update main service to point to blue deployment
+        kubectl patch service ml-pipeline-api-service -n ml-pipeline -p '{"spec":{"selector":{"version":"blue"}}}'
+
+        # Wait a bit for traffic to stabilize
+        sleep 30
+
+        # Scale down green deployment
+        kubectl scale deployment ml-pipeline-api-green --replicas=0 -n ml-pipeline
+
+    - name: Notify production deployment
+      uses: 8398a7/action-slack@v3
+      with:
+        status: success
+        channel: '#production'
+        webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+        text: "🚀 Successfully deployed to production: ${{ github.sha }}"
+
+  # Post-deployment monitoring
+  post-deployment-monitoring:
+    name: Post-deployment Monitoring
+    runs-on: ubuntu-latest
+    needs: deploy-production
+    if: success()
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Install monitoring dependencies
+      run: |
+        pip install requests prometheus-client
+
+    - name: Configure kubectl
+      run: |
+        mkdir -p ~/.kube
+        echo "${{ secrets.KUBECONFIG_PRODUCTION }}" | base64 -d > ~/.kube/config
+
+    - name: Monitor deployment health
+      run: |
+        python scripts/monitor_deployment.py --duration 300 --threshold 0.95
+
+    - name: Create deployment record
+      run: |
+        # Create deployment record in monitoring system
+        python scripts/record_deployment.py \
+          --version ${{ github.sha }} \
+          --environment production \
+          --timestamp $(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+  # Rollback capability
+  rollback-production:
+    name: Rollback Production
+    runs-on: ubuntu-latest
+    environment: production
+    if: failure() && needs.deploy-production.result == 'failure'
+    needs: [deploy-production]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure kubectl
+      run: |
+        mkdir -p ~/.kube
+        echo "${{ secrets.KUBECONFIG_PRODUCTION }}" | base64 -d > ~/.kube/config
+
+    - name: Rollback deployment
+      run: |
+        # Rollback to previous version
+        kubectl rollout undo deployment/ml-pipeline-api -n ml-pipeline
+        kubectl rollout status deployment/ml-pipeline-api -n ml-pipeline --timeout=300s
+
+    - name: Notify rollback
+      uses: 8398a7/action-slack@v3
+      with:
+        status: failure
+        channel: '#production'
+        webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+        text: "⚠️ Production deployment failed and was rolled back"
+
+  # Cleanup
+  cleanup:
+    name: Cleanup
+    runs-on: ubuntu-latest
+    needs: [post-deployment-monitoring]
+    if: always()
+
+    steps:
+    - name: Clean up old images
+      run: |
+        # Keep only last 10 images
+        gh api repos/${{ github.repository }}/packages/container/${{ github.event.repository.name }}/versions \
+          --jq '.[] | select(.metadata.container.tags | length == 0) | .id' \
+          | tail -n +11 \
+          | xargs -I {} gh api --method DELETE repos/${{ github.repository }}/packages/container/${{ github.event.repository.name }}/versions/{}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      continue-on-error: true

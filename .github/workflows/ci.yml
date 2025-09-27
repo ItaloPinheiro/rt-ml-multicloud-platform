@@ -1,0 +1,348 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  PYTHON_VERSION: '3.11'
+  NODE_VERSION: '18'
+
+jobs:
+  # Code Quality and Linting
+  lint:
+    name: Code Quality & Linting
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements-dev.txt
+
+    - name: Run code formatting check (Black)
+      run: black --check --diff .
+
+    - name: Run import sorting check (isort)
+      run: isort --check-only --diff .
+
+    - name: Run linting (flake8)
+      run: flake8 src/ tests/
+
+    - name: Run type checking (mypy)
+      run: mypy src/
+      continue-on-error: true  # Allow type checking to fail for now
+
+    - name: Run security check (bandit)
+      run: bandit -r src/ -f json -o bandit-report.json
+      continue-on-error: true
+
+    - name: Upload security report
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: security-report
+        path: bandit-report.json
+
+  # Unit Tests
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.9', '3.10', '3.11']
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-${{ matrix.python-version }}-pip-${{ hashFiles('**/requirements*.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-${{ matrix.python-version }}-pip-
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+
+    - name: Run unit tests
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+        REDIS_URL: redis://localhost:6379/0
+        ENVIRONMENT: test
+      run: |
+        pytest tests/unit/ -v --cov=src --cov-report=xml --cov-report=html
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
+
+  # Integration Tests
+  integration-test:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+
+    - name: Run database migrations
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+      run: |
+        python -m alembic upgrade head
+
+    - name: Run integration tests
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+        REDIS_URL: redis://localhost:6379/0
+        ENVIRONMENT: test
+      run: |
+        pytest tests/integration/ -v --tb=short
+
+  # Docker Build and Test
+  docker-build:
+    name: Docker Build & Test
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./docker/Dockerfile
+        push: false
+        tags: ml-pipeline:test
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Test Docker image
+      run: |
+        docker run --rm ml-pipeline:test python -c "import src; print('Import successful')"
+
+    - name: Run security scan on Docker image
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: 'ml-pipeline:test'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+
+    - name: Upload Trivy scan results
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  # Performance Tests
+  performance-test:
+    name: Performance Tests
+    runs-on: ubuntu-latest
+    needs: [integration-test]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+
+    - name: Start services with Docker Compose
+      run: |
+        docker-compose -f docker-compose.test.yml up -d
+        sleep 30  # Wait for services to be ready
+
+    - name: Run performance tests
+      run: |
+        pytest tests/performance/ -v --tb=short
+
+    - name: Stop services
+      run: |
+        docker-compose -f docker-compose.test.yml down
+
+  # Kubernetes Validation
+  k8s-validation:
+    name: Kubernetes Validation
+    runs-on: ubuntu-latest
+    needs: [docker-build]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'v1.28.0'
+
+    - name: Validate Kubernetes manifests
+      run: |
+        kubectl apply --dry-run=client -k k8s/base/
+        kubectl apply --dry-run=client -k k8s/overlays/production/
+
+    - name: Run kubeval for manifest validation
+      run: |
+        wget https://github.com/instrumenta/kubeval/releases/latest/download/kubeval-linux-amd64.tar.gz
+        tar xf kubeval-linux-amd64.tar.gz
+        ./kubeval k8s/base/*.yaml
+        ./kubeval k8s/overlays/production/*.yaml
+
+  # Security Scanning
+  security-scan:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+    needs: [lint]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Run dependency check
+      uses: pypa/gh-action-pip-audit@v1.0.8
+      with:
+        inputs: requirements.txt requirements-dev.txt
+
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v2
+      with:
+        languages: python
+
+    - name: Autobuild
+      uses: github/codeql-action/autobuild@v2
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v2
+
+  # Build Summary
+  build-summary:
+    name: Build Summary
+    runs-on: ubuntu-latest
+    needs: [lint, test, integration-test, docker-build, k8s-validation, security-scan]
+    if: always()
+
+    steps:
+    - name: Check build status
+      run: |
+        echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
+        echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+        echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+        echo "| Lint | ${{ needs.lint.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Test | ${{ needs.test.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Integration Test | ${{ needs.integration-test.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Docker Build | ${{ needs.docker-build.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| K8s Validation | ${{ needs.k8s-validation.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Security Scan | ${{ needs.security-scan.result }} |" >> $GITHUB_STEP_SUMMARY
+
+        if [[ "${{ needs.lint.result }}" == "failure" || "${{ needs.test.result }}" == "failure" || "${{ needs.integration-test.result }}" == "failure" ]]; then
+          echo "❌ Build failed - critical jobs failed"
+          exit 1
+        else
+          echo "✅ Build completed successfully"
+        fi

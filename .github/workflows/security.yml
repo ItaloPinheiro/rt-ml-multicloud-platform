@@ -1,0 +1,461 @@
+name: Security
+
+on:
+  schedule:
+    # Run security scans daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  # Dependency Vulnerability Scanning
+  dependency-scan:
+    name: Dependency Vulnerability Scan
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install safety pip-audit
+
+    - name: Run Safety check
+      run: |
+        safety check --json --output safety-report.json || true
+
+    - name: Run pip-audit
+      run: |
+        pip-audit --format=json --output=pip-audit-report.json || true
+
+    - name: Upload dependency scan results
+      uses: actions/upload-artifact@v3
+      with:
+        name: dependency-scan-results
+        path: |
+          safety-report.json
+          pip-audit-report.json
+
+    - name: Check for critical vulnerabilities
+      run: |
+        # Fail if critical vulnerabilities are found
+        if safety check --exit-code; then
+          echo "✅ No critical vulnerabilities found"
+        else
+          echo "❌ Critical vulnerabilities detected"
+          exit 1
+        fi
+
+  # SAST (Static Application Security Testing)
+  sast-scan:
+    name: Static Application Security Testing
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Install SAST tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install bandit[toml] semgrep
+
+    - name: Run Bandit security scan
+      run: |
+        bandit -r src/ -f json -o bandit-report.json -x tests/ || true
+        bandit -r src/ -f txt -o bandit-report.txt -x tests/ || true
+
+    - name: Run Semgrep scan
+      run: |
+        semgrep --config=auto --json --output=semgrep-report.json src/ || true
+
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v2
+      with:
+        languages: python
+        queries: security-and-quality
+
+    - name: Autobuild
+      uses: github/codeql-action/autobuild@v2
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v2
+      with:
+        category: '/language:python'
+
+    - name: Upload SAST results
+      uses: actions/upload-artifact@v3
+      with:
+        name: sast-results
+        path: |
+          bandit-report.json
+          bandit-report.txt
+          semgrep-report.json
+
+    - name: Process Bandit results
+      run: |
+        # Check if high severity issues exist
+        if [[ -f bandit-report.json ]]; then
+          HIGH_ISSUES=$(jq '.results[] | select(.issue_severity == "HIGH")' bandit-report.json | jq -s 'length')
+          if [[ $HIGH_ISSUES -gt 0 ]]; then
+            echo "❌ $HIGH_ISSUES high severity security issues found"
+            cat bandit-report.txt
+            exit 1
+          else
+            echo "✅ No high severity security issues found"
+          fi
+        fi
+
+  # Secret Scanning
+  secret-scan:
+    name: Secret Scanning
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Install TruffleHog
+      run: |
+        curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b /usr/local/bin
+
+    - name: Run TruffleHog secret scan
+      run: |
+        trufflehog filesystem . --json > trufflehog-results.json || true
+
+    - name: Install GitLeaks
+      run: |
+        wget https://github.com/zricethezav/gitleaks/releases/download/v8.18.0/gitleaks_8.18.0_linux_x64.tar.gz
+        tar xzf gitleaks_8.18.0_linux_x64.tar.gz
+        chmod +x gitleaks
+
+    - name: Run GitLeaks scan
+      run: |
+        ./gitleaks detect --source . --report-format json --report-path gitleaks-results.json || true
+
+    - name: Upload secret scan results
+      uses: actions/upload-artifact@v3
+      with:
+        name: secret-scan-results
+        path: |
+          trufflehog-results.json
+          gitleaks-results.json
+
+    - name: Check for secrets
+      run: |
+        # Check TruffleHog results
+        if [[ -f trufflehog-results.json ]]; then
+          SECRETS_COUNT=$(jq length trufflehog-results.json)
+          if [[ $SECRETS_COUNT -gt 0 ]]; then
+            echo "❌ $SECRETS_COUNT potential secrets found by TruffleHog"
+            jq -r '.[] | "File: \(.SourceMetadata.Data.Filesystem.file) Line: \(.SourceMetadata.Data.Filesystem.line)"' trufflehog-results.json
+            exit 1
+          fi
+        fi
+
+        # Check GitLeaks results
+        if [[ -f gitleaks-results.json ]]; then
+          LEAKS_COUNT=$(jq length gitleaks-results.json)
+          if [[ $LEAKS_COUNT -gt 0 ]]; then
+            echo "❌ $LEAKS_COUNT potential secrets found by GitLeaks"
+            jq -r '.[] | "File: \(.File) Line: \(.StartLine) Rule: \(.RuleID)"' gitleaks-results.json
+            exit 1
+          fi
+        fi
+
+        echo "✅ No secrets detected"
+
+  # Container Security Scanning
+  container-scan:
+    name: Container Security Scan
+    runs-on: ubuntu-latest
+    needs: []
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build Docker image for scanning
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./docker/Dockerfile
+        push: false
+        tags: ml-pipeline:security-scan
+        cache-from: type=gha
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: 'ml-pipeline:security-scan'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+    - name: Run Trivy vulnerability scanner (JSON output)
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: 'ml-pipeline:security-scan'
+        format: 'json'
+        output: 'trivy-results.json'
+
+    - name: Run Grype vulnerability scanner
+      run: |
+        curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin
+        grype ml-pipeline:security-scan -o json > grype-results.json || true
+
+    - name: Upload container scan results
+      uses: actions/upload-artifact@v3
+      with:
+        name: container-scan-results
+        path: |
+          trivy-results.json
+          grype-results.json
+
+    - name: Check for critical vulnerabilities
+      run: |
+        # Check Trivy results for critical vulnerabilities
+        if [[ -f trivy-results.json ]]; then
+          CRITICAL_COUNT=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "CRITICAL")] | length' trivy-results.json)
+          HIGH_COUNT=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "HIGH")] | length' trivy-results.json)
+
+          echo "Trivy scan results:"
+          echo "- Critical vulnerabilities: $CRITICAL_COUNT"
+          echo "- High vulnerabilities: $HIGH_COUNT"
+
+          if [[ $CRITICAL_COUNT -gt 0 ]]; then
+            echo "❌ Critical vulnerabilities found in container image"
+            jq -r '.Results[]?.Vulnerabilities[]? | select(.Severity == "CRITICAL") | "- \(.VulnerabilityID): \(.Title)"' trivy-results.json
+            exit 1
+          fi
+        fi
+
+        echo "✅ No critical vulnerabilities found in container"
+
+  # License Compliance Scanning
+  license-scan:
+    name: License Compliance Scan
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pip-licenses licensecheck
+
+    - name: Scan Python dependencies for licenses
+      run: |
+        pip-licenses --format=json --output-file=python-licenses.json
+        pip-licenses --format=csv --output-file=python-licenses.csv
+
+    - name: Run license compatibility check
+      run: |
+        # Check for problematic licenses
+        licensecheck || true
+
+    - name: Upload license scan results
+      uses: actions/upload-artifact@v3
+      with:
+        name: license-scan-results
+        path: |
+          python-licenses.json
+          python-licenses.csv
+
+    - name: Check for prohibited licenses
+      run: |
+        # List of prohibited license types (customize as needed)
+        PROHIBITED_LICENSES=("GPL-3.0" "AGPL-3.0" "LGPL-3.0")
+
+        if [[ -f python-licenses.json ]]; then
+          for license in "${PROHIBITED_LICENSES[@]}"; do
+            COUNT=$(jq -r --arg license "$license" '.[] | select(.License == $license) | .Name' python-licenses.json | wc -l)
+            if [[ $COUNT -gt 0 ]]; then
+              echo "❌ Prohibited license found: $license"
+              jq -r --arg license "$license" '.[] | select(.License == $license) | "- \(.Name) (\(.Version))"' python-licenses.json
+              exit 1
+            fi
+          done
+        fi
+
+        echo "✅ No prohibited licenses found"
+
+  # Infrastructure as Code Security
+  iac-scan:
+    name: Infrastructure as Code Security
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Checkov
+      run: |
+        pip install checkov
+
+    - name: Install Terrascan
+      run: |
+        curl -L "$(curl -s https://api.github.com/repos/tenable/terrascan/releases/latest | grep -o -E "https://.+?_Linux_x86_64.tar.gz")" > terrascan.tar.gz
+        tar -xf terrascan.tar.gz terrascan && rm terrascan.tar.gz
+        sudo mv terrascan /usr/local/bin && chmod +x /usr/local/bin/terrascan
+
+    - name: Run Checkov on Kubernetes manifests
+      run: |
+        checkov -d k8s/ --framework kubernetes --output json --output-file checkov-k8s-results.json || true
+
+    - name: Run Checkov on Dockerfiles
+      run: |
+        checkov -f docker/Dockerfile --framework dockerfile --output json --output-file checkov-docker-results.json || true
+
+    - name: Run Terrascan on Kubernetes manifests
+      run: |
+        terrascan scan -i k8s -d k8s/ -o json > terrascan-results.json || true
+
+    - name: Upload IaC scan results
+      uses: actions/upload-artifact@v3
+      with:
+        name: iac-scan-results
+        path: |
+          checkov-k8s-results.json
+          checkov-docker-results.json
+          terrascan-results.json
+
+    - name: Process IaC scan results
+      run: |
+        # Check Checkov results for high severity issues
+        if [[ -f checkov-k8s-results.json ]]; then
+          HIGH_ISSUES=$(jq '[.results.failed_checks[] | select(.severity == "HIGH")] | length' checkov-k8s-results.json)
+          if [[ $HIGH_ISSUES -gt 0 ]]; then
+            echo "❌ $HIGH_ISSUES high severity IaC issues found in Kubernetes manifests"
+            jq -r '.results.failed_checks[] | select(.severity == "HIGH") | "- \(.check_name): \(.resource)"' checkov-k8s-results.json
+            exit 1
+          fi
+        fi
+
+        echo "✅ No critical IaC security issues found"
+
+  # Security Summary Report
+  security-summary:
+    name: Security Summary Report
+    runs-on: ubuntu-latest
+    needs: [dependency-scan, sast-scan, secret-scan, container-scan, license-scan, iac-scan]
+    if: always()
+
+    steps:
+    - name: Download all scan results
+      uses: actions/download-artifact@v3
+
+    - name: Generate security summary
+      run: |
+        echo "# Security Scan Summary" > security-summary.md
+        echo "" >> security-summary.md
+        echo "Scan Date: $(date -u)" >> security-summary.md
+        echo "Repository: ${{ github.repository }}" >> security-summary.md
+        echo "Commit: ${{ github.sha }}" >> security-summary.md
+        echo "" >> security-summary.md
+
+        # Job status summary
+        echo "## Scan Results" >> security-summary.md
+        echo "" >> security-summary.md
+        echo "| Scan Type | Status |" >> security-summary.md
+        echo "|-----------|--------|" >> security-summary.md
+        echo "| Dependency Scan | ${{ needs.dependency-scan.result }} |" >> security-summary.md
+        echo "| SAST Scan | ${{ needs.sast-scan.result }} |" >> security-summary.md
+        echo "| Secret Scan | ${{ needs.secret-scan.result }} |" >> security-summary.md
+        echo "| Container Scan | ${{ needs.container-scan.result }} |" >> security-summary.md
+        echo "| License Scan | ${{ needs.license-scan.result }} |" >> security-summary.md
+        echo "| IaC Scan | ${{ needs.iac-scan.result }} |" >> security-summary.md
+        echo "" >> security-summary.md
+
+        # Overall status
+        if [[ "${{ needs.dependency-scan.result }}" == "success" &&
+              "${{ needs.sast-scan.result }}" == "success" &&
+              "${{ needs.secret-scan.result }}" == "success" &&
+              "${{ needs.container-scan.result }}" == "success" &&
+              "${{ needs.license-scan.result }}" == "success" &&
+              "${{ needs.iac-scan.result }}" == "success" ]]; then
+          echo "## Overall Status: ✅ PASS" >> security-summary.md
+          echo "All security scans completed successfully with no critical issues found." >> security-summary.md
+        else
+          echo "## Overall Status: ❌ FAIL" >> security-summary.md
+          echo "One or more security scans found critical issues that need to be addressed." >> security-summary.md
+        fi
+
+        echo "" >> security-summary.md
+        echo "## Recommendations" >> security-summary.md
+        echo "- Review all scan results and address any high/critical severity findings" >> security-summary.md
+        echo "- Update dependencies with known vulnerabilities" >> security-summary.md
+        echo "- Ensure no secrets are committed to the repository" >> security-summary.md
+        echo "- Follow security best practices for containerization" >> security-summary.md
+
+    - name: Upload security summary
+      uses: actions/upload-artifact@v3
+      with:
+        name: security-summary
+        path: security-summary.md
+
+    - name: Comment on PR (if applicable)
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+          const summary = fs.readFileSync('security-summary.md', 'utf8');
+
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: `## 🔒 Security Scan Results\n\n${summary}`
+          });
+
+    - name: Fail workflow if critical issues found
+      run: |
+        if [[ "${{ needs.dependency-scan.result }}" == "failure" ||
+              "${{ needs.sast-scan.result }}" == "failure" ||
+              "${{ needs.secret-scan.result }}" == "failure" ||
+              "${{ needs.container-scan.result }}" == "failure" ]]; then
+          echo "❌ Critical security issues found - failing workflow"
+          exit 1
+        else
+          echo "✅ All security scans passed"
+        fi
