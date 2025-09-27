@@ -1,0 +1,68 @@
+environment: development
+debug: true
+
+database:
+  host: localhost
+  port: 5432
+  database: ml_pipeline_dev
+  username: postgres
+  password: postgres
+  ssl_mode: disable
+  connection_timeout: 30
+  max_connections: 10
+
+redis:
+  host: localhost
+  port: 6379
+  password: null
+  db: 0
+  socket_timeout: 5
+  socket_connect_timeout: 5
+  max_connections: 20
+  retry_on_timeout: true
+
+mlflow:
+  tracking_uri: http://localhost:5000
+  registry_uri: null
+  experiment_name: fraud_detection_dev
+  artifact_location: ./mlruns
+  default_tags:
+    environment: development
+    team: data-science
+
+kafka:
+  bootstrap_servers: localhost:9092
+  security_protocol: PLAINTEXT
+  sasl_mechanism: null
+  sasl_username: null
+  sasl_password: null
+
+api:
+  host: 0.0.0.0
+  port: 8000
+  workers: 1
+  reload: true
+  debug: true
+  cors_origins: ["http://localhost:3000", "http://localhost:8080"]
+  max_request_size: 16777216  # 16MB
+  timeout: 30
+
+monitoring:
+  prometheus_enabled: true
+  prometheus_port: 9090
+  grafana_enabled: true
+  grafana_port: 3001
+  log_level: DEBUG
+  structured_logging: true
+
+# Development-specific settings
+feature_store_ttl: 300  # 5 minutes for quick testing
+model_cache_size: 3
+batch_size: 100
+max_retries: 2
+
+custom:
+  enable_debug_endpoints: true
+  mock_external_services: true
+  log_sql_queries: true
+  enable_profiling: true

@@ -87,6 +87,19 @@ main() {
         print_warning "Please update .env with your specific configuration"
     fi
 
+    # Set up configuration files
+    print_status "Setting up configuration files..."
+    if [ ! -f configs/development.yaml ] || [ ! -f configs/production.yaml ] || [ ! -f configs/staging.yaml ]; then
+        print_warning "Configuration files missing in configs/ directory"
+        print_status "Configuration templates are available and ready to use"
+        print_status "Available configurations:"
+        echo "  - configs/development.yaml (local development)"
+        echo "  - configs/staging.yaml (staging environment)"
+        echo "  - configs/production.yaml (production environment)"
+    else
+        print_success "Configuration files are available"
+    fi
+
     # Initialize Docker volumes and networks
     print_status "Setting up Docker environment..."
     docker network create ml-pipeline-network 2>/dev/null || true
@@ -112,8 +125,12 @@ main() {
     echo ""
     echo "Next steps:"
     echo "  1. Update .env with your cloud credentials"
-    echo "  2. Run: docker-compose up -d"
-    echo "  3. Run: ./scripts/demo/demo.sh"
+    echo "  2. Choose your configuration environment:"
+    echo "     - Development: configs/development.yaml (default for local)"
+    echo "     - Staging: configs/staging.yaml"
+    echo "     - Production: configs/production.yaml"
+    echo "  3. Run: docker-compose up -d"
+    echo "  4. Run: ./scripts/demo/demo.sh"
     echo ""
     echo "Access points:"
     echo "  - MLflow UI: http://localhost:5000"
