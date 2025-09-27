@@ -1,0 +1,15 @@
+# =============================================================================
+# Grafana Dashboard Provisioning Configuration
+# =============================================================================
+apiVersion: 1
+
+providers:
+  - name: 'ml-pipeline-dashboards'
+    orgId: 1
+    folder: 'ML Pipeline'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards
