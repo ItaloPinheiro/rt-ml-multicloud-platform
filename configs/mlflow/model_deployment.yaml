@@ -1,0 +1,379 @@
+# MLflow Model Deployment Configuration
+# Settings for model serving, deployment strategies, and lifecycle management
+
+# Model Serving Configuration
+model_serving:
+  # Default serving settings
+  default:
+    port: 5001
+    host: "0.0.0.0"
+    workers: 4
+    timeout: 60
+    max_content_length: 100000000  # 100MB
+
+  # Model loading
+  loading:
+    enable_mlflow_tracing: true
+    synchronous: true
+    timeout: 300  # 5 minutes
+
+  # Model formats
+  formats:
+    sklearn:
+      env_manager: "conda"
+      python_env: null
+
+    pytorch:
+      env_manager: "conda"
+      python_env: null
+
+    tensorflow:
+      env_manager: "conda"
+      python_env: null
+
+    custom:
+      env_manager: "virtualenv"
+      python_env: "python_env.yaml"
+
+# Deployment Strategies
+deployment:
+  # Blue-Green deployment
+  blue_green:
+    enabled: false
+    traffic_split: 0.1  # Start with 10% traffic to new model
+    rollback_threshold: 0.95  # Rollback if success rate drops below 95%
+    monitoring_window: 300  # 5 minutes monitoring window
+
+  # Canary deployment
+  canary:
+    enabled: true
+    initial_traffic: 0.05  # Start with 5% traffic
+    increment: 0.1         # Increase by 10% each step
+    monitoring_interval: 300  # 5 minutes between increments
+    success_threshold: 0.98   # 98% success rate required
+    max_duration: 3600        # Maximum 1 hour canary deployment
+
+  # A/B testing
+  ab_testing:
+    enabled: false
+    test_duration: 86400  # 24 hours
+    traffic_split: 0.5    # 50/50 split
+    metrics_to_track:
+      - "prediction_accuracy"
+      - "response_time"
+      - "error_rate"
+
+# Model Lifecycle Management
+lifecycle:
+  # Automatic promotion
+  auto_promotion:
+    enabled: true
+    criteria:
+      min_accuracy: 0.85
+      min_precision: 0.8
+      min_recall: 0.8
+      max_response_time: 100  # milliseconds
+      min_throughput: 1000    # requests per minute
+
+  # Model retirement
+  retirement:
+    auto_retire: true
+    criteria:
+      accuracy_drop: 0.1     # Retire if accuracy drops by 10%
+      age_days: 90           # Auto-retire after 90 days
+      usage_threshold: 0.01  # Retire if usage drops below 1%
+
+  # Model versioning
+  versioning:
+    strategy: "semantic"  # semantic, timestamp, sequential
+    auto_tag: true
+    tag_format: "v{major}.{minor}.{patch}"
+
+# Health Checks
+health_checks:
+  # Liveness checks
+  liveness:
+    enabled: true
+    endpoint: "/health"
+    interval: 30
+    timeout: 10
+    failure_threshold: 3
+
+  # Readiness checks
+  readiness:
+    enabled: true
+    endpoint: "/ready"
+    interval: 10
+    timeout: 5
+    failure_threshold: 3
+
+  # Model health checks
+  model_health:
+    enabled: true
+    endpoint: "/model/health"
+    interval: 60
+    checks:
+      - "model_loaded"
+      - "dependencies_available"
+      - "memory_usage"
+      - "prediction_quality"
+
+# Monitoring and Observability
+monitoring:
+  # Metrics collection
+  metrics:
+    enabled: true
+    endpoint: "/metrics"
+
+    # Business metrics
+    business:
+      - name: "prediction_accuracy"
+        type: "gauge"
+        description: "Model prediction accuracy"
+      - name: "prediction_latency"
+        type: "histogram"
+        description: "Prediction response time"
+      - name: "predictions_total"
+        type: "counter"
+        description: "Total number of predictions"
+
+    # Technical metrics
+    technical:
+      - name: "model_memory_usage"
+        type: "gauge"
+        description: "Model memory consumption"
+      - name: "cpu_usage"
+        type: "gauge"
+        description: "CPU utilization"
+      - name: "error_rate"
+        type: "gauge"
+        description: "Error rate percentage"
+
+  # Alerting
+  alerting:
+    enabled: true
+    channels:
+      - type: "slack"
+        webhook: "${SLACK_WEBHOOK_URL}"
+      - type: "email"
+        recipients: ["ml-team@company.com"]
+
+    rules:
+      - name: "high_error_rate"
+        condition: "error_rate > 0.05"  # 5% error rate
+        severity: "critical"
+        duration: "5m"
+
+      - name: "high_latency"
+        condition: "prediction_latency_p99 > 1000"  # 1 second
+        severity: "warning"
+        duration: "10m"
+
+      - name: "low_accuracy"
+        condition: "prediction_accuracy < 0.8"
+        severity: "critical"
+        duration: "15m"
+
+# Scaling Configuration
+scaling:
+  # Horizontal scaling
+  horizontal:
+    enabled: true
+    min_replicas: 2
+    max_replicas: 10
+    target_cpu_utilization: 70
+    target_memory_utilization: 80
+
+  # Vertical scaling
+  vertical:
+    enabled: false
+    min_cpu: "100m"
+    max_cpu: "2"
+    min_memory: "512Mi"
+    max_memory: "4Gi"
+
+  # Auto-scaling policies
+  policies:
+    scale_up:
+      stabilization_window: 60   # seconds
+      policies:
+        - type: "percent"
+          value: 100
+          period: 60
+
+    scale_down:
+      stabilization_window: 300  # seconds
+      policies:
+        - type: "percent"
+          value: 50
+          period: 60
+
+# Security Configuration
+security:
+  # Authentication
+  authentication:
+    enabled: false
+    method: "api_key"  # api_key, jwt, oauth
+    api_key_header: "X-API-Key"
+
+  # Authorization
+  authorization:
+    enabled: false
+    rbac:
+      roles:
+        - name: "model_user"
+          permissions: ["predict"]
+        - name: "model_admin"
+          permissions: ["predict", "deploy", "monitor"]
+
+  # Network security
+  network:
+    tls_enabled: false
+    cert_file: null
+    key_file: null
+    allowed_origins: ["*"]
+
+# Resource Management
+resources:
+  # CPU and memory limits
+  limits:
+    cpu: "2"
+    memory: "4Gi"
+    ephemeral_storage: "10Gi"
+
+  # CPU and memory requests
+  requests:
+    cpu: "500m"
+    memory: "1Gi"
+    ephemeral_storage: "5Gi"
+
+  # GPU configuration (if needed)
+  gpu:
+    enabled: false
+    type: "nvidia.com/gpu"
+    count: 1
+
+# Environment-specific configurations
+environments:
+  development:
+    model_serving:
+      default:
+        workers: 1
+        timeout: 30
+
+    deployment:
+      canary:
+        enabled: false
+
+    scaling:
+      horizontal:
+        min_replicas: 1
+        max_replicas: 2
+
+    monitoring:
+      alerting:
+        enabled: false
+
+    resources:
+      limits:
+        cpu: "1"
+        memory: "2Gi"
+      requests:
+        cpu: "250m"
+        memory: "512Mi"
+
+  staging:
+    model_serving:
+      default:
+        workers: 2
+        timeout: 45
+
+    deployment:
+      canary:
+        enabled: true
+        initial_traffic: 0.1
+
+    lifecycle:
+      auto_promotion:
+        criteria:
+          min_accuracy: 0.88
+
+    scaling:
+      horizontal:
+        min_replicas: 2
+        max_replicas: 5
+
+    resources:
+      limits:
+        cpu: "1.5"
+        memory: "3Gi"
+      requests:
+        cpu: "500m"
+        memory: "1Gi"
+
+  production:
+    model_serving:
+      default:
+        workers: 4
+        timeout: 60
+
+    deployment:
+      canary:
+        enabled: true
+        initial_traffic: 0.01  # More conservative in production
+
+    lifecycle:
+      auto_promotion:
+        criteria:
+          min_accuracy: 0.9   # Higher standards for production
+
+    security:
+      authentication:
+        enabled: true
+      authorization:
+        enabled: true
+      network:
+        tls_enabled: true
+
+    scaling:
+      horizontal:
+        min_replicas: 3
+        max_replicas: 20
+
+    resources:
+      limits:
+        cpu: "2"
+        memory: "4Gi"
+      requests:
+        cpu: "1"
+        memory: "2Gi"
+
+# Integration with external systems
+integrations:
+  # Kubernetes
+  kubernetes:
+    enabled: true
+    namespace: "ml-serving"
+    service_type: "ClusterIP"
+    ingress:
+      enabled: true
+      class: "nginx"
+      annotations:
+        nginx.ingress.kubernetes.io/rewrite-target: "/"
+
+  # Service mesh (Istio)
+  service_mesh:
+    enabled: false
+    traffic_policy:
+      load_balancer: "round_robin"
+      circuit_breaker:
+        enabled: true
+        max_connections: 100
+        max_pending_requests: 10
+
+  # API Gateway
+  api_gateway:
+    enabled: false
+    rate_limiting:
+      requests_per_minute: 1000
+    authentication: "api_key"

@@ -1,0 +1,565 @@
+# Metrics Configuration
+# Defines custom metrics, collection intervals, and aggregation rules
+
+# Application Metrics
+application_metrics:
+  # API metrics
+  api:
+    # Request metrics
+    requests:
+      - name: "http_requests_total"
+        type: "counter"
+        description: "Total number of HTTP requests"
+        labels:
+          - "method"
+          - "endpoint"
+          - "status_code"
+          - "version"
+
+      - name: "http_request_duration_seconds"
+        type: "histogram"
+        description: "HTTP request duration in seconds"
+        buckets: [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0]
+        labels:
+          - "method"
+          - "endpoint"
+          - "status_code"
+
+      - name: "http_request_size_bytes"
+        type: "histogram"
+        description: "HTTP request size in bytes"
+        buckets: [100, 1000, 10000, 100000, 1000000, 10000000]
+        labels:
+          - "method"
+          - "endpoint"
+
+      - name: "http_response_size_bytes"
+        type: "histogram"
+        description: "HTTP response size in bytes"
+        buckets: [100, 1000, 10000, 100000, 1000000, 10000000]
+        labels:
+          - "method"
+          - "endpoint"
+
+    # Authentication metrics
+    auth:
+      - name: "auth_requests_total"
+        type: "counter"
+        description: "Total authentication requests"
+        labels:
+          - "method"
+          - "status"
+
+      - name: "auth_duration_seconds"
+        type: "histogram"
+        description: "Authentication request duration"
+        buckets: [0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5]
+        labels:
+          - "method"
+
+  # Model serving metrics
+  model_serving:
+    # Prediction metrics
+    predictions:
+      - name: "model_predictions_total"
+        type: "counter"
+        description: "Total number of model predictions"
+        labels:
+          - "model_name"
+          - "model_version"
+          - "prediction_type"  # batch, realtime
+
+      - name: "model_prediction_duration_seconds"
+        type: "histogram"
+        description: "Model prediction duration in seconds"
+        buckets: [0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.0]
+        labels:
+          - "model_name"
+          - "model_version"
+
+      - name: "model_prediction_errors_total"
+        type: "counter"
+        description: "Total prediction errors"
+        labels:
+          - "model_name"
+          - "model_version"
+          - "error_type"
+
+    # Model performance metrics
+    performance:
+      - name: "model_accuracy"
+        type: "gauge"
+        description: "Current model accuracy"
+        labels:
+          - "model_name"
+          - "model_version"
+          - "dataset"
+
+      - name: "model_precision"
+        type: "gauge"
+        description: "Current model precision"
+        labels:
+          - "model_name"
+          - "model_version"
+          - "class"
+
+      - name: "model_recall"
+        type: "gauge"
+        description: "Current model recall"
+        labels:
+          - "model_name"
+          - "model_version"
+          - "class"
+
+      - name: "model_f1_score"
+        type: "gauge"
+        description: "Current model F1 score"
+        labels:
+          - "model_name"
+          - "model_version"
+          - "class"
+
+    # Model drift metrics
+    drift:
+      - name: "feature_drift_score"
+        type: "gauge"
+        description: "Feature drift score"
+        labels:
+          - "model_name"
+          - "feature_name"
+
+      - name: "prediction_drift_score"
+        type: "gauge"
+        description: "Prediction drift score"
+        labels:
+          - "model_name"
+          - "model_version"
+
+    # Model resource metrics
+    resources:
+      - name: "model_memory_usage_bytes"
+        type: "gauge"
+        description: "Model memory usage in bytes"
+        labels:
+          - "model_name"
+          - "model_version"
+
+      - name: "model_cpu_usage_seconds"
+        type: "counter"
+        description: "Model CPU usage in seconds"
+        labels:
+          - "model_name"
+          - "model_version"
+
+      - name: "models_loaded_total"
+        type: "gauge"
+        description: "Number of models currently loaded"
+
+# Infrastructure Metrics
+infrastructure_metrics:
+  # System metrics
+  system:
+    # CPU metrics
+    cpu:
+      - name: "cpu_usage_percent"
+        type: "gauge"
+        description: "CPU usage percentage"
+        labels:
+          - "instance"
+          - "cpu"
+          - "mode"
+
+      - name: "cpu_load_average"
+        type: "gauge"
+        description: "System load average"
+        labels:
+          - "instance"
+          - "interval"  # 1m, 5m, 15m
+
+    # Memory metrics
+    memory:
+      - name: "memory_usage_bytes"
+        type: "gauge"
+        description: "Memory usage in bytes"
+        labels:
+          - "instance"
+          - "type"  # used, free, cached, buffered
+
+      - name: "memory_usage_percent"
+        type: "gauge"
+        description: "Memory usage percentage"
+        labels:
+          - "instance"
+
+    # Disk metrics
+    disk:
+      - name: "disk_usage_bytes"
+        type: "gauge"
+        description: "Disk usage in bytes"
+        labels:
+          - "instance"
+          - "device"
+          - "mountpoint"
+          - "type"  # used, free
+
+      - name: "disk_io_operations_total"
+        type: "counter"
+        description: "Total disk I/O operations"
+        labels:
+          - "instance"
+          - "device"
+          - "operation"  # read, write
+
+    # Network metrics
+    network:
+      - name: "network_bytes_total"
+        type: "counter"
+        description: "Total network bytes"
+        labels:
+          - "instance"
+          - "interface"
+          - "direction"  # receive, transmit
+
+      - name: "network_packets_total"
+        type: "counter"
+        description: "Total network packets"
+        labels:
+          - "instance"
+          - "interface"
+          - "direction"
+
+  # Service metrics
+  services:
+    # Database metrics
+    database:
+      - name: "database_connections_active"
+        type: "gauge"
+        description: "Number of active database connections"
+        labels:
+          - "instance"
+          - "database"
+
+      - name: "database_query_duration_seconds"
+        type: "histogram"
+        description: "Database query duration in seconds"
+        buckets: [0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0]
+        labels:
+          - "instance"
+          - "database"
+          - "query_type"
+
+      - name: "database_queries_total"
+        type: "counter"
+        description: "Total database queries"
+        labels:
+          - "instance"
+          - "database"
+          - "query_type"
+          - "status"
+
+    # Redis metrics
+    redis:
+      - name: "redis_connected_clients"
+        type: "gauge"
+        description: "Number of connected Redis clients"
+        labels:
+          - "instance"
+
+      - name: "redis_memory_used_bytes"
+        type: "gauge"
+        description: "Redis memory usage in bytes"
+        labels:
+          - "instance"
+
+      - name: "redis_commands_total"
+        type: "counter"
+        description: "Total Redis commands"
+        labels:
+          - "instance"
+          - "command"
+
+      - name: "redis_keyspace_hits_total"
+        type: "counter"
+        description: "Total Redis keyspace hits"
+        labels:
+          - "instance"
+
+      - name: "redis_keyspace_misses_total"
+        type: "counter"
+        description: "Total Redis keyspace misses"
+        labels:
+          - "instance"
+
+# Data Pipeline Metrics
+data_pipeline_metrics:
+  # Stream processing metrics
+  streaming:
+    # Kafka metrics
+    kafka:
+      - name: "kafka_consumer_lag"
+        type: "gauge"
+        description: "Kafka consumer lag"
+        labels:
+          - "consumer_group"
+          - "topic"
+          - "partition"
+
+      - name: "kafka_messages_consumed_total"
+        type: "counter"
+        description: "Total messages consumed from Kafka"
+        labels:
+          - "consumer_group"
+          - "topic"
+          - "partition"
+
+      - name: "kafka_consumer_offset"
+        type: "gauge"
+        description: "Kafka consumer offset"
+        labels:
+          - "consumer_group"
+          - "topic"
+          - "partition"
+
+    # Stream processing
+    processing:
+      - name: "stream_events_processed_total"
+        type: "counter"
+        description: "Total events processed in stream"
+        labels:
+          - "pipeline"
+          - "stage"
+          - "status"  # success, error
+
+      - name: "stream_processing_duration_seconds"
+        type: "histogram"
+        description: "Stream processing duration per event"
+        buckets: [0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0]
+        labels:
+          - "pipeline"
+          - "stage"
+
+      - name: "stream_processing_errors_total"
+        type: "counter"
+        description: "Total stream processing errors"
+        labels:
+          - "pipeline"
+          - "stage"
+          - "error_type"
+
+  # Feature store metrics
+  feature_store:
+    # Cache metrics
+    cache:
+      - name: "feature_store_cache_hits_total"
+        type: "counter"
+        description: "Total feature store cache hits"
+        labels:
+          - "feature_group"
+
+      - name: "feature_store_cache_misses_total"
+        type: "counter"
+        description: "Total feature store cache misses"
+        labels:
+          - "feature_group"
+
+      - name: "feature_store_cache_size"
+        type: "gauge"
+        description: "Current cache size"
+        labels:
+          - "cache_type"  # redis, memory
+
+    # Feature requests
+    requests:
+      - name: "feature_requests_total"
+        type: "counter"
+        description: "Total feature requests"
+        labels:
+          - "feature_group"
+          - "status"  # success, error
+
+      - name: "feature_request_duration_seconds"
+        type: "histogram"
+        description: "Feature request duration"
+        buckets: [0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5]
+        labels:
+          - "feature_group"
+          - "source"  # cache, database
+
+# Business Metrics
+business_metrics:
+  # ML business metrics
+  ml_business:
+    # Fraud detection metrics
+    fraud_detection:
+      - name: "fraud_cases_detected_total"
+        type: "counter"
+        description: "Total fraud cases detected"
+        labels:
+          - "model_name"
+          - "severity"
+
+      - name: "false_positives_total"
+        type: "counter"
+        description: "Total false positive detections"
+        labels:
+          - "model_name"
+
+      - name: "false_negatives_total"
+        type: "counter"
+        description: "Total false negative detections"
+        labels:
+          - "model_name"
+
+      - name: "money_saved_total"
+        type: "counter"
+        description: "Total money saved by fraud prevention"
+        labels:
+          - "model_name"
+          - "currency"
+
+    # User experience metrics
+    user_experience:
+      - name: "api_response_time_p95"
+        type: "gauge"
+        description: "95th percentile API response time"
+        labels:
+          - "endpoint"
+
+      - name: "user_satisfaction_score"
+        type: "gauge"
+        description: "User satisfaction score"
+        labels:
+          - "service"
+
+# Collection Configuration
+collection:
+  # Scrape intervals
+  intervals:
+    # Fast metrics (every 15 seconds)
+    fast:
+      interval: "15s"
+      metrics:
+        - "http_requests_total"
+        - "http_request_duration_seconds"
+        - "model_predictions_total"
+        - "model_prediction_duration_seconds"
+
+    # Standard metrics (every 30 seconds)
+    standard:
+      interval: "30s"
+      metrics:
+        - "cpu_usage_percent"
+        - "memory_usage_percent"
+        - "database_connections_active"
+        - "redis_connected_clients"
+
+    # Slow metrics (every 60 seconds)
+    slow:
+      interval: "60s"
+      metrics:
+        - "model_accuracy"
+        - "feature_drift_score"
+        - "disk_usage_bytes"
+        - "network_bytes_total"
+
+  # Retention policies
+  retention:
+    # Short-term retention (detailed metrics)
+    short_term:
+      duration: "7d"
+      metrics:
+        - "http_request_duration_seconds"
+        - "model_prediction_duration_seconds"
+        - "stream_processing_duration_seconds"
+
+    # Medium-term retention (aggregated metrics)
+    medium_term:
+      duration: "30d"
+      metrics:
+        - "http_requests_total"
+        - "model_predictions_total"
+        - "feature_requests_total"
+
+    # Long-term retention (business metrics)
+    long_term:
+      duration: "365d"
+      metrics:
+        - "model_accuracy"
+        - "fraud_cases_detected_total"
+        - "money_saved_total"
+
+# Aggregation Rules
+aggregation:
+  # Recording rules for computed metrics
+  recording_rules:
+    # API metrics
+    api:
+      - name: "api:request_rate"
+        expression: "rate(http_requests_total[5m])"
+        labels:
+          service: "api"
+
+      - name: "api:error_rate"
+        expression: "rate(http_requests_total{status=~'4..|5..'}[5m]) / rate(http_requests_total[5m])"
+        labels:
+          service: "api"
+
+      - name: "api:response_time_p99"
+        expression: "histogram_quantile(0.99, rate(http_request_duration_seconds_bucket[5m]))"
+        labels:
+          service: "api"
+
+    # Model metrics
+    model:
+      - name: "model:prediction_rate"
+        expression: "rate(model_predictions_total[5m])"
+        labels:
+          service: "model-serving"
+
+      - name: "model:error_rate"
+        expression: "rate(model_prediction_errors_total[5m]) / rate(model_predictions_total[5m])"
+        labels:
+          service: "model-serving"
+
+      - name: "model:cache_hit_rate"
+        expression: "rate(feature_store_cache_hits_total[5m]) / (rate(feature_store_cache_hits_total[5m]) + rate(feature_store_cache_misses_total[5m]))"
+        labels:
+          service: "feature-store"
+
+# Environment-specific configurations
+environments:
+  development:
+    collection:
+      intervals:
+        fast:
+          interval: "30s"  # Less frequent in dev
+        standard:
+          interval: "60s"
+        slow:
+          interval: "120s"
+
+    retention:
+      short_term:
+        duration: "1d"   # Shorter retention in dev
+      medium_term:
+        duration: "7d"
+      long_term:
+        duration: "30d"
+
+  production:
+    collection:
+      intervals:
+        fast:
+          interval: "10s"  # More frequent in production
+        standard:
+          interval: "15s"
+        slow:
+          interval: "30s"
+
+    retention:
+      short_term:
+        duration: "14d"  # Longer retention in production
+      medium_term:
+        duration: "90d"
+      long_term:
+        duration: "730d"  # 2 years

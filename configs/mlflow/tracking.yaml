@@ -1,0 +1,351 @@
+# MLflow Tracking Configuration
+# Settings for experiment tracking, model registry, and artifact storage
+
+# Tracking Server Configuration
+tracking_server:
+  # Server settings
+  host: "0.0.0.0"
+  port: 5000
+  workers: 4
+
+  # Backend store (where experiment metadata is stored)
+  backend_store_uri: "postgresql://mlflow:${MLFLOW_DB_PASSWORD}@localhost:5433/mlflow"
+
+  # Artifact store (where model artifacts are stored)
+  default_artifact_root: "s3://mlflow-artifacts"  # Can be s3://, gs://, or local path
+
+  # Authentication (if enabled)
+  auth:
+    enabled: false
+    auth_config_path: null
+
+  # Static file serving
+  serve_artifacts: true
+  artifacts_only: false
+  artifacts_destination: null
+
+# Experiment Configuration
+experiments:
+  # Default experiment settings
+  default:
+    name: "fraud_detection"
+    description: "Fraud detection model experiments"
+    tags:
+      team: "data-science"
+      project: "rt-ml-platform"
+      domain: "fraud-detection"
+
+  # Auto-logging configuration
+  auto_logging:
+    enabled: true
+    log_models: true
+    log_input_examples: true
+    log_model_signatures: true
+    disable_for_unsupported_versions: false
+    exclusive: false
+    disable: false
+
+  # Run configuration
+  runs:
+    # Automatic run naming
+    auto_run_name: true
+    run_name_template: "{experiment_name}-{timestamp}"
+
+    # Default tags for all runs
+    default_tags:
+      mlflow_version: "2.8.1"
+      platform: "rt-ml-multicloud"
+
+    # Run lifecycle
+    auto_end_run: true
+    nested_runs: false
+
+# Model Registry Configuration
+model_registry:
+  # Registry database (can be same as tracking or separate)
+  registry_store_uri: null  # null = use same as backend_store_uri
+
+  # Model versioning
+  versioning:
+    auto_increment: true
+    version_tags:
+      auto_created: true
+      default_tags:
+        - "model_type"
+        - "algorithm"
+        - "dataset_version"
+
+  # Model stages
+  stages:
+    - name: "None"
+      description: "No stage assigned"
+    - name: "Staging"
+      description: "Model ready for testing"
+    - name: "Production"
+      description: "Model ready for production use"
+    - name: "Archived"
+      description: "Model archived and no longer in use"
+
+  # Model validation
+  validation:
+    required_metrics:
+      - "accuracy"
+      - "precision"
+      - "recall"
+      - "f1_score"
+
+    required_tags:
+      - "model_type"
+      - "training_dataset"
+
+    minimum_thresholds:
+      accuracy: 0.8
+      precision: 0.75
+      recall: 0.75
+
+# Artifact Storage Configuration
+artifacts:
+  # Storage backends
+  backends:
+    local:
+      enabled: true
+      root_directory: "./mlruns"
+
+    s3:
+      enabled: false
+      bucket: "mlflow-artifacts"
+      prefix: "experiments"
+      region: "us-east-1"
+      access_key_id: "${AWS_ACCESS_KEY_ID}"
+      secret_access_key: "${AWS_SECRET_ACCESS_KEY}"
+
+    gcs:
+      enabled: false
+      bucket: "mlflow-artifacts"
+      prefix: "experiments"
+      project_id: "${GCP_PROJECT}"
+      credentials_path: "${GOOGLE_APPLICATION_CREDENTIALS}"
+
+    azure:
+      enabled: false
+      container: "mlflow-artifacts"
+      account_name: "${AZURE_STORAGE_ACCOUNT}"
+      account_key: "${AZURE_STORAGE_KEY}"
+
+  # Artifact management
+  management:
+    # Cleanup policies
+    cleanup:
+      enabled: false
+      retention_days: 90
+      cleanup_schedule: "0 2 * * *"  # Daily at 2 AM
+
+    # Compression
+    compression:
+      enabled: true
+      algorithm: "gzip"
+
+    # Versioning
+    versioning:
+      enabled: true
+      max_versions: 10
+
+# Logging Configuration
+logging:
+  # Metrics logging
+  metrics:
+    # Training metrics
+    training:
+      log_frequency: 100  # Log every N steps
+      metrics:
+        - "loss"
+        - "accuracy"
+        - "learning_rate"
+
+    # Validation metrics
+    validation:
+      log_frequency: 1    # Log every epoch
+      metrics:
+        - "val_loss"
+        - "val_accuracy"
+        - "val_precision"
+        - "val_recall"
+        - "val_f1_score"
+
+    # Custom metrics
+    custom:
+      business_metrics:
+        - "false_positive_rate"
+        - "false_negative_rate"
+        - "cost_savings"
+
+  # Parameters logging
+  parameters:
+    # Model hyperparameters
+    model:
+      auto_log: true
+      parameters:
+        - "learning_rate"
+        - "batch_size"
+        - "epochs"
+        - "model_architecture"
+
+    # Data parameters
+    data:
+      auto_log: true
+      parameters:
+        - "dataset_version"
+        - "feature_set_version"
+        - "training_size"
+        - "validation_size"
+
+  # Artifacts logging
+  artifacts:
+    # Model artifacts
+    models:
+      save_format: "cloudpickle"  # cloudpickle, sklearn, pytorch, tensorflow
+      save_model_signature: true
+      save_input_example: true
+
+    # Data artifacts
+    data:
+      save_training_data: false    # Privacy consideration
+      save_feature_importance: true
+      save_confusion_matrix: true
+
+    # Code artifacts
+    code:
+      save_source_code: true
+      exclude_patterns:
+        - "*.pyc"
+        - "__pycache__"
+        - ".git"
+        - "data/"
+
+# Integration Configuration
+integrations:
+  # Framework integrations
+  frameworks:
+    sklearn:
+      auto_log: true
+      log_models: true
+      log_input_examples: false
+
+    pytorch:
+      auto_log: true
+      log_models: true
+      log_every_n_epoch: 1
+
+    tensorflow:
+      auto_log: true
+      log_models: true
+      log_every_n_steps: 100
+
+    xgboost:
+      auto_log: true
+      log_models: true
+      importance_type: "gain"
+
+  # External systems
+  external:
+    prometheus:
+      enabled: true
+      metrics_endpoint: "/metrics"
+      push_gateway: null
+
+    airflow:
+      enabled: false
+      dag_integration: false
+
+    kubernetes:
+      enabled: false
+      namespace: "mlflow"
+
+# Security Configuration
+security:
+  # Access control
+  access_control:
+    enabled: false
+    backend: "db"  # db, ldap, oidc
+
+  # TLS/SSL
+  tls:
+    enabled: false
+    cert_file: null
+    key_file: null
+    ca_file: null
+
+  # API authentication
+  api_auth:
+    enabled: false
+    method: "basic"  # basic, token, oauth
+    token_expiry: 3600
+
+# Performance Configuration
+performance:
+  # Database connection pooling
+  database:
+    pool_size: 20
+    max_overflow: 30
+    pool_timeout: 30
+    pool_recycle: 3600
+
+  # Caching
+  caching:
+    enabled: true
+    cache_size: 1000
+    cache_ttl: 300
+
+  # Request limits
+  limits:
+    max_request_size: "100MB"
+    max_response_size: "100MB"
+    request_timeout: 300
+
+# Environment-specific configurations
+environments:
+  development:
+    tracking_server:
+      host: "localhost"
+      backend_store_uri: "sqlite:///mlflow.db"
+      default_artifact_root: "./mlruns"
+
+    logging:
+      metrics:
+        training:
+          log_frequency: 10  # More frequent logging in dev
+
+    artifacts:
+      backends:
+        local:
+          enabled: true
+        s3:
+          enabled: false
+
+  staging:
+    tracking_server:
+      backend_store_uri: "postgresql://mlflow:${MLFLOW_DB_PASSWORD}@staging-db:5432/mlflow"
+      default_artifact_root: "s3://staging-mlflow-artifacts"
+
+    model_registry:
+      validation:
+        minimum_thresholds:
+          accuracy: 0.85  # Higher threshold for staging
+
+  production:
+    tracking_server:
+      backend_store_uri: "postgresql://mlflow:${MLFLOW_DB_PASSWORD}@prod-db:5432/mlflow"
+      default_artifact_root: "s3://prod-mlflow-artifacts"
+
+    security:
+      access_control:
+        enabled: true
+      tls:
+        enabled: true
+
+    model_registry:
+      validation:
+        minimum_thresholds:
+          accuracy: 0.9   # Highest threshold for production
+          precision: 0.85
+          recall: 0.85

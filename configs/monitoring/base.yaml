@@ -1,0 +1,169 @@
+# Base Monitoring Configuration
+# Environment-agnostic defaults for monitoring, metrics, and alerting
+
+# General Monitoring Settings
+monitoring:
+  enabled: true
+  log_level: "INFO"
+  structured_logging: true
+
+# Metrics Collection
+metrics:
+  # Collection intervals
+  collection_intervals:
+    fast: "15s"      # High-frequency metrics
+    standard: "30s"  # Standard metrics
+    slow: "60s"      # Low-frequency metrics
+
+  # Retention policies
+  retention:
+    short_term: "7d"   # Detailed metrics
+    medium_term: "30d" # Aggregated metrics
+    long_term: "365d"  # Business metrics
+
+# Prometheus Configuration
+prometheus:
+  enabled: true
+  port: 9090
+  scrape_interval: "15s"
+  evaluation_interval: "15s"
+  retention_time: "15d"
+
+# Grafana Configuration
+grafana:
+  enabled: true
+  port: 3001
+  admin_user: "admin"
+  allow_sign_up: false
+
+# Alert Manager
+alertmanager:
+  enabled: true
+  group_wait: "30s"
+  group_interval: "5m"
+  repeat_interval: "1h"
+
+# Default Alert Rules
+alert_rules:
+  # API alerts
+  api:
+    high_error_rate:
+      threshold: 0.05      # 5% error rate
+      duration: "2m"
+      severity: "critical"
+
+    high_latency:
+      threshold: 1.0       # 1 second
+      percentile: 99
+      duration: "5m"
+      severity: "warning"
+
+  # Infrastructure alerts
+  infrastructure:
+    high_cpu:
+      threshold: 80        # 80% CPU usage
+      duration: "5m"
+      severity: "warning"
+
+    high_memory:
+      threshold: 85        # 85% memory usage
+      duration: "5m"
+      severity: "warning"
+
+    low_disk:
+      threshold: 85        # 85% disk usage
+      duration: "5m"
+      severity: "warning"
+
+  # Model performance alerts
+  model:
+    low_accuracy:
+      threshold: 0.85      # 85% accuracy
+      duration: "10m"
+      severity: "warning"
+
+    high_prediction_latency:
+      threshold: 0.5       # 500ms
+      percentile: 95
+      duration: "5m"
+      severity: "warning"
+
+# Notification Defaults
+notifications:
+  slack:
+    enabled: false
+    username: "AlertManager"
+    icon_emoji: ":warning:"
+
+  email:
+    enabled: false
+    smtp_port: 587
+    smtp_auth: true
+
+  pagerduty:
+    enabled: false
+
+# Health Checks
+health_checks:
+  api:
+    enabled: true
+    interval: 30
+    timeout: 10
+    failure_threshold: 3
+
+  services:
+    enabled: true
+    interval: 60
+    timeout: 5
+    failure_threshold: 3
+
+# Log Management
+logging:
+  # Log levels
+  levels:
+    root: "INFO"
+    application: "INFO"
+    database: "WARN"
+    http: "INFO"
+
+  # Log formatting
+  format:
+    type: "json"        # json, text
+    timestamp: "iso8601"
+    include_caller: false
+
+  # Log retention
+  retention:
+    local_files: "7d"
+    central_logging: "30d"
+
+# Performance Monitoring
+performance:
+  # Resource monitoring
+  resources:
+    enabled: true
+    interval: "30s"
+    include_system: true
+    include_process: true
+
+  # Application profiling
+  profiling:
+    enabled: false
+    cpu_profiling: false
+    memory_profiling: false
+    sampling_rate: 0.01
+
+# Business Metrics Defaults
+business_metrics:
+  # Fraud detection metrics
+  fraud_detection:
+    track_detections: true
+    track_false_positives: true
+    track_false_negatives: true
+    track_savings: true
+
+  # User experience metrics
+  user_experience:
+    track_response_times: true
+    track_error_rates: true
+    track_throughput: true

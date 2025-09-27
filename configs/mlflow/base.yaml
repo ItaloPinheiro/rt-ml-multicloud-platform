@@ -1,0 +1,130 @@
+# Base MLflow Configuration
+# Environment-agnostic defaults for MLflow tracking and model management
+
+# Tracking Server Defaults
+tracking_server:
+  host: "0.0.0.0"
+  port: 5000
+  workers: 4
+  serve_artifacts: true
+  artifacts_only: false
+
+# Experiment Configuration
+experiments:
+  auto_logging:
+    enabled: true
+    log_models: true
+    log_input_examples: false
+    log_model_signatures: true
+    disable_for_unsupported_versions: false
+
+  default_tags:
+    platform: "rt-ml-multicloud"
+    team: "data-science"
+
+# Model Registry
+model_registry:
+  versioning:
+    auto_increment: true
+    auto_created: true
+
+  validation:
+    required_metrics:
+      - "accuracy"
+      - "precision"
+      - "recall"
+      - "f1_score"
+
+    required_tags:
+      - "model_type"
+      - "training_dataset"
+
+    minimum_thresholds:
+      accuracy: 0.8
+      precision: 0.75
+      recall: 0.75
+
+# Artifact Management
+artifacts:
+  compression:
+    enabled: true
+    algorithm: "gzip"
+
+  versioning:
+    enabled: true
+    max_versions: 10
+
+# Logging Configuration
+logging:
+  metrics:
+    training:
+      log_frequency: 100
+      metrics:
+        - "loss"
+        - "accuracy"
+        - "learning_rate"
+
+    validation:
+      log_frequency: 1
+      metrics:
+        - "val_loss"
+        - "val_accuracy"
+        - "val_precision"
+        - "val_recall"
+        - "val_f1_score"
+
+  artifacts:
+    models:
+      save_format: "cloudpickle"
+      save_model_signature: true
+      save_input_example: false
+
+    code:
+      save_source_code: true
+      exclude_patterns:
+        - "*.pyc"
+        - "__pycache__"
+        - ".git"
+        - "data/"
+
+# Model Serving Defaults
+model_serving:
+  port: 5001
+  timeout: 60
+  max_content_length: 100000000  # 100MB
+
+  health_checks:
+    liveness:
+      enabled: true
+      endpoint: "/health"
+      interval: 30
+
+    readiness:
+      enabled: true
+      endpoint: "/ready"
+      interval: 10
+
+# Performance Configuration
+performance:
+  database:
+    pool_size: 20
+    max_overflow: 30
+    pool_timeout: 30
+
+  caching:
+    enabled: true
+    cache_size: 1000
+    cache_ttl: 300
+
+# Security Defaults
+security:
+  access_control:
+    enabled: false
+
+  tls:
+    enabled: false
+
+  api_auth:
+    enabled: false
+    method: "basic"
+    token_expiry: 3600

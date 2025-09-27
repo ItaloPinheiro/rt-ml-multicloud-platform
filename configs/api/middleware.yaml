@@ -1,0 +1,138 @@
+# FastAPI Middleware Configuration
+# Defines middleware stack and settings for different environments
+
+# CORS (Cross-Origin Resource Sharing) Configuration
+cors:
+  development:
+    allow_origins:
+      - "http://localhost:3000"
+      - "http://localhost:3001"
+      - "http://localhost:8080"
+      - "http://127.0.0.1:3000"
+    allow_credentials: true
+    allow_methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"]
+    allow_headers:
+      - "Accept"
+      - "Accept-Language"
+      - "Content-Language"
+      - "Content-Type"
+      - "Authorization"
+      - "X-Request-ID"
+      - "X-User-ID"
+    expose_headers: ["X-Request-ID", "X-Process-Time"]
+    max_age: 600
+
+  staging:
+    allow_origins:
+      - "https://staging-frontend.example.com"
+      - "https://staging-admin.example.com"
+    allow_credentials: true
+    allow_methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    allow_headers:
+      - "Accept"
+      - "Accept-Language"
+      - "Content-Language"
+      - "Content-Type"
+      - "Authorization"
+      - "X-Request-ID"
+    expose_headers: ["X-Request-ID"]
+    max_age: 3600
+
+  production:
+    allow_origins:
+      - "https://app.example.com"
+      - "https://admin.example.com"
+    allow_credentials: true
+    allow_methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    allow_headers:
+      - "Accept"
+      - "Content-Type"
+      - "Authorization"
+      - "X-Request-ID"
+    expose_headers: ["X-Request-ID"]
+    max_age: 86400  # 24 hours
+
+# Compression Settings
+compression:
+  gzip:
+    enabled: true
+    minimum_size: 1000  # Only compress responses larger than 1KB
+    compression_level: 6  # Balance between speed and compression ratio
+
+# Rate Limiting Configuration
+rate_limiting:
+  development:
+    enabled: false
+
+  staging:
+    enabled: true
+    calls: 1000
+    period: 3600  # 1 hour
+
+  production:
+    enabled: true
+    calls: 100
+    period: 60    # 1 minute per IP
+    burst: 10     # Allow burst requests
+
+# Request Size Limits
+request_limits:
+  max_request_size: 16777216  # 16MB
+  max_field_size: 1048576     # 1MB per field
+  max_fields: 1000            # Maximum form fields
+
+# Security Headers
+security_headers:
+  development:
+    x_frame_options: "DENY"
+    x_content_type_options: "nosniff"
+    x_xss_protection: "1; mode=block"
+    strict_transport_security: null
+    content_security_policy: null
+
+  staging:
+    x_frame_options: "DENY"
+    x_content_type_options: "nosniff"
+    x_xss_protection: "1; mode=block"
+    strict_transport_security: "max-age=31536000; includeSubDomains"
+    content_security_policy: "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
+
+  production:
+    x_frame_options: "DENY"
+    x_content_type_options: "nosniff"
+    x_xss_protection: "1; mode=block"
+    strict_transport_security: "max-age=31536000; includeSubDomains; preload"
+    content_security_policy: "default-src 'self'; script-src 'self'; style-src 'self'"
+    referrer_policy: "strict-origin-when-cross-origin"
+
+# Timeout Configuration
+timeouts:
+  development:
+    request_timeout: 60      # 1 minute
+    keep_alive_timeout: 5    # 5 seconds
+
+  staging:
+    request_timeout: 30      # 30 seconds
+    keep_alive_timeout: 65   # 65 seconds
+
+  production:
+    request_timeout: 30      # 30 seconds
+    keep_alive_timeout: 65   # 65 seconds
+
+# Custom Middleware Settings
+custom_middleware:
+  request_id:
+    enabled: true
+    header_name: "X-Request-ID"
+
+  timing:
+    enabled: true
+    header_name: "X-Process-Time"
+
+  health_check:
+    enabled: true
+    endpoints: ["/health", "/ping", "/ready"]
+
+  authentication:
+    enabled: false  # Enable when auth system is implemented
+    skip_paths: ["/health", "/metrics", "/docs", "/openapi.json"]

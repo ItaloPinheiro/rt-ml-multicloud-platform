@@ -1,0 +1,209 @@
+# Apache Beam Pipeline Options Configuration
+# Settings for different pipeline runners and environments
+
+# Common pipeline options
+common:
+  job_name_prefix: "ml-feature-pipeline"
+  save_main_session: true
+  setup_file: null  # Path to setup.py if needed
+  requirements_file: "requirements.txt"
+  extra_packages: []
+
+# Runner-specific configurations
+runners:
+  # Local DirectRunner (for development/testing)
+  direct:
+    runner: "DirectRunner"
+    direct_num_workers: 0       # 0 = auto-detect CPU cores
+    direct_running_mode: "multi_threading"  # multi_threading, multi_processing
+
+  # Google Cloud Dataflow
+  dataflow:
+    runner: "DataflowRunner"
+    project: "${GCP_PROJECT}"
+    region: "${GCP_REGION:-us-central1}"
+    temp_location: "gs://${GCP_PROJECT}-dataflow/temp"
+    staging_location: "gs://${GCP_PROJECT}-dataflow/staging"
+
+    # Worker configuration
+    worker_machine_type: "n1-standard-2"
+    max_num_workers: 10
+    num_workers: 2
+    disk_size_gb: 50
+    worker_disk_type: "pd-standard"
+
+    # Network configuration
+    network: "default"
+    subnetwork: null
+    use_public_ips: true
+
+    # Job configuration
+    enable_streaming_engine: false
+    enable_shuffle_service: true
+    flexrs_goal: "SPEED_OPTIMIZED"  # SPEED_OPTIMIZED, COST_OPTIMIZED
+
+  # Apache Flink (for high-throughput streaming)
+  flink:
+    runner: "FlinkRunner"
+    flink_master: "localhost:8081"
+    parallelism: 2
+    checkpointing_interval: 60000  # 1 minute
+    state_backend: "filesystem"
+
+  # Apache Spark (for large-scale batch processing)
+  spark:
+    runner: "SparkRunner"
+    spark_master_url: "local[*]"
+    spark_submit_uber_jar: true
+
+# Environment-specific pipeline options
+environments:
+  development:
+    runner_config: "direct"
+    job_name_suffix: "dev"
+
+    # Resource limits for local development
+    max_bundle_size: 1000
+    max_bundle_time_millis: 1000
+
+    # Logging configuration
+    log_level: "DEBUG"
+    enable_fn_api: true
+
+  staging:
+    runner_config: "dataflow"
+    job_name_suffix: "staging"
+
+    # Moderate resource allocation for staging
+    worker_machine_type: "n1-standard-1"
+    max_num_workers: 5
+    num_workers: 1
+    disk_size_gb: 30
+
+    # Streaming configuration
+    streaming: false
+    update: false
+
+    # Monitoring
+    enable_dataflow_service_options: true
+    dataflow_service_options:
+      - "enable_google_cloud_profiler"
+
+  production:
+    runner_config: "dataflow"
+    job_name_suffix: "prod"
+
+    # Production resource allocation
+    worker_machine_type: "n1-standard-4"
+    max_num_workers: 20
+    num_workers: 3
+    disk_size_gb: 100
+    worker_disk_type: "pd-ssd"
+
+    # High availability configuration
+    enable_streaming_engine: true
+    enable_shuffle_service: true
+    use_runner_v2: true
+
+    # Monitoring and logging
+    enable_dataflow_service_options: true
+    dataflow_service_options:
+      - "enable_google_cloud_profiler"
+      - "enable_google_cloud_heap_sampling"
+
+    # Autoscaling
+    autoscaling_algorithm: "THROUGHPUT_BASED"
+
+    # Networking (for production security)
+    use_public_ips: false
+    enable_ip_alias: true
+
+# Data processing options
+data_processing:
+  # Windowing configuration
+  windowing:
+    default_window_type: "fixed"     # fixed, sliding, session
+    default_window_size: "1h"        # Duration string (e.g., "1h", "30m", "10s")
+    default_trigger: "processing_time" # processing_time, event_time, count
+
+    # Late data handling
+    allowed_lateness: "5m"
+    accumulation_mode: "discarding"   # discarding, accumulating
+
+  # I/O configuration
+  io:
+    # File I/O options
+    file_io:
+      compression: "auto"            # auto, gzip, bzip2, none
+      num_shards: 0                  # 0 = auto-determine
+      shard_name_template: "-SSSSS-of-NNNNN"
+
+    # Kafka I/O options
+    kafka:
+      consumer_config:
+        "bootstrap.servers": "localhost:9092"
+        "group.id": "beam-feature-pipeline"
+        "auto.offset.reset": "latest"
+        "enable.auto.commit": "false"
+
+    # Pub/Sub I/O options
+    pubsub:
+      with_attributes: false
+      timestamp_attribute: "timestamp"
+      id_attribute: "message_id"
+
+    # BigQuery I/O options
+    bigquery:
+      create_disposition: "CREATE_IF_NEEDED"
+      write_disposition: "WRITE_APPEND"
+      use_standard_sql: true
+
+# Resource and performance tuning
+performance:
+  # Worker configuration
+  worker:
+    machine_type: "n1-standard-2"
+    boot_disk_type: "pd-standard"
+    boot_disk_size_gb: 50
+
+  # Memory configuration
+  memory:
+    worker_memory_mb: 7680         # 7.5GB for n1-standard-2
+    max_heap_size_mb: 6144         # 6GB heap (80% of worker memory)
+
+  # Parallelism configuration
+  parallelism:
+    max_read_time_sec: 300         # 5 minutes
+    target_parallelism: null       # null = auto-determine
+
+  # Bundle configuration
+  bundle:
+    max_size: 1000000              # Maximum elements per bundle
+    max_time_ms: 10000             # Maximum time per bundle (10 seconds)
+
+# Error handling and retry configuration
+error_handling:
+  # Dead letter queue configuration
+  dead_letter_queue:
+    enabled: true
+    output_topic: "failed-messages"
+    max_retries: 3
+
+  # Pipeline failure handling
+  failure_handling:
+    continue_on_error: false       # Fail fast in development
+    max_errors: 100                # Maximum errors before stopping
+    error_percentage: 5            # Maximum error percentage
+
+# SDK-specific options
+sdk_options:
+  python:
+    # Python-specific worker options
+    use_fn_api: true
+    worker_options:
+      num_workers: 1
+      worker_cache_size: 100
+
+  # Beam SQL options (if using Beam SQL)
+  sql:
+    planner: "zetasql"            # zetasql, calcite

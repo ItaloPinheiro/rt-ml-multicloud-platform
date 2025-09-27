@@ -1,0 +1,75 @@
+# Base Apache Beam Configuration
+# Environment-agnostic defaults for Beam pipelines
+
+# Pipeline Defaults
+pipeline:
+  runner: "DirectRunner"
+  save_main_session: true
+  setup_file: null
+  requirements_file: "requirements.txt"
+
+# Worker Configuration
+worker:
+  machine_type: "n1-standard-2"
+  disk_size_gb: 50
+  worker_disk_type: "pd-standard"
+  max_num_workers: 10
+  num_workers: 2
+
+# Processing Configuration
+processing:
+  # Windowing
+  windowing:
+    default_window_type: "fixed"
+    default_window_size: "1h"
+    default_trigger: "processing_time"
+    allowed_lateness: "5m"
+    accumulation_mode: "discarding"
+
+  # Bundle configuration
+  bundle:
+    max_size: 1000000
+    max_time_ms: 10000
+
+  # I/O configuration
+  io:
+    compression: "auto"
+    num_shards: 0
+    file_pattern: "-SSSSS-of-NNNNN"
+
+# Performance Settings
+performance:
+  max_bundle_size: 1000
+  max_bundle_time_millis: 1000
+  target_parallelism: null
+
+# Error Handling
+error_handling:
+  continue_on_error: false
+  max_errors: 100
+  error_percentage: 5
+
+# Feature Engineering Defaults
+feature_engineering:
+  # Validation
+  validation:
+    enabled: true
+    max_missing_rate: 0.1
+    schema_validation: true
+    type_checking: true
+
+  # Caching
+  caching:
+    enable_cache: true
+    cache_size_mb: 512
+    cache_ttl: 3600
+
+  # Transforms
+  transforms:
+    log_transform:
+      base: "natural"
+      offset: 1.0
+
+    normalization:
+      method: "z_score"
+      window_size: 1000

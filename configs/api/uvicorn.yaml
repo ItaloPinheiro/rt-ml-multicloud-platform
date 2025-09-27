@@ -1,0 +1,58 @@
+# Uvicorn ASGI Server Configuration
+# Used for running the FastAPI application with specific settings per environment
+
+# Development configuration
+development:
+  host: "0.0.0.0"
+  port: 8000
+  reload: true
+  reload_dirs: ["src"]
+  reload_excludes: ["*.pyc", "__pycache__", ".git"]
+  log_level: debug
+  workers: 1
+  access_log: true
+  use_colors: true
+  date_header: true
+  server_header: true
+  lifespan: "on"
+  timeout_keep_alive: 5
+  timeout_graceful_shutdown: 30
+
+# Staging configuration
+staging:
+  host: "0.0.0.0"
+  port: 8000
+  reload: false
+  log_level: info
+  workers: 2
+  access_log: true
+  use_colors: false
+  date_header: true
+  server_header: false  # Hide server info for security
+  lifespan: "on"
+  timeout_keep_alive: 65
+  timeout_graceful_shutdown: 30
+  ssl_keyfile: null
+  ssl_certfile: null
+
+# Production configuration
+production:
+  host: "0.0.0.0"
+  port: 8000
+  reload: false
+  log_level: warning
+  workers: 4  # Should be (2 x CPU cores) + 1
+  access_log: false  # Use reverse proxy logging instead
+  use_colors: false
+  date_header: true
+  server_header: false  # Hide server info for security
+  lifespan: "on"
+  timeout_keep_alive: 65
+  timeout_graceful_shutdown: 30
+  limit_concurrency: 1000
+  limit_max_requests: 1000000
+  limit_max_requests_jitter: 100000
+  preload_app: true
+  # SSL termination typically handled by load balancer
+  ssl_keyfile: null
+  ssl_certfile: null

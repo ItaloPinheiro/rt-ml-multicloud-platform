@@ -1,0 +1,349 @@
+# Feature Engineering Transform Configuration
+# Defines feature extraction, transformation, and validation rules
+
+# Feature extraction configuration
+feature_extraction:
+  # Transaction features
+  transaction_features:
+    # Basic transaction fields
+    amount:
+      type: "numeric"
+      required: true
+      transformations:
+        - name: "log_transform"
+          params:
+            base: "natural"
+            offset: 1.0
+        - name: "z_score_normalize"
+          params:
+            window_size: 1000
+
+    timestamp:
+      type: "datetime"
+      required: true
+      transformations:
+        - name: "extract_hour"
+        - name: "extract_day_of_week"
+        - name: "extract_is_weekend"
+
+    merchant_category:
+      type: "categorical"
+      required: true
+      transformations:
+        - name: "label_encode"
+        - name: "one_hot_encode"
+          params:
+            max_categories: 50
+
+    payment_method:
+      type: "categorical"
+      required: true
+      transformations:
+        - name: "label_encode"
+
+    location:
+      type: "nested"
+      required: false
+      fields:
+        - "city"
+        - "state"
+        - "country"
+      transformations:
+        - name: "location_hash"
+        - name: "location_risk_score"
+
+  # User features
+  user_features:
+    user_id:
+      type: "identifier"
+      required: true
+
+    age:
+      type: "numeric"
+      required: false
+      transformations:
+        - name: "age_bucket"
+          params:
+            buckets: [18, 25, 35, 45, 55, 65, 100]
+
+    income_bracket:
+      type: "ordinal"
+      required: false
+      transformations:
+        - name: "ordinal_encode"
+
+# Aggregation features
+aggregation_features:
+  # Time-based aggregations
+  time_based:
+    # Hourly aggregations
+    hourly:
+      window: "1h"
+      functions:
+        - name: "count"
+          field: "transaction_id"
+        - name: "sum"
+          field: "amount"
+        - name: "avg"
+          field: "amount"
+        - name: "max"
+          field: "amount"
+        - name: "std"
+          field: "amount"
+
+    # Daily aggregations
+    daily:
+      window: "24h"
+      functions:
+        - name: "count"
+          field: "transaction_id"
+        - name: "sum"
+          field: "amount"
+        - name: "avg"
+          field: "amount"
+        - name: "distinct_count"
+          field: "merchant_id"
+
+    # Weekly aggregations
+    weekly:
+      window: "7d"
+      functions:
+        - name: "count"
+          field: "transaction_id"
+        - name: "sum"
+          field: "amount"
+        - name: "trend"
+          field: "amount"
+
+  # User-based aggregations
+  user_based:
+    # Per user aggregations
+    per_user:
+      key: "user_id"
+      window: "30d"
+      functions:
+        - name: "transaction_count"
+        - name: "total_amount"
+        - name: "avg_amount"
+        - name: "max_amount"
+        - name: "unique_merchants"
+        - name: "unique_categories"
+
+    # User velocity features
+    velocity:
+      key: "user_id"
+      windows: ["1h", "24h", "7d"]
+      functions:
+        - name: "transaction_rate"
+        - name: "amount_rate"
+
+  # Merchant-based aggregations
+  merchant_based:
+    per_merchant:
+      key: "merchant_id"
+      window: "24h"
+      functions:
+        - name: "transaction_count"
+        - name: "unique_users"
+        - name: "avg_amount"
+
+# Feature validation rules
+validation:
+  # Data quality checks
+  quality_checks:
+    # Missing value checks
+    missing_values:
+      required_fields:
+        - "transaction_id"
+        - "user_id"
+        - "amount"
+        - "timestamp"
+      max_missing_rate: 0.1  # 10% maximum missing rate
+
+    # Data type validation
+    data_types:
+      amount:
+        type: "float"
+        min_value: 0.0
+        max_value: 100000.0
+      timestamp:
+        type: "datetime"
+        format: "ISO8601"
+
+    # Range validation
+    ranges:
+      age:
+        min: 13
+        max: 120
+      amount:
+        min: 0.01
+        max: 50000.0
+
+  # Statistical validation
+  statistical_checks:
+    # Outlier detection
+    outliers:
+      amount:
+        method: "iqr"  # iqr, zscore, isolation_forest
+        threshold: 3.0
+        action: "flag"  # flag, remove, cap
+
+    # Distribution checks
+    distribution:
+      amount:
+        expected_distribution: "log_normal"
+        significance_level: 0.05
+
+# Feature engineering pipelines
+pipelines:
+  # Real-time streaming pipeline
+  streaming:
+    name: "real_time_features"
+    type: "streaming"
+
+    # Input sources
+    sources:
+      - type: "kafka"
+        topic: "transactions"
+        consumer_group: "feature_engineering"
+      - type: "pubsub"
+        subscription: "transaction_stream"
+
+    # Processing steps
+    steps:
+      - name: "parse_json"
+        transform: "json_parser"
+      - name: "validate_schema"
+        transform: "schema_validator"
+      - name: "extract_features"
+        transform: "feature_extractor"
+      - name: "aggregate_features"
+        transform: "windowed_aggregator"
+      - name: "validate_features"
+        transform: "feature_validator"
+
+    # Output destinations
+    outputs:
+      - type: "feature_store"
+        destination: "redis"
+      - type: "monitoring"
+        destination: "prometheus"
+
+  # Batch processing pipeline
+  batch:
+    name: "batch_features"
+    type: "batch"
+
+    # Input sources
+    sources:
+      - type: "file"
+        path: "data/raw/transactions/*.json"
+      - type: "bigquery"
+        table: "transactions.historical_data"
+
+    # Processing steps
+    steps:
+      - name: "load_data"
+        transform: "data_loader"
+      - name: "clean_data"
+        transform: "data_cleaner"
+      - name: "extract_features"
+        transform: "feature_extractor"
+      - name: "aggregate_features"
+        transform: "batch_aggregator"
+      - name: "validate_features"
+        transform: "feature_validator"
+
+    # Output destinations
+    outputs:
+      - type: "file"
+        path: "data/features/batch_features"
+      - type: "feature_store"
+        destination: "postgresql"
+
+# Transform implementations
+transforms:
+  # Basic transformations
+  log_transform:
+    class: "LogTransform"
+    parameters:
+      base: "natural"
+      offset: 1.0
+
+  z_score_normalize:
+    class: "ZScoreNormalizer"
+    parameters:
+      window_size: 1000
+      min_std: 1e-8
+
+  label_encode:
+    class: "LabelEncoder"
+    parameters:
+      handle_unknown: "ignore"
+
+  one_hot_encode:
+    class: "OneHotEncoder"
+    parameters:
+      max_categories: 100
+      handle_unknown: "ignore"
+
+  # Custom transformations
+  age_bucket:
+    class: "CustomAgeBucketer"
+    parameters:
+      buckets: [18, 25, 35, 45, 55, 65, 100]
+
+  location_risk_score:
+    class: "LocationRiskScorer"
+    parameters:
+      risk_model: "statistical"
+      update_frequency: "daily"
+
+  # Aggregation functions
+  windowed_aggregator:
+    class: "WindowedAggregator"
+    parameters:
+      window_type: "fixed"
+      window_size: "1h"
+      allowed_lateness: "5m"
+
+  batch_aggregator:
+    class: "BatchAggregator"
+    parameters:
+      group_by: ["user_id", "date"]
+
+# Performance optimization
+optimization:
+  # Caching configuration
+  caching:
+    enable_cache: true
+    cache_size_mb: 512
+    cache_ttl: 3600
+
+  # Parallelism configuration
+  parallelism:
+    max_parallelism: 10
+    dynamic_parallelism: true
+
+  # Memory management
+  memory:
+    max_memory_per_worker: "2g"
+    spill_to_disk: true
+
+# Environment-specific overrides
+environments:
+  development:
+    validation:
+      quality_checks:
+        max_missing_rate: 0.2  # More lenient in dev
+    optimization:
+      parallelism:
+        max_parallelism: 2
+
+  production:
+    validation:
+      quality_checks:
+        max_missing_rate: 0.05  # Stricter in production
+    optimization:
+      parallelism:
+        max_parallelism: 20

@@ -1,0 +1,399 @@
+# Monitoring Alerts Configuration
+# Defines alert rules, notification channels, and escalation policies
+
+# Alert Rules Configuration
+alert_rules:
+  # Application-level alerts
+  application:
+    # API health alerts
+    api_health:
+      - name: "api_high_error_rate"
+        description: "API error rate is above threshold"
+        expression: "rate(http_requests_total{status=~'5..'}[5m]) > 0.05"
+        duration: "2m"
+        severity: "critical"
+        labels:
+          service: "model-api"
+          team: "ml-platform"
+        annotations:
+          summary: "High error rate on {{ $labels.instance }}"
+          description: "Error rate is {{ $value | humanizePercentage }} for the last 5 minutes"
+
+      - name: "api_high_latency"
+        description: "API response time is too high"
+        expression: "histogram_quantile(0.99, rate(http_request_duration_seconds_bucket[5m])) > 1.0"
+        duration: "5m"
+        severity: "warning"
+        labels:
+          service: "model-api"
+          team: "ml-platform"
+        annotations:
+          summary: "High latency on {{ $labels.instance }}"
+          description: "99th percentile latency is {{ $value }}s for the last 5 minutes"
+
+      - name: "api_low_availability"
+        description: "API availability is below threshold"
+        expression: "up{job='model-api'} == 0"
+        duration: "1m"
+        severity: "critical"
+        labels:
+          service: "model-api"
+          team: "ml-platform"
+        annotations:
+          summary: "API instance down: {{ $labels.instance }}"
+          description: "API instance {{ $labels.instance }} has been down for more than 1 minute"
+
+    # Model performance alerts
+    model_performance:
+      - name: "model_low_accuracy"
+        description: "Model prediction accuracy dropped below threshold"
+        expression: "model_accuracy < 0.85"
+        duration: "10m"
+        severity: "warning"
+        labels:
+          service: "model-serving"
+          team: "data-science"
+        annotations:
+          summary: "Model accuracy dropped to {{ $value }}"
+          description: "Model {{ $labels.model_name }} accuracy is below 85%"
+
+      - name: "model_prediction_drift"
+        description: "Model prediction distribution has drifted"
+        expression: "prediction_drift_score > 0.1"
+        duration: "15m"
+        severity: "warning"
+        labels:
+          service: "model-serving"
+          team: "data-science"
+        annotations:
+          summary: "Prediction drift detected for {{ $labels.model_name }}"
+          description: "Drift score: {{ $value }}"
+
+      - name: "model_high_prediction_latency"
+        description: "Model prediction latency is too high"
+        expression: "histogram_quantile(0.95, rate(model_prediction_duration_seconds_bucket[5m])) > 0.5"
+        duration: "5m"
+        severity: "warning"
+        labels:
+          service: "model-serving"
+          team: "ml-platform"
+        annotations:
+          summary: "High prediction latency: {{ $value }}s"
+          description: "95th percentile prediction latency exceeded 500ms"
+
+  # Infrastructure alerts
+  infrastructure:
+    # Resource utilization
+    resources:
+      - name: "high_cpu_usage"
+        description: "CPU usage is above threshold"
+        expression: "100 - (avg by(instance) (irate(node_cpu_seconds_total{mode='idle'}[5m])) * 100) > 80"
+        duration: "5m"
+        severity: "warning"
+        labels:
+          service: "infrastructure"
+          team: "platform"
+        annotations:
+          summary: "High CPU usage on {{ $labels.instance }}"
+          description: "CPU usage is {{ $value }}% for the last 5 minutes"
+
+      - name: "high_memory_usage"
+        description: "Memory usage is above threshold"
+        expression: "(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85"
+        duration: "5m"
+        severity: "warning"
+        labels:
+          service: "infrastructure"
+          team: "platform"
+        annotations:
+          summary: "High memory usage on {{ $labels.instance }}"
+          description: "Memory usage is {{ $value }}% for the last 5 minutes"
+
+      - name: "low_disk_space"
+        description: "Disk space is running low"
+        expression: "(1 - (node_filesystem_avail_bytes / node_filesystem_size_bytes)) * 100 > 85"
+        duration: "5m"
+        severity: "warning"
+        labels:
+          service: "infrastructure"
+          team: "platform"
+        annotations:
+          summary: "Low disk space on {{ $labels.instance }}"
+          description: "Disk usage is {{ $value }}% on {{ $labels.mountpoint }}"
+
+    # Service health
+    services:
+      - name: "redis_down"
+        description: "Redis service is unavailable"
+        expression: "up{job='redis'} == 0"
+        duration: "1m"
+        severity: "critical"
+        labels:
+          service: "redis"
+          team: "platform"
+        annotations:
+          summary: "Redis instance down: {{ $labels.instance }}"
+          description: "Redis has been down for more than 1 minute"
+
+      - name: "database_down"
+        description: "Database service is unavailable"
+        expression: "up{job='postgresql'} == 0"
+        duration: "1m"
+        severity: "critical"
+        labels:
+          service: "postgresql"
+          team: "platform"
+        annotations:
+          summary: "Database down: {{ $labels.instance }}"
+          description: "PostgreSQL has been down for more than 1 minute"
+
+      - name: "mlflow_down"
+        description: "MLflow service is unavailable"
+        expression: "up{job='mlflow'} == 0"
+        duration: "2m"
+        severity: "warning"
+        labels:
+          service: "mlflow"
+          team: "ml-platform"
+        annotations:
+          summary: "MLflow down: {{ $labels.instance }}"
+          description: "MLflow has been down for more than 2 minutes"
+
+  # Data pipeline alerts
+  data_pipeline:
+    # Stream processing
+    streaming:
+      - name: "kafka_consumer_lag"
+        description: "Kafka consumer lag is too high"
+        expression: "kafka_consumer_lag_sum > 10000"
+        duration: "5m"
+        severity: "warning"
+        labels:
+          service: "stream-processing"
+          team: "data-engineering"
+        annotations:
+          summary: "High Kafka consumer lag: {{ $value }}"
+          description: "Consumer group {{ $labels.consumergroup }} lag is high"
+
+      - name: "stream_processing_errors"
+        description: "High error rate in stream processing"
+        expression: "rate(stream_processing_errors_total[5m]) > 0.01"
+        duration: "3m"
+        severity: "warning"
+        labels:
+          service: "stream-processing"
+          team: "data-engineering"
+        annotations:
+          summary: "Stream processing errors: {{ $value }}/sec"
+          description: "High error rate in stream processing pipeline"
+
+    # Feature store
+    feature_store:
+      - name: "feature_store_cache_miss_rate"
+        description: "Feature store cache miss rate is high"
+        expression: "rate(feature_store_cache_misses_total[5m]) / rate(feature_store_requests_total[5m]) > 0.3"
+        duration: "10m"
+        severity: "warning"
+        labels:
+          service: "feature-store"
+          team: "ml-platform"
+        annotations:
+          summary: "High cache miss rate: {{ $value | humanizePercentage }}"
+          description: "Feature store cache efficiency is degraded"
+
+# Notification Channels
+notification_channels:
+  # Slack integration
+  slack:
+    # Critical alerts channel
+    critical:
+      webhook_url: "${SLACK_CRITICAL_WEBHOOK_URL}"
+      channel: "#alerts-critical"
+      username: "AlertManager"
+      icon_emoji: ":rotating_light:"
+      title: "🚨 Critical Alert"
+      text: |
+        *Alert:* {{ .GroupLabels.alertname }}
+        *Severity:* {{ .CommonLabels.severity }}
+        *Summary:* {{ range .Alerts }}{{ .Annotations.summary }}{{ end }}
+        *Details:* {{ range .Alerts }}{{ .Annotations.description }}{{ end }}
+
+    # Warning alerts channel
+    warning:
+      webhook_url: "${SLACK_WARNING_WEBHOOK_URL}"
+      channel: "#alerts-warning"
+      username: "AlertManager"
+      icon_emoji: ":warning:"
+      title: "⚠️ Warning Alert"
+      text: |
+        *Alert:* {{ .GroupLabels.alertname }}
+        *Severity:* {{ .CommonLabels.severity }}
+        *Summary:* {{ range .Alerts }}{{ .Annotations.summary }}{{ end }}
+
+  # Email notifications
+  email:
+    # On-call team
+    oncall:
+      to: ["oncall@company.com"]
+      from: "alerts@company.com"
+      smtp_smarthost: "smtp.company.com:587"
+      smtp_auth_username: "${SMTP_USERNAME}"
+      smtp_auth_password: "${SMTP_PASSWORD}"
+      subject: "[{{ .Status | toUpper }}] {{ .GroupLabels.alertname }}"
+      body: |
+        Alert: {{ .GroupLabels.alertname }}
+        Severity: {{ .CommonLabels.severity }}
+
+        {{ range .Alerts }}
+        Summary: {{ .Annotations.summary }}
+        Description: {{ .Annotations.description }}
+        {{ end }}
+
+    # ML team
+    ml_team:
+      to: ["ml-team@company.com"]
+      from: "alerts@company.com"
+      smtp_smarthost: "smtp.company.com:587"
+      smtp_auth_username: "${SMTP_USERNAME}"
+      smtp_auth_password: "${SMTP_PASSWORD}"
+      subject: "[ML Platform] {{ .GroupLabels.alertname }}"
+
+  # PagerDuty integration
+  pagerduty:
+    production:
+      routing_key: "${PAGERDUTY_ROUTING_KEY}"
+      description: "{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}"
+      severity: "{{ .CommonLabels.severity }}"
+
+# Routing Rules
+routing:
+  # Default route
+  default:
+    group_by: ["alertname", "cluster", "service"]
+    group_wait: "30s"
+    group_interval: "5m"
+    repeat_interval: "1h"
+    receiver: "default"
+
+  # Route tree
+  routes:
+    # Critical alerts
+    - match:
+        severity: "critical"
+      group_wait: "10s"
+      group_interval: "2m"
+      repeat_interval: "30m"
+      receiver: "critical-alerts"
+
+    # Application alerts
+    - match:
+        team: "ml-platform"
+      group_wait: "30s"
+      group_interval: "5m"
+      repeat_interval: "2h"
+      receiver: "ml-team"
+
+    # Infrastructure alerts
+    - match:
+        team: "platform"
+      group_wait: "1m"
+      group_interval: "10m"
+      repeat_interval: "4h"
+      receiver: "platform-team"
+
+    # Data engineering alerts
+    - match:
+        team: "data-engineering"
+      group_wait: "1m"
+      group_interval: "10m"
+      repeat_interval: "4h"
+      receiver: "data-team"
+
+# Receivers Configuration
+receivers:
+  - name: "default"
+    slack_configs:
+      - api_url: "${SLACK_WARNING_WEBHOOK_URL}"
+        channel: "#alerts"
+        title: "Default Alert"
+
+  - name: "critical-alerts"
+    slack_configs:
+      - api_url: "${SLACK_CRITICAL_WEBHOOK_URL}"
+        channel: "#alerts-critical"
+        title: "🚨 Critical Alert"
+    email_configs:
+      - to: ["oncall@company.com"]
+        subject: "[CRITICAL] {{ .GroupLabels.alertname }}"
+    pagerduty_configs:
+      - routing_key: "${PAGERDUTY_ROUTING_KEY}"
+
+  - name: "ml-team"
+    slack_configs:
+      - api_url: "${SLACK_ML_WEBHOOK_URL}"
+        channel: "#ml-alerts"
+        title: "ML Platform Alert"
+    email_configs:
+      - to: ["ml-team@company.com"]
+
+  - name: "platform-team"
+    slack_configs:
+      - api_url: "${SLACK_PLATFORM_WEBHOOK_URL}"
+        channel: "#platform-alerts"
+        title: "Platform Alert"
+    email_configs:
+      - to: ["platform-team@company.com"]
+
+  - name: "data-team"
+    slack_configs:
+      - api_url: "${SLACK_DATA_WEBHOOK_URL}"
+        channel: "#data-alerts"
+        title: "Data Pipeline Alert"
+    email_configs:
+      - to: ["data-team@company.com"]
+
+# Inhibition Rules
+inhibition_rules:
+  # Don't alert on instance down if entire job is down
+  - source_match:
+      severity: "critical"
+      alertname: "JobDown"
+    target_match:
+      severity: "warning"
+    equal: ["job"]
+
+  # Don't alert on individual service issues if node is down
+  - source_match:
+      alertname: "NodeDown"
+    target_match_re:
+      alertname: ".*Down"
+    equal: ["instance"]
+
+# Environment-specific configurations
+environments:
+  development:
+    alert_rules:
+      application:
+        api_health:
+          - name: "api_high_error_rate"
+            expression: "rate(http_requests_total{status=~'5..'}[5m]) > 0.1"  # More lenient
+
+    notification_channels:
+      slack:
+        critical:
+          channel: "#dev-alerts"
+
+    routing:
+      default:
+        repeat_interval: "4h"  # Less frequent in dev
+
+  production:
+    alert_rules:
+      application:
+        api_health:
+          - name: "api_high_error_rate"
+            expression: "rate(http_requests_total{status=~'5..'}[5m]) > 0.01"  # Stricter
+
+    routing:
+      default:
+        repeat_interval: "30m"  # More frequent in production

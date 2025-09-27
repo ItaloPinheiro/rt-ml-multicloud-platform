@@ -1,0 +1,84 @@
+# Base API Configuration
+# Environment-agnostic defaults for the FastAPI application
+
+# Server Configuration
+server:
+  host: "0.0.0.0"
+  port: 8000
+  workers: 4
+  timeout: 30
+  reload: false
+  debug: false
+  access_log: true
+
+# CORS Configuration
+cors:
+  allow_credentials: true
+  allow_methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+  allow_headers:
+    - "Accept"
+    - "Content-Type"
+    - "Authorization"
+    - "X-Request-ID"
+  expose_headers: ["X-Request-ID", "X-Process-Time"]
+  max_age: 600
+
+# Request Configuration
+requests:
+  max_request_size: 16777216  # 16MB
+  max_field_size: 1048576     # 1MB per field
+  max_fields: 1000            # Maximum form fields
+  timeout: 30                 # Request timeout in seconds
+
+# Security Headers
+security:
+  x_frame_options: "DENY"
+  x_content_type_options: "nosniff"
+  x_xss_protection: "1; mode=block"
+
+# Middleware Configuration
+middleware:
+  gzip:
+    enabled: true
+    minimum_size: 1000
+    compression_level: 6
+
+  request_id:
+    enabled: true
+    header_name: "X-Request-ID"
+
+  timing:
+    enabled: true
+    header_name: "X-Process-Time"
+
+  health_check:
+    enabled: true
+    endpoints: ["/health", "/ping", "/ready"]
+
+# Model Serving Defaults
+model_serving:
+  cache:
+    max_size: 10
+    ttl: 3600
+    preload_models: true
+
+  prediction:
+    timeout: 5
+    batch_max_size: 1000
+    include_model_info: true
+    include_timing: true
+    confidence_threshold: 0.5
+
+  monitoring:
+    track_latency: true
+    track_throughput: true
+    track_errors: true
+    prediction_logging: true
+
+# Health Check Configuration
+health_checks:
+  enabled: true
+  endpoints:
+    liveness: "/health"
+    readiness: "/ready"
+    startup: "/startup"

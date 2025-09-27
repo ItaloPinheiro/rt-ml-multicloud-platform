@@ -1,0 +1,140 @@
+# Model Serving Configuration
+# Configuration for ML model loading, caching, and serving
+
+# Model Management
+models:
+  # Default model settings
+  default:
+    name: "fraud_detection"
+    version: "latest"
+    stage: "production"  # production, staging, archived
+
+  # Model cache configuration
+  cache:
+    max_size: 10              # Maximum number of models in memory
+    ttl: 3600                 # Time to live in seconds (1 hour)
+    preload_models: true      # Preload models on startup
+    lazy_loading: false       # Load models on first request
+
+  # Model loading timeouts
+  loading:
+    timeout: 300              # Model loading timeout (5 minutes)
+    retry_attempts: 3         # Number of retry attempts
+    retry_delay: 10           # Delay between retries (seconds)
+
+# Feature Store Integration
+feature_store:
+  # Feature caching
+  cache:
+    enabled: true
+    ttl: 300                  # 5 minutes for development
+    max_keys: 10000           # Maximum feature keys in cache
+
+  # Feature retrieval
+  retrieval:
+    timeout: 5                # Feature retrieval timeout (seconds)
+    batch_size: 100           # Batch size for feature requests
+    parallel_requests: 10     # Maximum parallel feature requests
+
+  # Feature validation
+  validation:
+    enabled: true
+    schema_validation: true   # Validate feature schema
+    type_checking: true       # Check feature data types
+    range_checking: false     # Check feature value ranges
+
+# Prediction Configuration
+prediction:
+  # Batch prediction settings
+  batch:
+    max_size: 1000            # Maximum batch size
+    timeout: 30               # Batch prediction timeout (seconds)
+
+  # Real-time prediction settings
+  realtime:
+    timeout: 5                # Single prediction timeout (seconds)
+
+  # Prediction output
+  output:
+    include_features: false   # Include input features in response
+    include_model_info: true  # Include model metadata
+    include_timing: true      # Include prediction timing
+    confidence_threshold: 0.5 # Minimum confidence for positive predictions
+
+# Model Monitoring
+monitoring:
+  # Prediction logging
+  logging:
+    enabled: true
+    sample_rate: 1.0          # Log 100% of predictions (reduce in production)
+    include_inputs: false     # Log input features (privacy concern)
+    include_outputs: true     # Log prediction outputs
+
+  # Performance monitoring
+  performance:
+    track_latency: true       # Track prediction latency
+    track_throughput: true    # Track prediction throughput
+    track_errors: true        # Track prediction errors
+
+  # Model drift detection
+  drift_detection:
+    enabled: false            # Enable drift detection
+    window_size: 1000         # Sample window for drift detection
+    threshold: 0.1            # Drift detection threshold
+
+# Health Checks
+health_checks:
+  model_loading:
+    enabled: true
+    interval: 60              # Check every minute
+
+  feature_store:
+    enabled: true
+    interval: 30              # Check every 30 seconds
+
+  mlflow_connection:
+    enabled: true
+    interval: 300             # Check every 5 minutes
+
+# Environment-specific overrides
+environments:
+  development:
+    models:
+      cache:
+        max_size: 3           # Smaller cache for dev
+        ttl: 300              # 5 minutes
+    feature_store:
+      cache:
+        ttl: 60               # 1 minute for quick testing
+    monitoring:
+      logging:
+        sample_rate: 1.0      # Log everything in dev
+        include_inputs: true  # Include inputs for debugging
+
+  staging:
+    models:
+      cache:
+        max_size: 5
+        ttl: 1800             # 30 minutes
+    feature_store:
+      cache:
+        ttl: 300              # 5 minutes
+    monitoring:
+      logging:
+        sample_rate: 0.1      # Log 10% of predictions
+        include_inputs: false
+
+  production:
+    models:
+      cache:
+        max_size: 10
+        ttl: 3600             # 1 hour
+    feature_store:
+      cache:
+        ttl: 600              # 10 minutes
+    monitoring:
+      logging:
+        sample_rate: 0.01     # Log 1% of predictions
+        include_inputs: false # Never log inputs in production
+      drift_detection:
+        enabled: true         # Enable drift detection in production
