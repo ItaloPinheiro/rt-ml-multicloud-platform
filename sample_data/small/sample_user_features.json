@@ -1,0 +1,77 @@
+[
+  {
+    "entity_id": "user_123",
+    "feature_group": "demographics",
+    "features": {
+      "age": 28,
+      "income_bracket": "middle",
+      "credit_score": 720,
+      "account_age_days": 1250,
+      "state": "NY",
+      "city": "New York"
+    },
+    "timestamp": "2024-01-15T14:30:00Z"
+  },
+  {
+    "entity_id": "user_123",
+    "feature_group": "behavior",
+    "features": {
+      "avg_transaction_amount": 180.50,
+      "transaction_frequency_weekly": 12,
+      "preferred_categories": ["electronics", "grocery", "restaurant"],
+      "payment_methods": ["credit", "mobile"],
+      "typical_hours": [9, 10, 11, 14, 15, 16, 18, 19]
+    },
+    "timestamp": "2024-01-15T14:30:00Z"
+  },
+  {
+    "entity_id": "user_456",
+    "feature_group": "demographics",
+    "features": {
+      "age": 35,
+      "income_bracket": "high",
+      "credit_score": 780,
+      "account_age_days": 890,
+      "state": "CA",
+      "city": "Los Angeles"
+    },
+    "timestamp": "2024-01-15T22:45:00Z"
+  },
+  {
+    "entity_id": "user_456",
+    "feature_group": "behavior",
+    "features": {
+      "avg_transaction_amount": 85.20,
+      "transaction_frequency_weekly": 8,
+      "preferred_categories": ["grocery", "gas", "restaurant"],
+      "payment_methods": ["debit", "cash"],
+      "typical_hours": [7, 8, 12, 13, 17, 18]
+    },
+    "timestamp": "2024-01-15T22:45:00Z"
+  },
+  {
+    "entity_id": "user_789",
+    "feature_group": "demographics",
+    "features": {
+      "age": 42,
+      "income_bracket": "middle",
+      "credit_score": 650,
+      "account_age_days": 2100,
+      "state": "IL",
+      "city": "Chicago"
+    },
+    "timestamp": "2024-01-16T09:15:00Z"
+  },
+  {
+    "entity_id": "user_789",
+    "feature_group": "behavior",
+    "features": {
+      "avg_transaction_amount": 52.30,
+      "transaction_frequency_weekly": 15,
+      "preferred_categories": ["grocery", "pharmacy", "gas"],
+      "payment_methods": ["mobile", "debit"],
+      "typical_hours": [6, 7, 8, 9, 17, 18, 19]
+    },
+    "timestamp": "2024-01-16T09:15:00Z"
+  }
+]

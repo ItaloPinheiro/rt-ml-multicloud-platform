@@ -1,0 +1,81 @@
+environment: staging
+debug: false
+
+database:
+  host: ${DATABASE_HOST:-staging-db.company.com}
+  port: ${DATABASE_PORT:-5432}
+  database: ${DATABASE_NAME:-ml_pipeline_staging}
+  username: ${DATABASE_USER:-ml_user}
+  password: ${DATABASE_PASSWORD}
+  ssl_mode: require
+  connection_timeout: 30
+  max_connections: 20
+
+redis:
+  host: ${REDIS_HOST:-staging-redis.company.com}
+  port: ${REDIS_PORT:-6379}
+  password: ${REDIS_PASSWORD}
+  db: 0
+  socket_timeout: 5
+  socket_connect_timeout: 5
+  max_connections: 50
+  retry_on_timeout: true
+
+mlflow:
+  tracking_uri: ${MLFLOW_TRACKING_URI:-http://staging-mlflow.company.com:5000}
+  registry_uri: ${MLFLOW_REGISTRY_URI}
+  experiment_name: fraud_detection_staging
+  artifact_location: ${MLFLOW_ARTIFACT_ROOT:-s3://staging-mlflow-artifacts}
+  default_tags:
+    environment: staging
+    team: data-science
+
+pubsub:
+  project_id: ${GCP_PROJECT:-ml-platform-staging}
+  credentials_path: ${GOOGLE_APPLICATION_CREDENTIALS}
+  emulator_host: null
+
+kinesis:
+  region: ${AWS_REGION:-us-east-1}
+  access_key_id: ${AWS_ACCESS_KEY_ID}
+  secret_access_key: ${AWS_SECRET_ACCESS_KEY}
+  session_token: ${AWS_SESSION_TOKEN}
+  endpoint_url: null
+
+kafka:
+  bootstrap_servers: ${KAFKA_BOOTSTRAP_SERVERS:-staging-kafka.company.com:9092}
+  security_protocol: SASL_SSL
+  sasl_mechanism: PLAIN
+  sasl_username: ${KAFKA_SASL_USERNAME}
+  sasl_password: ${KAFKA_SASL_PASSWORD}
+
+api:
+  host: 0.0.0.0
+  port: 8000
+  workers: 2
+  reload: false
+  debug: false
+  cors_origins: ["https://staging-app.company.com"]
+  max_request_size: 16777216
+  timeout: 45
+
+monitoring:
+  prometheus_enabled: true
+  prometheus_port: 9090
+  grafana_enabled: true
+  grafana_port: 3001
+  log_level: INFO
+  structured_logging: true
+
+# Staging-specific settings (production-like but smaller scale)
+feature_store_ttl: 1800  # 30 minutes
+model_cache_size: 5
+batch_size: 500
+max_retries: 3
+
+custom:
+  enable_debug_endpoints: true  # Allow debugging in staging
+  mock_external_services: false
+  log_sql_queries: false
+  enable_profiling: true
+  load_test_data: true
