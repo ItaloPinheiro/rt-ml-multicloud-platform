@@ -1,0 +1,259 @@
+version: '3.8'
+
+services:
+  # =================================================================
+  # Message Broker - Redpanda (Kafka-compatible)
+  # =================================================================
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:v23.3.3
+    container_name: ml-redpanda
+    ports:
+      - "9092:9092"   # Kafka API
+      - "9644:9644"   # Admin API
+      - "8081:8081"   # Schema Registry
+      - "8082:8082"   # REST Proxy
+    command:
+      - redpanda
+      - start
+      - --kafka-addr internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr internal://redpanda:9092,external://localhost:19092
+      - --pandaproxy-addr internal://0.0.0.0:8082,external://0.0.0.0:18082
+      - --advertise-pandaproxy-addr internal://redpanda:8082,external://localhost:18082
+      - --schema-registry-addr internal://0.0.0.0:8081,external://0.0.0.0:18081
+      - --rpc-addr redpanda:33145
+      - --advertise-rpc-addr redpanda:33145
+      - --smp 1
+      - --memory 1G
+      - --mode dev-container
+      - --default-log-level=info
+    volumes:
+      - redpanda_data:/var/lib/redpanda/data
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # =================================================================
+  # MLflow Database - PostgreSQL
+  # =================================================================
+  mlflow-db:
+    image: postgres:16-alpine
+    container_name: ml-mlflow-db
+    environment:
+      POSTGRES_USER: mlflow
+      POSTGRES_PASSWORD: mlflow123
+      POSTGRES_DB: mlflow
+    ports:
+      - "5433:5432"
+    volumes:
+      - mlflow_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mlflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # =================================================================
+  # MLflow Artifact Store - MinIO (S3-compatible)
+  # =================================================================
+  mlflow-minio:
+    image: minio/minio:latest
+    container_name: ml-mlflow-minio
+    ports:
+      - "9000:9000"   # API
+      - "9001:9001"   # Console
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
+    command: server /data --console-address ":9001"
+    volumes:
+      - mlflow_minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  # =================================================================
+  # MLflow Tracking Server
+  # =================================================================
+  mlflow-server:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/mlflow.Dockerfile
+    container_name: ml-mlflow-server
+    ports:
+      - "5000:5000"
+    environment:
+      MLFLOW_BACKEND_STORE_URI: postgresql://mlflow:mlflow123@mlflow-db:5432/mlflow
+      MLFLOW_ARTIFACT_ROOT: s3://mlflow
+      AWS_ACCESS_KEY_ID: minioadmin
+      AWS_SECRET_ACCESS_KEY: minioadmin123
+      MLFLOW_S3_ENDPOINT_URL: http://mlflow-minio:9000
+    depends_on:
+      mlflow-db:
+        condition: service_healthy
+      mlflow-minio:
+        condition: service_healthy
+    command: >
+      sh -c "
+        mlflow server
+        --host 0.0.0.0
+        --port 5000
+        --backend-store-uri postgresql://mlflow:mlflow123@mlflow-db:5432/mlflow
+        --default-artifact-root s3://mlflow
+        --serve-artifacts
+      "
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # =================================================================
+  # Feature Store - Redis
+  # =================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: ml-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # =================================================================
+  # Model API - FastAPI Application
+  # =================================================================
+  model-api:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/api.Dockerfile
+    container_name: ml-model-api
+    ports:
+      - "8000:8000"
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow-server:5000
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+      LOG_LEVEL: INFO
+      API_RELOAD: "false"
+    depends_on:
+      mlflow-server:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+    volumes:
+      - ./src:/app/src
+      - ./configs:/app/configs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # =================================================================
+  # Monitoring - Prometheus
+  # =================================================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: ml-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.enable-lifecycle'
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # =================================================================
+  # Monitoring - Grafana
+  # =================================================================
+  grafana:
+    image: grafana/grafana:latest
+    container_name: ml-grafana
+    ports:
+      - "3001:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin123
+      GF_INSTALL_PLUGINS: grafana-piechart-panel,grafana-worldmap-panel
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # =================================================================
+  # Apache Beam Runner (for local development)
+  # =================================================================
+  beam-runner:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/beam.Dockerfile
+    container_name: ml-beam-runner
+    environment:
+      BEAM_RUNNER: DirectRunner
+      GCP_PROJECT: ${GCP_PROJECT:-local-project}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      PYTHONPATH: /app
+    volumes:
+      - ./src:/app/src:ro
+      - ./data:/app/data
+      - ./configs:/app/configs:ro
+    depends_on:
+      redpanda:
+        condition: service_healthy
+    profiles:
+      - beam  # Only start with --profile beam
+
+# =================================================================
+# Persistent Volumes
+# =================================================================
+volumes:
+  redpanda_data:
+    driver: local
+  mlflow_db_data:
+    driver: local
+  mlflow_minio_data:
+    driver: local
+  redis_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+# =================================================================
+# Networks
+# =================================================================
+networks:
+  default:
+    name: ml-pipeline-network
+    driver: bridge
