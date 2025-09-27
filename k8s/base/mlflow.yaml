@@ -1,0 +1,104 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mlflow
+  namespace: ml-pipeline
+  labels:
+    app: mlflow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mlflow
+  template:
+    metadata:
+      labels:
+        app: mlflow
+    spec:
+      containers:
+      - name: mlflow
+        image: mlflow/mlflow:2.8.1
+        ports:
+        - containerPort: 5000
+        command: ["mlflow", "server"]
+        args:
+        - "--backend-store-uri"
+        - "postgresql://$(DATABASE_USER):$(DATABASE_PASSWORD)@$(DATABASE_HOST):5432/$(DATABASE_NAME)"
+        - "--default-artifact-root"
+        - "/mlflow/artifacts"
+        - "--host"
+        - "0.0.0.0"
+        - "--port"
+        - "5000"
+        env:
+        - name: DATABASE_USER
+          valueFrom:
+            secretKeyRef:
+              name: ml-pipeline-secrets
+              key: DATABASE_USER
+        - name: DATABASE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: ml-pipeline-secrets
+              key: DATABASE_PASSWORD
+        - name: DATABASE_HOST
+          valueFrom:
+            secretKeyRef:
+              name: ml-pipeline-secrets
+              key: DATABASE_HOST
+        - name: DATABASE_NAME
+          valueFrom:
+            secretKeyRef:
+              name: ml-pipeline-secrets
+              key: DATABASE_NAME
+        volumeMounts:
+        - name: mlflow-artifacts
+          mountPath: /mlflow/artifacts
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 15
+          periodSeconds: 5
+      volumes:
+      - name: mlflow-artifacts
+        persistentVolumeClaim:
+          claimName: mlflow-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mlflow-service
+  namespace: ml-pipeline
+spec:
+  selector:
+    app: mlflow
+  ports:
+  - port: 5000
+    targetPort: 5000
+  type: ClusterIP
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mlflow-pvc
+  namespace: ml-pipeline
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
