@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from typing import Dict, Any, List, Optional, Union
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, validator, field_serializer
 import json
 
 
@@ -83,6 +83,10 @@ class PredictionResponse(BaseModel):
         None,
         description="Features actually used for prediction (after preprocessing)"
     )
+
+    @field_serializer('timestamp')
+    def serialize_timestamp(self, timestamp: datetime, _info):
+        return timestamp.isoformat()
 
 
 class BatchPredictionRequest(BaseModel):
@@ -165,6 +169,10 @@ class BatchPredictionResponse(BaseModel):
         description="Average latency per instance in milliseconds"
     )
 
+    @field_serializer('timestamp')
+    def serialize_timestamp(self, timestamp: datetime, _info):
+        return timestamp.isoformat()
+
 
 class ModelInfo(BaseModel):
     """Schema for model information."""
@@ -202,6 +210,10 @@ class HealthCheck(BaseModel):
         description="API uptime in seconds"
     )
 
+    @field_serializer('timestamp')
+    def serialize_timestamp(self, timestamp: datetime, _info):
+        return timestamp.isoformat()
+
 
 class ErrorResponse(BaseModel):
     """Schema for error responses."""
@@ -211,6 +223,10 @@ class ErrorResponse(BaseModel):
     detail: Optional[str] = Field(None, description="Detailed error information")
     timestamp: datetime = Field(..., description="Error timestamp")
     request_id: Optional[str] = Field(None, description="Request ID for tracking")
+
+    @field_serializer('timestamp')
+    def serialize_timestamp(self, timestamp: datetime, _info):
+        return timestamp.isoformat()
 
 
 class MetricsResponse(BaseModel):
@@ -228,6 +244,10 @@ class MetricsResponse(BaseModel):
     )
 
     timestamp: datetime = Field(..., description="Metrics timestamp")
+
+    @field_serializer('timestamp')
+    def serialize_timestamp(self, timestamp: datetime, _info):
+        return timestamp.isoformat()
 
 
 class FeatureImportance(BaseModel):
@@ -249,6 +269,10 @@ class FeatureImportance(BaseModel):
 
     timestamp: datetime = Field(..., description="Calculation timestamp")
 
+    @field_serializer('timestamp')
+    def serialize_timestamp(self, timestamp: datetime, _info):
+        return timestamp.isoformat()
+
 
 class ModelUpdateRequest(BaseModel):
     """Schema for model update requests."""
@@ -268,6 +292,10 @@ class ModelUpdateResponse(BaseModel):
     status: str = Field(..., description="Update status")
     timestamp: datetime = Field(..., description="Update timestamp")
     message: Optional[str] = Field(None, description="Update message")
+
+    @field_serializer('timestamp')
+    def serialize_timestamp(self, timestamp: datetime, _info):
+        return timestamp.isoformat()
 
 
 # Configuration schemas
