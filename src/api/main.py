@@ -48,6 +48,13 @@ from src.api.schemas import (
     ModelInfo, HealthCheck, ErrorResponse, MetricsResponse, FeatureImportance,
     ModelUpdateRequest, ModelUpdateResponse
 )
+from src.api.model_updater import ModelUpdateManager, handle_model_webhook
+
+# Import simple predict router
+try:
+    from src.api.simple_predict import router as simple_predict_router
+except ImportError:
+    simple_predict_router = None
 
 # Configure structured logging
 structlog.configure(
@@ -175,6 +182,7 @@ class ModelManager:
             HTTPException: If model loading fails
         """
         cache_key = f"model:{model_name}:{version}"
+        logger.info(f"load_model called for {model_name}:{version}")
 
         # Check if model is already loaded
         if cache_key in self.models:
@@ -182,22 +190,69 @@ class ModelManager:
             return self.models[cache_key]
 
         if self.client is None:
+            logger.error("MLflow client not available")
             raise HTTPException(status_code=500, detail="MLflow client not available")
 
         try:
             start_time = time.time()
+            logger.info(f"Loading model from MLflow: {model_name}:{version}")
 
             # Load model from MLflow
             if version in ["latest", "production", "staging"]:
                 if version == "latest":
+                    logger.info("Getting latest version...")
                     # Get the latest version
-                    versions = self.client.get_latest_versions(model_name, stages=["Production"])
-                    if not versions:
-                        versions = self.client.get_latest_versions(model_name)
+                    versions = self.client.search_model_versions(f"name='{model_name}'")
                     if not versions:
                         raise HTTPException(status_code=404, detail=f"No versions found for model {model_name}")
+                    # Sort by version number and get the latest
+                    versions.sort(key=lambda x: int(x.version), reverse=True)
                     model_version = versions[0].version
                     model_uri = f"models:/{model_name}/{model_version}"
+                    logger.info(f"Using model version {model_version}")
+                elif version.lower() in ["production", "staging"]:
+                    # Handle production/staging requests with new MLflow approach
+                    logger.info(f"Getting {version} model...")
+
+                    # First try the new alias system (MLflow 2.9+)
+                    try:
+                        model_version_obj = self.client.get_model_version_by_alias(
+                            model_name,
+                            version.lower()
+                        )
+                        if model_version_obj:
+                            model_version = model_version_obj.version
+                            model_uri = f"models:/{model_name}/{model_version}"
+                            logger.info(f"Using {version} model version {model_version} (via alias)")
+                    except (AttributeError, Exception):
+                        # Alias API not available, fall back to tags or latest
+                        logger.debug(f"Alias API not available for {version}")
+
+                        # Search for models with the deployment_status tag
+                        versions = self.client.search_model_versions(f"name='{model_name}'")
+                        production_model = None
+
+                        # Look for model tagged as production
+                        for v in versions:
+                            if v.tags.get("deployment_status") == version.lower():
+                                production_model = v
+                                break
+
+                        if production_model:
+                            model_version = production_model.version
+                            model_uri = f"models:/{model_name}/{model_version}"
+                            logger.info(f"Using {version} model version {model_version} (via tag)")
+                        else:
+                            # No tagged model found, use latest as production
+                            if versions and version.lower() == "production":
+                                model_version = versions[0].version
+                                model_uri = f"models:/{model_name}/{model_version}"
+                                logger.info(f"Using latest version {model_version} as {version}")
+                            else:
+                                raise HTTPException(
+                                    status_code=404,
+                                    detail=f"No {version} model found for {model_name}"
+                                )
                 else:
                     model_uri = f"models:/{model_name}/{version}"
                     model_version = version
@@ -205,8 +260,11 @@ class ModelManager:
                 model_uri = f"models:/{model_name}/{version}"
                 model_version = version
 
-            # Load the model
-            model = mlflow.pyfunc.load_model(model_uri)
+            logger.info(f"Loading model from URI: {model_uri}")
+            # Load the model - run synchronously in executor to avoid blocking
+            loop = asyncio.get_event_loop()
+            model = await loop.run_in_executor(None, mlflow.pyfunc.load_model, model_uri)
+            logger.info(f"Model loaded successfully")
 
             # Cache the model
             self.models[cache_key] = model
@@ -337,7 +395,7 @@ class ModelManager:
                 "model_name": model_name,
                 "model_version": actual_version,
                 "latency_ms": latency_ms,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.utcnow(),
                 "features_used": features
             }
 
@@ -447,7 +505,7 @@ class ModelManager:
                 "batch_size": len(instances),
                 "total_latency_ms": total_latency_ms,
                 "avg_latency_ms": avg_latency_ms,
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.utcnow()
             }
 
             # Update metrics
@@ -480,11 +538,30 @@ class ModelManager:
     def get_model_info(self) -> List[Dict[str, Any]]:
         """Get information about loaded models."""
         models_info = []
+        seen_models = {}  # Track unique models by name
+
         for cache_key, metadata in self.model_metadata.items():
-            models_info.append({
-                "cache_key": cache_key,
-                **metadata
-            })
+            model_name = metadata.get("name")
+
+            # Only add if we haven't seen this model, or if this version is newer
+            if model_name not in seen_models:
+                seen_models[model_name] = metadata
+                models_info.append({
+                    "cache_key": cache_key,
+                    **metadata
+                })
+            else:
+                # Keep the most recent load (higher loaded_at timestamp)
+                existing = seen_models[model_name]
+                if metadata.get("loaded_at", "") > existing.get("loaded_at", ""):
+                    # Remove the old entry and add the new one
+                    models_info = [m for m in models_info if m.get("name") != model_name]
+                    seen_models[model_name] = metadata
+                    models_info.append({
+                        "cache_key": cache_key,
+                        **metadata
+                    })
+
         return models_info
 
     def clear_cache(self, model_name: Optional[str] = None) -> int:
@@ -513,14 +590,15 @@ class ModelManager:
         return len(keys_to_remove)
 
 
-# Global model manager
+# Global model manager and update manager
 model_manager = None
+update_manager = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager."""
-    global model_manager
+    global model_manager, update_manager
 
     # Startup
     logger.info("Starting ML Model API")
@@ -550,11 +628,35 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning("Failed to preload models", error=str(e))
 
+    # Initialize model update manager if auto-update is enabled
+    update_task = None
+    if os.getenv("MODEL_AUTO_UPDATE", "true").lower() == "true":
+        try:
+            check_interval = int(os.getenv("MODEL_UPDATE_INTERVAL", "60"))
+            update_manager = ModelUpdateManager(
+                model_manager=model_manager,
+                mlflow_uri=mlflow_uri,
+                check_interval=check_interval
+            )
+
+            # Start background update task
+            update_task = asyncio.create_task(update_manager.run_update_loop())
+            logger.info("Model auto-update enabled", check_interval=check_interval)
+        except Exception as e:
+            logger.warning("Failed to start model update manager", error=str(e))
+
     logger.info("ML Model API startup completed")
 
     yield
 
     # Shutdown
+    if update_task:
+        update_task.cancel()
+        try:
+            await update_task
+        except asyncio.CancelledError:
+            pass
+
     logger.info("Shutting down ML Model API")
 
 
@@ -579,6 +681,10 @@ app.add_middleware(
 )
 
 app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+# Include simple predict router if available
+if simple_predict_router:
+    app.include_router(simple_predict_router)
 
 # Mount Prometheus metrics if available
 if make_asgi_app is not None:
@@ -752,6 +858,96 @@ async def clear_model_cache(model_name: str):
 
     cleared_count = model_manager.clear_cache(model_name)
     return {"message": f"Cleared {cleared_count} cached versions for model {model_name}"}
+
+
+# Model update endpoints
+@app.get("/models/updates/status")
+async def get_update_status():
+    """Get status of the model update manager."""
+    if not update_manager:
+        return {
+            "enabled": False,
+            "message": "Model auto-update is disabled"
+        }
+
+    return {
+        "enabled": True,
+        **update_manager.get_status()
+    }
+
+
+@app.post("/models/updates/check")
+async def check_for_updates():
+    """Manually trigger a check for model updates."""
+    if not update_manager:
+        raise HTTPException(status_code=400, detail="Model auto-update is disabled")
+
+    updates = await update_manager.check_for_updates()
+
+    if updates:
+        # Load the updates
+        results = {}
+        for model_name, version in updates.items():
+            success = await update_manager.load_new_model(model_name, version)
+            results[model_name] = {
+                "version": version,
+                "status": "loaded" if success else "failed"
+            }
+
+        return {
+            "updates_found": len(updates),
+            "results": results
+        }
+
+    return {
+        "updates_found": 0,
+        "message": "All models are up to date"
+    }
+
+
+@app.post("/webhooks/mlflow/model-update")
+async def mlflow_model_webhook(request: Request, background_tasks: BackgroundTasks):
+    """Handle MLflow webhook for model updates.
+
+    This endpoint should be configured in MLflow or called by CI/CD pipeline
+    when a new model is registered or promoted to production.
+    """
+    if not update_manager:
+        return {
+            "status": "disabled",
+            "message": "Model auto-update is disabled"
+        }
+
+    try:
+        payload = await request.json()
+
+        # Extract model information from webhook
+        model_name = payload.get("model_name")
+        version = payload.get("version")
+        action = payload.get("action", "registered")
+
+        if not model_name or not version:
+            raise HTTPException(status_code=400, detail="Missing model_name or version")
+
+        # Handle the webhook in background
+        background_tasks.add_task(
+            handle_model_webhook,
+            model_name,
+            version,
+            action,
+            update_manager
+        )
+
+        return {
+            "status": "accepted",
+            "model": model_name,
+            "version": version,
+            "message": "Update will be processed in background"
+        }
+
+    except Exception as e:
+        logger.error("Failed to process webhook", error=str(e))
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 # Utility functions
