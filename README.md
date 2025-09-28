@@ -63,25 +63,40 @@ graph LR
 - Docker & Docker Compose
 - 8GB+ RAM recommended
 
-### Installation
+### Local Development
 
 ```bash
 # Clone the repository
 git clone https://github.com/your-org/rt-ml-multicloud-platform.git
 cd rt-ml-multicloud-platform
 
-# Setup environment
-./scripts/setup.sh
+# Quick start for local development
+./scripts/start-local.sh
 
-# Start all services
-docker-compose up -d
+# Run demo with sample model
+./scripts/demo/demo.sh
 
-# Wait for services to be ready (2-3 minutes)
-./scripts/health-check.sh
-
-# Run demo pipeline
-./scripts/demo.sh
+# Access services
+open http://localhost:8000/docs  # API Documentation
+open http://localhost:5000        # MLflow UI
+open http://localhost:3001        # Grafana Dashboard
 ```
+
+### Production Deployment
+
+```bash
+# Setup production environment
+cp envs/.env.production .env
+# Edit .env with production values
+
+# Start production services
+./scripts/start-prod.sh
+
+# Or manually with Docker Compose
+docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+```
+
+See [docs/deployment.md](docs/deployment.md) for detailed deployment instructions.
 
 ### Testing the API
 

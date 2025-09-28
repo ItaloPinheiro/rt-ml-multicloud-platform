@@ -269,6 +269,10 @@ def get_session() -> Generator[Session, None, None]:
         yield session
 
 
+# Compatibility alias for legacy code
+get_db_session = get_session
+
+
 def create_test_database() -> DatabaseManager:
     """Create in-memory database for testing.
 

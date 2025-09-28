@@ -13,7 +13,11 @@ import pandas as pd
 import numpy as np
 
 # Configuration
-SAMPLE_DATA_DIR = "sample_data/small"
+DATA_ROOT = os.getenv("DATA_ROOT", "sample_data")
+GENERATED_DIR = os.path.join(DATA_ROOT, "generated")
+DEMO_DIR = os.path.join(DATA_ROOT, "demo")
+DEMO_DATASETS_DIR = os.path.join(DEMO_DIR, "datasets")
+DEMO_REQUESTS_DIR = os.path.join(DEMO_DIR, "requests")
 NUM_TRANSACTIONS = 1000
 NUM_USERS = 100
 FRAUD_RATE = 0.05  # 5% of transactions are fraudulent
@@ -185,38 +189,41 @@ def create_sample_request_file(transactions: List[Dict[str, Any]]) -> None:
         "return_probabilities": True
     }
 
-    # Ensure sample_data/small directory exists
-    os.makedirs(SAMPLE_DATA_DIR, exist_ok=True)
+    # Ensure directories exist
+    os.makedirs(DEMO_REQUESTS_DIR, exist_ok=True)
 
-    with open(f"{SAMPLE_DATA_DIR}/sample_request.json", "w") as f:
+    # Save baseline request
+    with open(os.path.join(DEMO_REQUESTS_DIR, "baseline.json"), "w") as f:
         json.dump(sample_request, f, indent=2)
 
 def main():
     """Generate all sample data files."""
-    print("🔄 Generating sample data for ML pipeline demo...")
+    print("Generating sample data for ML pipeline demo...")
 
-    # Ensure directories exist
-    os.makedirs(SAMPLE_DATA_DIR, exist_ok=True)
+    # Ensure all directories exist
+    os.makedirs(GENERATED_DIR, exist_ok=True)
+    os.makedirs(DEMO_DATASETS_DIR, exist_ok=True)
+    os.makedirs(DEMO_REQUESTS_DIR, exist_ok=True)
 
     # Generate user features
-    print(f"📊 Generating {NUM_USERS} user profiles...")
+    print(f"Generating {NUM_USERS} user profiles...")
     users = generate_user_features()
 
-    with open(f"{SAMPLE_DATA_DIR}/sample_user_features.json", "w") as f:
+    with open(os.path.join(GENERATED_DIR, "user_features.json"), "w") as f:
         json.dump(users, f, indent=2)
 
     # Generate transactions
-    print(f"💳 Generating {NUM_TRANSACTIONS} transactions...")
+    print(f"Generating {NUM_TRANSACTIONS} transactions...")
     transactions = generate_transactions(users)
 
-    with open(f"{SAMPLE_DATA_DIR}/sample_transactions.json", "w") as f:
+    with open(os.path.join(GENERATED_DIR, "transactions.json"), "w") as f:
         json.dump(transactions, f, indent=2)
 
     # Create sample request file
     create_sample_request_file(transactions)
 
     # Generate training data CSV for model training
-    print("🎯 Creating training dataset...")
+    print("Creating training dataset...")
     df_transactions = pd.DataFrame(transactions)
 
     # Flatten features for training
@@ -230,16 +237,17 @@ def main():
         feature_columns.append(features)
 
     df_features = pd.DataFrame(feature_columns)
-    df_features.to_csv(f"{SAMPLE_DATA_DIR}/training_data.csv", index=False)
+    df_features.to_csv(os.path.join(DEMO_DATASETS_DIR, "fraud_detection.csv"), index=False)
 
     # Print statistics
     fraud_count = sum(1 for t in transactions if t['label'] == 1)
-    print(f"✅ Sample data generation complete!")
-    print(f"   📈 Total transactions: {len(transactions)}")
-    print(f"   👥 Total users: {len(users)}")
-    print(f"   🚨 Fraudulent transactions: {fraud_count} ({fraud_count/len(transactions)*100:.1f}%)")
-    print(f"   📁 Files saved to: {SAMPLE_DATA_DIR}/")
-    print(f"   🎯 Training data: {SAMPLE_DATA_DIR}/training_data.csv")
+    print(f"Sample data generation complete!")
+    print(f"   Total transactions: {len(transactions)}")
+    print(f"   Total users: {len(users)}")
+    print(f"   Fraudulent transactions: {fraud_count} ({fraud_count/len(transactions)*100:.1f}%)")
+    print(f"   Generated files saved to: {GENERATED_DIR}/")
+    print(f"   Training data: {DEMO_DATASETS_DIR}/fraud_detection.csv")
+    print(f"   API requests: {DEMO_REQUESTS_DIR}/")
 
 if __name__ == "__main__":
     main()

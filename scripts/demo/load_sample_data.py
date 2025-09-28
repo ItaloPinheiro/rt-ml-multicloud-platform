@@ -6,28 +6,29 @@ Load sample data into the feature store and database for demo purposes.
 import json
 import os
 import sys
-import asyncio
 import logging
 from datetime import datetime
 from typing import Dict, List, Any
 import pandas as pd
 
-# Add src to path for imports
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
+# Add project root to path for imports
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+sys.path.insert(0, project_root)
 
 try:
-    from feature_store.client import FeatureStoreClient
-    from database.session import get_db_session
-    from database.models import Transaction, User
+    from src.feature_store.client import FeatureStoreClient
 except ImportError as e:
-    logging.warning(f"Could not import application modules: {e}")
-    logging.info("This script requires the full application to be available")
+    logging.info(f"FeatureStoreClient not available: {e}")
+    FeatureStoreClient = None
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-SAMPLE_DATA_DIR = "sample_data/small"
+# Configuration
+DATA_ROOT = os.getenv("DATA_ROOT", "sample_data")
+GENERATED_DIR = os.path.join(DATA_ROOT, "generated")
+DEMO_DATASETS_DIR = os.path.join(DATA_ROOT, "demo", "datasets")
 
 def load_json_file(filepath: str) -> List[Dict[str, Any]]:
     """Load JSON data from file."""
@@ -68,11 +69,72 @@ def extract_users_from_transactions(transactions: List[Dict[str, Any]]) -> List[
 
     return list(users_dict.values())
 
-async def load_to_feature_store(transactions: List[Dict[str, Any]], users: List[Dict[str, Any]]) -> bool:
+def load_to_feature_store(transactions: List[Dict[str, Any]], users: List[Dict[str, Any]]) -> bool:
     """Load data to feature store."""
     try:
+        # Check if FeatureStoreClient is available
+        if FeatureStoreClient is None:
+            logger.warning("FeatureStoreClient not available, skipping feature store loading")
+            return False
+
+        # Try direct Redis connection for demo
+        import redis
+        try:
+            # Use localhost for Docker exposed port - try different connection parameters
+            r = redis.Redis(
+                host='127.0.0.1',  # Use explicit IP instead of localhost
+                port=6379,
+                db=0,
+                decode_responses=True,
+                socket_connect_timeout=10,
+                socket_keepalive=True,
+                retry_on_timeout=True,
+                health_check_interval=30
+            )
+            # Test connection
+            r.ping()
+            logger.info("Using direct Redis connection for demo")
+
+            # Store user features directly in Redis
+            for user in users:
+                key = f"user_profile:{user['user_id']}"
+                r.hset(key, mapping={
+                    'transaction_count': str(user['transaction_count']),
+                    'avg_amount': str(user['avg_amount']),
+                    'total_amount': str(user['total_amount']),
+                    'fraud_count': str(user['fraud_count'])
+                })
+                r.expire(key, 3600)  # 1 hour TTL
+
+            logger.info(f"Loaded {len(users)} user profiles to Redis directly")
+
+            # Store some transaction features
+            for i, transaction in enumerate(transactions[:100]):  # Just first 100 for demo
+                key = f"transaction:{transaction['transaction_id']}"
+                r.hset(key, mapping={
+                    'amount': str(transaction['amount']),
+                    'user_id': transaction['user_id'],
+                    'merchant_category': transaction['merchant_category']
+                })
+                r.expire(key, 3600)
+
+            logger.info(f"Loaded 100 sample transactions to Redis")
+            return True
+
+        except Exception as e:
+            logger.warning(f"Direct Redis failed, trying FeatureStoreClient: {e}")
+            # Fall back to FeatureStoreClient
+            pass
+
         # Initialize feature store client
-        feature_store = FeatureStoreClient()
+        try:
+            feature_store = FeatureStoreClient()
+            # Initialize database if needed
+            if hasattr(feature_store, 'initialize_database'):
+                feature_store.initialize_database()
+        except Exception as init_error:
+            logger.warning(f"Could not initialize FeatureStoreClient: {init_error}")
+            return False
 
         logger.info("Loading user features to feature store...")
 
@@ -87,7 +149,7 @@ async def load_to_feature_store(transactions: List[Dict[str, Any]], users: List[
                 'first_seen': user['first_seen']
             }
 
-            await feature_store.store_features(
+            feature_store.put_features(
                 entity_id=user['user_id'],
                 features=user_features,
                 feature_group='user_profile'
@@ -99,7 +161,7 @@ async def load_to_feature_store(transactions: List[Dict[str, Any]], users: List[
         logger.info("Loading transaction features to feature store...")
 
         for transaction in transactions:
-            transaction_features = transaction['features'].copy()
+            transaction_features = transaction.get('features', {}).copy()
             transaction_features.update({
                 'transaction_id': transaction['transaction_id'],
                 'user_id': transaction['user_id'],
@@ -109,7 +171,7 @@ async def load_to_feature_store(transactions: List[Dict[str, Any]], users: List[
                 'timestamp': transaction['timestamp']
             })
 
-            await feature_store.store_features(
+            feature_store.put_features(
                 entity_id=transaction['transaction_id'],
                 features=transaction_features,
                 feature_group='transaction_features'
@@ -171,31 +233,27 @@ def verify_data_loading() -> bool:
         logger.error(f"Data verification failed: {e}")
         return False
 
-async def main():
+def main():
     """Main function to load sample data."""
-    logger.info("🔄 Loading sample data for ML pipeline demo...")
+    logger.info("Loading sample data for ML pipeline demo...")
 
     # Load transaction data
-    transactions_file = os.path.join(SAMPLE_DATA_DIR, "sample_transactions.json")
+    transactions_file = os.path.join(GENERATED_DIR, "transactions.json")
     transactions = load_json_file(transactions_file)
 
     if not transactions:
         logger.error("No transaction data found. Please run 'python scripts/demo/generate_data.py' first")
         sys.exit(1)
 
-    # Load or extract user data
-    users_file = os.path.join(SAMPLE_DATA_DIR, "sample_user_features.json")
-    if os.path.exists(users_file):
-        users = load_json_file(users_file)
-    else:
-        logger.info("User features file not found, extracting from transactions...")
-        users = extract_users_from_transactions(transactions)
+    # Always extract user data from transactions for consistency
+    logger.info("Extracting user features from transactions...")
+    users = extract_users_from_transactions(transactions)
 
-    logger.info(f"📊 Loaded {len(transactions)} transactions and {len(users)} users")
+    logger.info(f"Loaded {len(transactions)} transactions and {len(users)} users")
 
     # Load to feature store (if available)
     try:
-        feature_store_success = await load_to_feature_store(transactions, users)
+        feature_store_success = load_to_feature_store(transactions, users)
     except Exception as e:
         logger.warning(f"Feature store not available: {e}")
         feature_store_success = False
@@ -207,29 +265,29 @@ async def main():
     verification_success = verify_data_loading()
 
     # Print summary
-    print("\n📋 Data Loading Summary:")
-    print(f"  💳 Transactions loaded: {len(transactions)}")
-    print(f"  👥 Users extracted: {len(users)}")
-    print(f"  🗄️  Feature store: {'✅' if feature_store_success else '❌'}")
-    print(f"  💾 Database (CSV): {'✅' if database_success else '❌'}")
-    print(f"  ✓ Verification: {'✅' if verification_success else '❌'}")
+    print("\nData Loading Summary:")
+    print(f"  Transactions loaded: {len(transactions)}")
+    print(f"  Users extracted: {len(users)}")
+    print(f"  Feature store: {'OK' if feature_store_success else 'FAILED'}")
+    print(f"  Database (CSV): {'OK' if database_success else 'FAILED'}")
+    print(f"  Verification: {'OK' if verification_success else 'FAILED'}")
 
     # Calculate stats
     fraud_count = sum(1 for t in transactions if t['label'] == 1)
     fraud_rate = fraud_count / len(transactions) * 100
 
-    print(f"\n📈 Dataset Statistics:")
-    print(f"  🚨 Fraud transactions: {fraud_count} ({fraud_rate:.1f}%)")
-    print(f"  💰 Average transaction: ${sum(t['amount'] for t in transactions) / len(transactions):.2f}")
-    print(f"  🏪 Merchant categories: {len(set(t['merchant_category'] for t in transactions))}")
+    print(f"\nDataset Statistics:")
+    print(f"  Fraud transactions: {fraud_count} ({fraud_rate:.1f}%)")
+    print(f"  Average transaction: ${sum(t['amount'] for t in transactions) / len(transactions):.2f}")
+    print(f"  Merchant categories: {len(set(t['merchant_category'] for t in transactions))}")
 
     if feature_store_success and database_success and verification_success:
-        logger.info("✅ Sample data loaded successfully!")
+        logger.info("Sample data loaded successfully!")
         return True
     else:
-        logger.error("❌ Some data loading steps failed")
+        logger.error("Some data loading steps failed")
         return False
 
 if __name__ == "__main__":
-    success = asyncio.run(main())
+    success = main()
     sys.exit(0 if success else 1)

@@ -2,6 +2,18 @@
 .claude/
 CLAUDE.md
 
+# Generated sample data
+sample_data/generated/
+sample_data/production/datasets/*/
+
+# Environment files
+.env
+.env.*
+!.env.example
+!envs/
+envs/.env.*.local
+envs/.env.*.override
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

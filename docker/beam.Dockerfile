@@ -19,16 +19,16 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
-# Install Apache Beam and cloud SDKs
-RUN pip install --no-cache-dir \
-    apache-beam[gcp,aws]==2.53.0 \
-    google-cloud-pubsub==2.19.0 \
-    google-cloud-bigquery==3.14.0 \
-    google-cloud-storage==2.13.0 \
-    boto3==1.34.0 \
-    confluent-kafka==2.3.0 \
-    pandas==2.2.0 \
-    numpy==1.26.0
+# Install Poetry
+RUN pip install poetry==1.7.1
+
+# Copy dependency files
+COPY pyproject.toml poetry.lock ./
+
+# Configure Poetry and install dependencies
+# Apache Beam and its dependencies should be in pyproject.toml
+RUN poetry config virtualenvs.create false \
+    && poetry install --no-interaction --no-ansi --only main
 
 # Copy application code
 COPY src ./src
@@ -44,5 +44,5 @@ RUN groupadd -r beam && useradd -r -g beam beam
 RUN chown -R beam:beam /app
 USER beam
 
-# Default command
-CMD ["python", "-m", "src.feature_engineering.beam.pipelines"]
+# Default command - just sleep to keep container running
+CMD ["sleep", "infinity"]

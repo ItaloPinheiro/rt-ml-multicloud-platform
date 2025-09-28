@@ -1,6 +1,5 @@
 """Model training modules with MLflow integration."""
 
-from .trainer import ModelTrainer
-from .experiments import ExperimentManager
+from .train import ModelTrainer
 
-__all__ = ["ModelTrainer", "ExperimentManager"]
+__all__ = ["ModelTrainer"]

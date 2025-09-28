@@ -11,17 +11,23 @@ WORKDIR /app
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
     curl \
     postgresql-client \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
-# Install MLflow and dependencies
-RUN pip install --no-cache-dir \
-    mlflow==2.10.0 \
-    psycopg2-binary==2.9.9 \
-    boto3==1.34.0 \
-    pymysql==1.1.0
+# Install Poetry
+RUN pip install poetry==1.7.1
+
+# Copy dependency files
+COPY pyproject.toml poetry.lock ./
+
+# Configure Poetry and install dependencies
+# MLflow and its dependencies should be in pyproject.toml
+RUN poetry config virtualenvs.create false \
+    && poetry install --no-interaction --no-ansi --only main
 
 # Create non-root user
 RUN groupadd -r mlflow && useradd -r -g mlflow mlflow
