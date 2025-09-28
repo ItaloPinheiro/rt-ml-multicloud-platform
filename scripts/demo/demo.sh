@@ -142,7 +142,7 @@ main() {
     # =========================================================================
 
     print_status "Starting all services with Docker Compose..."
-    docker-compose -f docker-compose.yml -f docker-compose.local.yml up -d
+    docker-compose up -d
     print_success "Services started"
 
     # Give services time to initialize
@@ -162,7 +162,7 @@ main() {
 
     # Start beam-runner container
     print_status "Starting beam-runner container..."
-    docker-compose -f docker-compose.yml -f docker-compose.local.yml --profile beam up -d beam-runner
+    docker-compose --profile beam up -d beam-runner
     sleep 5
 
     # Train first model

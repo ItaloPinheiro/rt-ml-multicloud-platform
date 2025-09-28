@@ -1,6 +1,7 @@
 # docker-compose.yml
 # Base configuration - defines shared services and networks
-# Use with docker-compose.local.yml for development or docker-compose.prod.yml for production
+# Development: Auto-loads docker-compose.override.yml when running 'docker-compose up'
+# Production: Use 'docker-compose -f docker-compose.yml -f docker-compose.prod.yml up'
 
 services:
   # =================================================================
@@ -42,7 +43,7 @@ services:
   mlflow-server:
     build:
       context: .
-      dockerfile: docker/mlflow.Dockerfile
+      dockerfile: docker/mlflow/Dockerfile
     container_name: ml-mlflow-server
     depends_on:
       mlflow-db:
@@ -59,7 +60,7 @@ services:
   model-api:
     build:
       context: .
-      dockerfile: docker/api.Dockerfile
+      dockerfile: docker/api/Dockerfile
     container_name: ml-model-api
     depends_on:
       mlflow-server:

@@ -197,7 +197,7 @@ services:
   beam-runner:
     build:
       context: .
-      dockerfile: docker/beam.Dockerfile
+      dockerfile: docker/beam/Dockerfile
     container_name: ml-beam-runner
     environment:
       BEAM_RUNNER: ${BEAM_RUNNER:-DataflowRunner}  # Or FlinkRunner

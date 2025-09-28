@@ -1,6 +1,7 @@
-# docker-compose.local.yml
-# Local development configuration - use with base docker-compose.yml
-# Usage: docker-compose -f docker-compose.yml -f docker-compose.local.yml up -d
+# docker-compose.override.yml
+# Local development configuration - automatically loaded with docker-compose.yml
+# Usage: Simply run 'docker-compose up -d' (no -f flag needed)
+# This file is automatically merged with docker-compose.yml when using 'docker-compose' commands
 
 services:
   # =================================================================
@@ -70,7 +71,7 @@ services:
       MINIO_ROOT_PASSWORD: minioadmin123
     volumes:
       - mlflow_minio_data:/data
-      - ./docker/minio-entrypoint.sh:/entrypoint.sh:ro
+      - ./docker/scripts/minio-entrypoint.sh:/entrypoint.sh:ro
     entrypoint: /bin/sh /entrypoint.sh
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
@@ -84,7 +85,7 @@ services:
   mlflow-server:
     build:
       context: .
-      dockerfile: docker/mlflow.Dockerfile
+      dockerfile: docker/mlflow/Dockerfile
     container_name: ml-mlflow-server
     ports:
       - "5000:5000"
@@ -139,7 +140,7 @@ services:
   model-api:
     build:
       context: .
-      dockerfile: docker/api.Dockerfile
+      dockerfile: docker/api/Dockerfile
     container_name: ml-model-api
     ports:
       - "8000:8000"
@@ -238,7 +239,7 @@ services:
   beam-runner:
     build:
       context: .
-      dockerfile: docker/beam.Dockerfile
+      dockerfile: docker/beam/Dockerfile
     container_name: ml-beam-runner
     environment:
       BEAM_RUNNER: DirectRunner
