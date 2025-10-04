@@ -1,7 +1,7 @@
 """Unit tests for database models and session management."""
 
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy.exc import IntegrityError
 
 from src.database.models import (
@@ -45,6 +45,9 @@ class TestDatabaseModels:
 
         with pytest.raises(IntegrityError):
             db_session.commit()
+
+        # Rollback after error
+        db_session.rollback()
 
     def test_model_run_creation(self, db_session):
         """Test model run creation."""
@@ -95,9 +98,8 @@ class TestDatabaseModels:
         db_session.commit()
 
         # Invalid status should raise error
-        model_run.status = "INVALID_STATUS"
         with pytest.raises(ValueError, match="Status must be one of"):
-            db_session.commit()
+            model_run.status = "INVALID_STATUS"
 
     def test_feature_store_creation(self, db_session):
         """Test feature store model creation."""
@@ -107,7 +109,7 @@ class TestDatabaseModels:
             feature_name="age",
             feature_value=25,
             data_type="numeric",
-            event_timestamp=datetime.utcnow(),
+            event_timestamp=datetime.now(timezone.utc),
             source_system="user_service",
             tags={"version": "1.0"}
         )
@@ -125,7 +127,7 @@ class TestDatabaseModels:
 
     def test_feature_store_unique_constraint(self, db_session):
         """Test feature store uniqueness constraint."""
-        timestamp = datetime.utcnow()
+        timestamp = datetime.now(timezone.utc)
 
         # Create first feature
         feature1 = FeatureStore(
@@ -153,6 +155,9 @@ class TestDatabaseModels:
         with pytest.raises(IntegrityError):
             db_session.commit()
 
+        # Rollback after error
+        db_session.rollback()
+
     def test_feature_store_data_type_validation(self, db_session):
         """Test feature store data type validation."""
         feature = FeatureStore(
@@ -161,15 +166,14 @@ class TestDatabaseModels:
             feature_name="test_feature",
             feature_value="test",
             data_type="categorical",
-            event_timestamp=datetime.utcnow()
+            event_timestamp=datetime.now(timezone.utc)
         )
         db_session.add(feature)
         db_session.commit()
 
         # Invalid data type should raise error
-        feature.data_type = "invalid_type"
         with pytest.raises(ValueError, match="Data type must be one of"):
-            db_session.commit()
+            feature.data_type = "invalid_type"
 
     def test_prediction_log_creation(self, db_session):
         """Test prediction log creation."""
@@ -223,25 +227,24 @@ class TestDatabaseModels:
         db_session.commit()
 
         # Invalid status code should raise error
-        prediction_log.status_code = 999
         with pytest.raises(ValueError, match="Status code must be a valid HTTP status code"):
-            db_session.commit()
+            prediction_log.status_code = 999
 
     def test_data_drift_monitoring_creation(self, db_session):
         """Test data drift monitoring model creation."""
         drift_record = DataDriftMonitoring(
             model_name="fraud_detector",
             model_version="1.0",
-            window_start=datetime.utcnow() - timedelta(days=1),
-            window_end=datetime.utcnow(),
+            window_start=datetime.now(timezone.utc) - timedelta(days=1),
+            window_end=datetime.now(timezone.utc),
             drift_score=0.15,
             drift_threshold=0.1,
             is_drift_detected=True,
             feature_drift_scores={"amount": 0.2, "merchant_category": 0.05},
             drifted_features=["amount"],
             psi_score=0.18,
-            reference_period_start=datetime.utcnow() - timedelta(days=30),
-            reference_period_end=datetime.utcnow() - timedelta(days=7),
+            reference_period_start=datetime.now(timezone.utc) - timedelta(days=30),
+            reference_period_end=datetime.now(timezone.utc) - timedelta(days=7),
             reference_data_size=10000,
             current_data_size=1000,
             detection_method="psi"
@@ -394,10 +397,11 @@ class TestDatabaseIndexes:
     def test_experiment_indexes(self, db_session):
         """Test experiment table indexes work correctly."""
         # Create multiple experiments
+        base_time = datetime.now(timezone.utc)
         for i in range(10):
             experiment = Experiment(
                 name=f"experiment_{i}",
-                created_at=datetime.utcnow() - timedelta(days=i)
+                created_at=base_time - timedelta(days=i)
             )
             db_session.add(experiment)
         db_session.commit()
@@ -407,7 +411,8 @@ class TestDatabaseIndexes:
         assert result is not None
 
         # Test created_at index (query by date range)
-        cutoff_date = datetime.utcnow() - timedelta(days=5)
+        # Use cutoff just after experiment_5's timestamp to ensure it's included
+        cutoff_date = base_time - timedelta(days=5, seconds=1)
         recent_experiments = db_session.query(Experiment).filter(
             Experiment.created_at >= cutoff_date
         ).all()
@@ -427,7 +432,7 @@ class TestDatabaseIndexes:
                 model_name=f"model_{i % 2}",  # Two different model names
                 model_version=f"v{i}",
                 status="FINISHED",
-                start_time=datetime.utcnow() - timedelta(hours=i)
+                start_time=datetime.now(timezone.utc) - timedelta(hours=i)
             )
             db_session.add(model_run)
         db_session.commit()
@@ -458,7 +463,7 @@ class TestDatabaseIndexes:
                         feature_name=name,
                         feature_value=42,
                         data_type="numeric",
-                        event_timestamp=datetime.utcnow()
+                        event_timestamp=datetime.now(timezone.utc)
                     )
                     db_session.add(feature)
         db_session.commit()

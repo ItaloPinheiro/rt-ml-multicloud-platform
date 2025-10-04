@@ -7,7 +7,7 @@ with comprehensive monitoring, caching, and error handling.
 import time
 import asyncio
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 from contextlib import asynccontextmanager
 
@@ -274,7 +274,7 @@ class ModelManager:
                 "name": model_name,
                 "version": model_version,
                 "uri": model_uri,
-                "loaded_at": datetime.utcnow().isoformat(),
+                "loaded_at": datetime.now(timezone.utc).isoformat(),
                 "load_time_ms": (time.time() - start_time) * 1000
             }
 
@@ -395,7 +395,7 @@ class ModelManager:
                 "model_name": model_name,
                 "model_version": actual_version,
                 "latency_ms": latency_ms,
-                "timestamp": datetime.utcnow(),
+                "timestamp": datetime.now(timezone.utc),
                 "features_used": features
             }
 
@@ -505,7 +505,7 @@ class ModelManager:
                 "batch_size": len(instances),
                 "total_latency_ms": total_latency_ms,
                 "avg_latency_ms": avg_latency_ms,
-                "timestamp": datetime.utcnow()
+                "timestamp": datetime.now(timezone.utc)
             }
 
             # Update metrics
@@ -760,7 +760,7 @@ async def health_check():
 
     return HealthCheck(
         status=overall_status,
-        timestamp=datetime.utcnow(),
+        timestamp=datetime.now(timezone.utc),
         version="1.0.0",
         checks=checks
     )
@@ -773,22 +773,26 @@ async def predict(request: PredictionRequest, background_tasks: BackgroundTasks)
     if not model_manager:
         raise HTTPException(status_code=500, detail="Model manager not initialized")
 
-    result = await model_manager.predict(
-        model_name=request.model_name,
-        features=request.features,
-        version=request.version,
-        return_probabilities=request.return_probabilities
-    )
+    try:
+        result = await model_manager.predict(
+            model_name=request.model_name,
+            features=request.features,
+            version=request.version,
+            return_probabilities=request.return_probabilities
+        )
 
-    # Log prediction in background
-    background_tasks.add_task(
-        log_prediction,
-        request.model_name,
-        request.features,
-        result["prediction"]
-    )
+        # Log prediction in background
+        background_tasks.add_task(
+            log_prediction,
+            request.model_name,
+            request.features,
+            result["prediction"]
+        )
 
-    return PredictionResponse(**result)
+        return PredictionResponse(**result)
+    except Exception as e:
+        logger.error("Prediction failed", error=str(e), model_name=request.model_name)
+        raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
 
 
 @app.post("/predict/batch", response_model=BatchPredictionResponse)
@@ -843,7 +847,7 @@ async def reload_model(request: ModelUpdateRequest):
             old_version="cleared",
             new_version=target_version,
             status="success",
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             message=f"Model reloaded successfully. Cleared {cleared_count} cached versions."
         )
     except Exception as e:
@@ -959,7 +963,7 @@ async def log_prediction(model_name: str, features: Dict[str, Any], prediction: 
                 "model_name": model_name,
                 "features": features,
                 "prediction": prediction,
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
 
             # Store in Redis stream for real-time monitoring
@@ -981,8 +985,8 @@ async def http_exception_handler(request: Request, exc: HTTPException):
         content=ErrorResponse(
             error="HTTPException",
             message=exc.detail,
-            timestamp=datetime.utcnow()
-        ).dict()
+            timestamp=datetime.now(timezone.utc)
+        ).model_dump()
     )
 
 
@@ -997,6 +1001,6 @@ async def general_exception_handler(request: Request, exc: Exception):
             error="InternalServerError",
             message="An internal server error occurred",
             detail=str(exc),
-            timestamp=datetime.utcnow()
-        ).dict()
+            timestamp=datetime.now(timezone.utc)
+        ).model_dump()
     )

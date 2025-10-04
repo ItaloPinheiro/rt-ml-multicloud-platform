@@ -1,7 +1,7 @@
 """Metrics collection and monitoring for ML pipeline components."""
 
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, List, Optional, Callable
 from collections import defaultdict, deque
 import threading
@@ -47,7 +47,7 @@ class MetricsCollector:
 
             # Store historical data
             self.metrics[metric_key].append({
-                'timestamp': datetime.utcnow(),
+                'timestamp': datetime.now(timezone.utc),
                 'value': self.counters[metric_key],
                 'delta': value,
                 'type': 'counter',
@@ -68,7 +68,7 @@ class MetricsCollector:
 
             # Store historical data
             self.metrics[metric_key].append({
-                'timestamp': datetime.utcnow(),
+                'timestamp': datetime.now(timezone.utc),
                 'value': value,
                 'type': 'gauge',
                 'labels': labels or {}
@@ -88,7 +88,7 @@ class MetricsCollector:
 
             # Store historical data
             self.metrics[metric_key].append({
-                'timestamp': datetime.utcnow(),
+                'timestamp': datetime.now(timezone.utc),
                 'value': value,
                 'type': 'histogram',
                 'labels': labels or {}
@@ -171,7 +171,7 @@ class MetricsCollector:
         """
         with self.lock:
             summary = {
-                'timestamp': datetime.utcnow().isoformat(),
+                'timestamp': datetime.now(timezone.utc).isoformat(),
                 'counters': dict(self.counters),
                 'gauges': dict(self.gauges),
                 'histograms': {

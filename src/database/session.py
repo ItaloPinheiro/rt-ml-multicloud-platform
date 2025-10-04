@@ -3,7 +3,7 @@
 import os
 from contextlib import contextmanager
 from typing import Generator, Optional
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, event, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import StaticPool
@@ -41,25 +41,26 @@ class DatabaseManager:
             # Build connection URL
             connection_url = self._build_connection_url()
 
-            # Create engine with connection pooling
-            engine_kwargs = {
-                "echo": False,  # Set to True for SQL debugging
-                "pool_pre_ping": True,
-                "pool_recycle": 3600,
-                "pool_size": min(self.config.max_connections, 20),
-                "max_overflow": 10,
-                "connect_args": {
-                    "connect_timeout": self.config.connection_timeout,
-                    "sslmode": self.config.ssl_mode,
-                }
-            }
-
-            # Handle SQLite special case
+            # Handle SQLite special case first
             if connection_url.startswith("sqlite"):
-                engine_kwargs.update({
+                engine_kwargs = {
+                    "echo": False,  # Set to True for SQL debugging
                     "poolclass": StaticPool,
                     "connect_args": {"check_same_thread": False}
-                })
+                }
+            else:
+                # Create engine with connection pooling for non-SQLite databases
+                engine_kwargs = {
+                    "echo": False,  # Set to True for SQL debugging
+                    "pool_pre_ping": True,
+                    "pool_recycle": 3600,
+                    "pool_size": min(self.config.max_connections, 20),
+                    "max_overflow": 10,
+                    "connect_args": {
+                        "connect_timeout": self.config.connection_timeout,
+                        "sslmode": self.config.ssl_mode,
+                    }
+                }
 
             self.engine = create_engine(connection_url, **engine_kwargs)
 
@@ -190,7 +191,7 @@ class DatabaseManager:
 
         try:
             with self.engine.connect() as connection:
-                connection.execute("SELECT 1")
+                connection.execute(text("SELECT 1"))
             return True
         except Exception as e:
             self.logger.error("Database connection check failed", error=str(e))
@@ -206,13 +207,35 @@ class DatabaseManager:
             return {}
 
         pool = self.engine.pool
-        return {
-            "pool_size": pool.size(),
-            "checked_in": pool.checkedin(),
-            "checked_out": pool.checkedout(),
-            "overflow": pool.overflow(),
-            "invalid": pool.invalid()
-        }
+        info = {}
+
+        # Try to get pool stats - some methods may not be available for all pool types
+        try:
+            info["pool_size"] = pool.size()
+        except (AttributeError, NotImplementedError):
+            info["pool_size"] = None
+
+        try:
+            info["checked_in"] = pool.checkedin()
+        except (AttributeError, NotImplementedError):
+            info["checked_in"] = None
+
+        try:
+            info["checked_out"] = pool.checkedout()
+        except (AttributeError, NotImplementedError):
+            info["checked_out"] = None
+
+        try:
+            info["overflow"] = pool.overflow()
+        except (AttributeError, NotImplementedError):
+            info["overflow"] = None
+
+        try:
+            info["invalid"] = pool.invalid()
+        except (AttributeError, NotImplementedError):
+            info["invalid"] = None
+
+        return info
 
     def close(self) -> None:
         """Close database connections and cleanup resources."""

@@ -2,7 +2,8 @@
 
 import pytest
 from datetime import datetime, timedelta
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, patch, MagicMock
+from contextlib import contextmanager
 
 from src.feature_store.store import FeatureStore
 from src.feature_store.client import FeatureStoreClient
@@ -15,8 +16,13 @@ from src.feature_store.transforms import (
 class TestFeatureStore:
     """Test FeatureStore class."""
 
-    def test_put_and_get_features(self, mock_redis, test_config):
+    @patch('src.feature_store.store.get_session')
+    def test_put_and_get_features(self, mock_get_session, mock_redis, test_config):
         """Test storing and retrieving features."""
+        # Mock database session
+        mock_session = MagicMock()
+        mock_get_session.return_value.__enter__.return_value = mock_session
+
         store = FeatureStore(redis_client=mock_redis)
 
         # Test data
@@ -36,8 +42,13 @@ class TestFeatureStore:
 
         assert retrieved == features
 
-    def test_get_specific_features(self, mock_redis, test_config):
+    @patch('src.feature_store.store.get_session')
+    def test_get_specific_features(self, mock_get_session, mock_redis, test_config):
         """Test retrieving specific features by name."""
+        # Mock database session
+        mock_session = MagicMock()
+        mock_get_session.return_value.__enter__.return_value = mock_session
+
         store = FeatureStore(redis_client=mock_redis)
 
         entity_id = "user_123"
@@ -59,8 +70,13 @@ class TestFeatureStore:
         expected = {"age": 25, "city": "New York"}
         assert specific_features == expected
 
-    def test_get_batch_features(self, mock_redis, test_config):
+    @patch('src.feature_store.store.get_session')
+    def test_get_batch_features(self, mock_get_session, mock_redis, test_config):
         """Test batch feature retrieval."""
+        # Mock database session
+        mock_session = MagicMock()
+        mock_get_session.return_value.__enter__.return_value = mock_session
+
         store = FeatureStore(redis_client=mock_redis)
 
         feature_group = "user_features"
@@ -81,8 +97,13 @@ class TestFeatureStore:
 
         assert batch_result == entities_features
 
-    def test_delete_features(self, mock_redis, test_config):
+    @patch('src.feature_store.store.get_session')
+    def test_delete_features(self, mock_get_session, mock_redis, test_config):
         """Test feature deletion."""
+        # Mock database session
+        mock_session = MagicMock()
+        mock_get_session.return_value.__enter__.return_value = mock_session
+
         store = FeatureStore(redis_client=mock_redis)
 
         entity_id = "user_123"
@@ -97,8 +118,13 @@ class TestFeatureStore:
         retrieved = store.get_features(entity_id, feature_group)
         assert retrieved == {}
 
-    def test_ttl_functionality(self, mock_redis, test_config):
+    @patch('src.feature_store.store.get_session')
+    def test_ttl_functionality(self, mock_get_session, mock_redis, test_config):
         """Test TTL functionality."""
+        # Mock database session
+        mock_session = MagicMock()
+        mock_get_session.return_value.__enter__.return_value = mock_session
+
         store = FeatureStore(redis_client=mock_redis)
 
         entity_id = "user_123"
@@ -134,8 +160,13 @@ class TestFeatureStore:
 class TestFeatureStoreClient:
     """Test FeatureStoreClient class."""
 
-    def test_feature_transformations(self, feature_store_client, sample_features):
+    @patch('src.feature_store.store.get_session')
+    def test_feature_transformations(self, mock_get_session, feature_store_client, sample_features):
         """Test feature transformations."""
+        # Mock database session
+        mock_session = MagicMock()
+        mock_get_session.return_value.__enter__.return_value = mock_session
+
         client = feature_store_client
 
         # Test storing with transforms
@@ -158,8 +189,13 @@ class TestFeatureStoreClient:
             "electronics", "grocery", "gas", "restaurant", "retail", "other"
         ]
 
-    def test_feature_vector_creation(self, feature_store_client):
+    @patch('src.feature_store.store.get_session')
+    def test_feature_vector_creation(self, mock_get_session, feature_store_client):
         """Test feature vector creation."""
+        # Mock database session
+        mock_session = MagicMock()
+        mock_get_session.return_value.__enter__.return_value = mock_session
+
         client = feature_store_client
 
         entity_id = "user_123"
@@ -184,8 +220,13 @@ class TestFeatureStoreClient:
         }
         assert set(feature_vector.keys()) == expected_keys
 
-    def test_batch_feature_vectors(self, feature_store_client):
+    @patch('src.feature_store.store.get_session')
+    def test_batch_feature_vectors(self, mock_get_session, feature_store_client):
         """Test batch feature vector creation."""
+        # Mock database session
+        mock_session = MagicMock()
+        mock_get_session.return_value.__enter__.return_value = mock_session
+
         client = feature_store_client
 
         entity_ids = ["user_1", "user_2"]
@@ -205,8 +246,13 @@ class TestFeatureStoreClient:
         assert f"{feature_group}_score" in batch_vectors["user_1"]
         assert f"{feature_group}_score" in batch_vectors["user_2"]
 
-    def test_missing_value_handling(self, feature_store_client):
+    @patch('src.feature_store.store.get_session')
+    def test_missing_value_handling(self, mock_get_session, feature_store_client):
         """Test missing value handling in feature vectors."""
+        # Mock database session
+        mock_session = MagicMock()
+        mock_get_session.return_value.__enter__.return_value = mock_session
+
         client = feature_store_client
 
         entity_id = "user_123"

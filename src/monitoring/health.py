@@ -2,7 +2,7 @@
 
 import asyncio
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, List, Optional, Callable, Awaitable
 from enum import Enum
 import structlog
@@ -64,7 +64,7 @@ class HealthCheck:
         Returns:
             True if healthy, False otherwise
         """
-        self.last_check_time = datetime.utcnow()
+        self.last_check_time = datetime.now(timezone.utc)
         self.total_checks += 1
 
         try:
@@ -90,7 +90,7 @@ class HealthCheck:
 
     def _record_success(self) -> None:
         """Record a successful check."""
-        self.last_success_time = datetime.utcnow()
+        self.last_success_time = datetime.now(timezone.utc)
         self.consecutive_successes += 1
         self.consecutive_failures = 0
         self.last_error = None
@@ -105,7 +105,7 @@ class HealthCheck:
         Args:
             error_message: Error message from the failure
         """
-        self.last_failure_time = datetime.utcnow()
+        self.last_failure_time = datetime.now(timezone.utc)
         self.consecutive_failures += 1
         self.consecutive_successes = 0
         self.total_failures += 1
@@ -152,7 +152,7 @@ class HealthChecker:
         self.health_checks: Dict[str, HealthCheck] = {}
         self.running = False
         self.check_task: Optional[asyncio.Task] = None
-        self.start_time = datetime.utcnow()
+        self.start_time = datetime.now(timezone.utc)
         self.logger = logger.bind(component="HealthChecker")
 
     def register_check(self, health_check: HealthCheck) -> None:
@@ -208,8 +208,8 @@ class HealthChecker:
         if not self.health_checks:
             return {
                 "overall_status": HealthStatus.HEALTHY.value,
-                "timestamp": datetime.utcnow().isoformat(),
-                "uptime_seconds": (datetime.utcnow() - self.start_time).total_seconds(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "uptime_seconds": (datetime.now(timezone.utc) - self.start_time).total_seconds(),
                 "checks": {},
                 "summary": {
                     "total_checks": 0,
@@ -242,8 +242,8 @@ class HealthChecker:
 
         return {
             "overall_status": overall_status.value,
-            "timestamp": datetime.utcnow().isoformat(),
-            "uptime_seconds": (datetime.utcnow() - self.start_time).total_seconds(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "uptime_seconds": (datetime.now(timezone.utc) - self.start_time).total_seconds(),
             "checks": checks_info,
             "summary": {
                 "total_checks": len(self.health_checks),
@@ -274,7 +274,7 @@ class HealthChecker:
             try:
                 # Calculate next check times
                 next_checks = {}
-                current_time = datetime.utcnow()
+                current_time = datetime.now(timezone.utc)
 
                 for name, check in self.health_checks.items():
                     if check.last_check_time is None:

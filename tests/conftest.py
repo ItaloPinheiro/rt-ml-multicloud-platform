@@ -3,7 +3,7 @@
 import os
 import tempfile
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Generator, Dict, Any
 import pytest
 import pytest_asyncio
@@ -13,14 +13,6 @@ from sqlalchemy.orm import sessionmaker
 
 # Test configuration
 os.environ["ENVIRONMENT"] = "test"
-
-
-@pytest.fixture(scope="session")
-def event_loop():
-    """Create an instance of the default event loop for the test session."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
 
 
 @pytest.fixture
@@ -90,8 +82,15 @@ def test_database(test_config):
 @pytest.fixture
 def db_session(test_database):
     """Create database session for tests."""
-    with test_database.get_session() as session:
+    session = test_database.session_factory()
+    try:
         yield session
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
 
 
 @pytest.fixture
@@ -181,7 +180,7 @@ def sample_batch_prediction_request():
 def sample_stream_message():
     """Sample stream message for ingestion tests."""
     return {
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "user_id": "user_123",
         "transaction_id": "txn_456",
         "data": {
@@ -227,7 +226,7 @@ def mock_mlflow_client():
                     "run_id": run_id,
                     "experiment_id": experiment_id,
                     "status": "RUNNING",
-                    "start_time": start_time or datetime.utcnow().timestamp() * 1000,
+                    "start_time": start_time or datetime.now(timezone.utc).timestamp() * 1000,
                     "artifact_uri": f"file:///tmp/mlruns/{experiment_id}/{run_id}/artifacts"
                 },
                 "data": {
@@ -249,16 +248,20 @@ def mock_mlflow_client():
         def end_run(self, run_id, status="FINISHED"):
             if run_id in self.runs:
                 self.runs[run_id]["info"]["status"] = status
-                self.runs[run_id]["info"]["end_time"] = datetime.utcnow().timestamp() * 1000
+                self.runs[run_id]["info"]["end_time"] = datetime.now(timezone.utc).timestamp() * 1000
 
     return MockMLflowClient()
 
 
 @pytest.fixture
-def feature_store_client(test_config, mock_redis):
+def feature_store_client(test_config, mock_redis, test_database):
     """Feature store client for tests."""
     from src.feature_store.store import FeatureStore
     from src.feature_store.client import FeatureStoreClient
+    import src.database.session as session_module
+
+    # Set the global database manager
+    session_module._db_manager = test_database
 
     feature_store = FeatureStore(redis_client=mock_redis)
     client = FeatureStoreClient(feature_store=feature_store)

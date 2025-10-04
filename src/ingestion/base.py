@@ -7,7 +7,7 @@ GCP Pub/Sub, AWS Kinesis, and Apache Kafka.
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, Generator, List, Optional
 import json
 import structlog
@@ -68,7 +68,7 @@ class StreamMessage:
         if isinstance(timestamp, str):
             timestamp = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
         elif timestamp is None:
-            timestamp = datetime.utcnow()
+            timestamp = datetime.now(timezone.utc)
 
         return cls(
             message_id=data["message_id"],

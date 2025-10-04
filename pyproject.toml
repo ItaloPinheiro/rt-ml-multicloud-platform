@@ -67,6 +67,7 @@ ruff = "^0.2.0"
 mypy = "^1.8.0"
 locust = "^2.20.0"
 notebook = "^7.0.0"
+fakeredis = "^2.31.3"
 
 [tool.poetry.group.test.dependencies]
 pytest-mock = "^3.12.0"

@@ -5,7 +5,7 @@ and batch feature engineering, supporting multiple cloud platforms.
 """
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, Optional, List
 import logging
 
@@ -462,7 +462,7 @@ class FeatureEngineeringPipeline:
                 "user_id": f"user_{random.randint(1, 100)}",
                 "amount": round(random.uniform(10, 1000), 2),
                 "merchant_category": random.choice(["grocery", "gas", "restaurant", "retail", "online"]),
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "payment_method": random.choice(["credit", "debit", "cash", "mobile"]),
                 "is_weekend": random.choice([True, False]),
                 "risk_score": round(random.uniform(0, 1), 3),

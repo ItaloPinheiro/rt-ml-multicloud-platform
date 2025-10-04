@@ -2,11 +2,11 @@
 
 import asyncio
 import smtplib
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, List, Optional, Callable, Set
 from enum import Enum
-from email.mime.text import MimeText
-from email.mime.multipart import MimeMultipart
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 import structlog
 
 logger = structlog.get_logger()
@@ -79,7 +79,7 @@ class Alert:
         """
         try:
             condition_met = self.condition_func(context)
-            current_time = datetime.utcnow()
+            current_time = datetime.now(timezone.utc)
 
             if condition_met:
                 if self.status == AlertStatus.RESOLVED:
@@ -124,11 +124,11 @@ class Alert:
 
         # Check cooldown period
         cooldown_deadline = self.last_notified_time + timedelta(minutes=self.cooldown_minutes)
-        return datetime.utcnow() >= cooldown_deadline
+        return datetime.now(timezone.utc) >= cooldown_deadline
 
     def mark_notified(self) -> None:
         """Mark alert as notified."""
-        self.last_notified_time = datetime.utcnow()
+        self.last_notified_time = datetime.now(timezone.utc)
 
     def suppress(self) -> None:
         """Suppress alert notifications."""
@@ -222,7 +222,7 @@ class EmailNotificationChannel(NotificationChannel):
         """
         try:
             # Create message
-            msg = MimeMultipart()
+            msg = MIMEMultipart()
             msg['From'] = self.from_email
             msg['To'] = ', '.join(self.to_emails)
             msg['Subject'] = f"[{alert.severity.value.upper()}] {alert.name}"
@@ -231,8 +231,8 @@ class EmailNotificationChannel(NotificationChannel):
             html_message = self._create_html_message(alert, message)
             text_message = self._create_text_message(alert, message)
 
-            msg.attach(MimeText(text_message, 'plain'))
-            msg.attach(MimeText(html_message, 'html'))
+            msg.attach(MIMEText(text_message, 'plain'))
+            msg.attach(MIMEText(html_message, 'html'))
 
             # Send email
             server = smtplib.SMTP(self.smtp_host, self.smtp_port)
@@ -528,7 +528,7 @@ class AlertManager:
         suppressed_alerts = [alert for alert in self.alerts.values() if alert.status == AlertStatus.SUPPRESSED]
 
         return {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "total_alerts": len(self.alerts),
             "active_alerts": len(active_alerts),
             "suppressed_alerts": len(suppressed_alerts),
@@ -559,7 +559,7 @@ class AlertManager:
         # This is a placeholder - implement actual context gathering
         # from metrics, health checks, logs, etc.
         return {
-            "timestamp": datetime.utcnow(),
+            "timestamp": datetime.now(timezone.utc),
             "system_metrics": {},
             "application_metrics": {},
             "health_status": {}

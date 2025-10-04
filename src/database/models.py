@@ -1,13 +1,12 @@
 """SQLAlchemy models for ML pipeline data persistence."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, Optional
 from sqlalchemy import (
     Column, Integer, String, DateTime, Float, Text, Boolean,
     JSON, ForeignKey, Index, UniqueConstraint
 )
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship, validates
+from sqlalchemy.orm import declarative_base, relationship, validates
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
 
@@ -22,8 +21,8 @@ class Experiment(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String(255), nullable=False, unique=True)
     description = Column(Text)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     is_active = Column(Boolean, default=True, nullable=False)
 
     # Metadata
@@ -59,7 +58,7 @@ class ModelRun(Base):
     status = Column(String(50), default="RUNNING", nullable=False)  # RUNNING, FINISHED, FAILED, KILLED
 
     # Timing
-    start_time = Column(DateTime, default=datetime.utcnow, nullable=False)
+    start_time = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     end_time = Column(DateTime)
     duration_seconds = Column(Float)
 
@@ -130,7 +129,7 @@ class FeatureStore(Base):
 
     # Timing and versioning
     event_timestamp = Column(DateTime, nullable=False)
-    ingestion_timestamp = Column(DateTime, default=datetime.utcnow, nullable=False)
+    ingestion_timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     feature_version = Column(String(100), default="1.0")
 
     # Metadata
@@ -180,7 +179,7 @@ class PredictionLog(Base):
     model_version = Column(String(100), nullable=False)
 
     # Timing
-    request_timestamp = Column(DateTime, default=datetime.utcnow, nullable=False)
+    request_timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     response_timestamp = Column(DateTime)
     latency_ms = Column(Float)
 
@@ -267,7 +266,7 @@ class DataDriftMonitoring(Base):
     current_data_size = Column(Integer)
 
     # Metadata
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     detection_method = Column(String(100))  # psi, ks_test, chi2_test, etc.
 
     # Indexes

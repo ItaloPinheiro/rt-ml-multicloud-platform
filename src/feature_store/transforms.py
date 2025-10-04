@@ -1,7 +1,7 @@
 """Feature transformation utilities for data preprocessing and validation."""
 
 from abc import ABC, abstractmethod
-from datetime import datetime
+from datetime import datetime, timezone as tz
 from typing import Any, List, Optional, Union
 import structlog
 
@@ -223,7 +223,7 @@ class DateTimeTransform(FeatureTransform):
             default_value: Default datetime for missing values
         """
         if default_value is None:
-            default_value = datetime.utcnow()
+            default_value = datetime.now(tz.utc)
 
         super().__init__(fill_missing=fill_missing, default_value=default_value)
         self.extract_components = extract_components

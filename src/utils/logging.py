@@ -4,7 +4,7 @@ import os
 import sys
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, Optional
 from pathlib import Path
 
@@ -16,7 +16,7 @@ except ImportError:
     structlog = None
 
 try:
-    from pythonjsonlogger import jsonlogger
+    from pythonjsonlogger import json as jsonlogger
 except ImportError:
     jsonlogger = None
 
@@ -34,7 +34,7 @@ class CustomJSONFormatter(logging.Formatter):
             JSON formatted log string
         """
         log_data = {
-            'timestamp': datetime.utcnow().isoformat() + 'Z',
+            'timestamp': datetime.now(timezone.utc).isoformat() + 'Z',
             'level': record.levelname,
             'logger': record.name,
             'message': record.getMessage(),
@@ -255,13 +255,13 @@ def log_function_call(func):
             kwargs_keys=list(kwargs.keys())
         )
 
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc)
 
         try:
             result = func(*args, **kwargs)
 
             # Log successful completion
-            end_time = datetime.utcnow()
+            end_time = datetime.now(timezone.utc)
             duration = (end_time - start_time).total_seconds()
 
             logger.debug(
@@ -274,7 +274,7 @@ def log_function_call(func):
 
         except Exception as e:
             # Log exception
-            end_time = datetime.utcnow()
+            end_time = datetime.now(timezone.utc)
             duration = (end_time - start_time).total_seconds()
 
             logger.error(
@@ -303,12 +303,12 @@ def log_performance(operation: str):
         def wrapper(*args, **kwargs):
             logger = get_logger(func.__module__)
 
-            start_time = datetime.utcnow()
+            start_time = datetime.now(timezone.utc)
 
             try:
                 result = func(*args, **kwargs)
 
-                end_time = datetime.utcnow()
+                end_time = datetime.now(timezone.utc)
                 duration = (end_time - start_time).total_seconds()
 
                 logger.info(
@@ -322,7 +322,7 @@ def log_performance(operation: str):
                 return result
 
             except Exception as e:
-                end_time = datetime.utcnow()
+                end_time = datetime.now(timezone.utc)
                 duration = (end_time - start_time).total_seconds()
 
                 logger.warning(

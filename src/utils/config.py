@@ -162,6 +162,8 @@ class ConfigManager:
         if self.config_path and Path(self.config_path).exists():
             file_config = self._load_config_file(self.config_path)
             config_dict.update(file_config)
+            # Update environment from file if specified
+            environment = config_dict.get("environment", environment)
 
         # Load environment-specific config
         env_config_path = f"configs/{environment}.yaml"

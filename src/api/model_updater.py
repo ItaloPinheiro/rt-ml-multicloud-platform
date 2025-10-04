@@ -7,7 +7,7 @@ with zero-downtime updates and proper health checks.
 import asyncio
 import os
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, Optional, List
 import logging
 import mlflow
@@ -152,7 +152,7 @@ class ModelUpdateManager:
                             latest=latest_version
                         )
 
-                self.last_check[model_name] = datetime.utcnow()
+                self.last_check[model_name] = datetime.now(timezone.utc)
 
             except Exception as e:
                 logger.error(
@@ -212,7 +212,7 @@ class ModelUpdateManager:
 
             # Record update in history
             self.update_history.append({
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "model_name": model_name,
                 "old_version": old_version,
                 "new_version": version,
@@ -249,7 +249,7 @@ class ModelUpdateManager:
             self.failed_updates += 1
 
             self.update_history.append({
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "model_name": model_name,
                 "old_version": self.current_versions.get(model_name),
                 "new_version": version,

@@ -2,7 +2,7 @@
 
 import json
 import pickle
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, List, Optional, Union
 import redis
 import structlog
@@ -63,7 +63,7 @@ class FeatureStore:
             ttl_seconds: TTL for cached features (defaults to config value)
         """
         if event_timestamp is None:
-            event_timestamp = datetime.utcnow()
+            event_timestamp = datetime.now(timezone.utc)
 
         if ttl_seconds is None:
             ttl_seconds = self.default_ttl
@@ -121,33 +121,43 @@ class FeatureStore:
         try:
             # Try Redis cache first
             cache_key = self._build_cache_key(entity_id, feature_group)
-            cached_data = self.redis_client.get(cache_key)
 
-            if cached_data:
-                try:
-                    data = pickle.loads(cached_data)
-                    features = data['features']
+            try:
+                cached_data = self.redis_client.get(cache_key)
 
-                    # Filter specific feature names if requested
-                    if feature_names:
-                        features = {name: features[name] for name in feature_names if name in features}
+                if cached_data:
+                    try:
+                        data = pickle.loads(cached_data)
+                        features = data['features']
 
-                    self.logger.debug(
-                        "Features retrieved from cache",
-                        entity_id=entity_id,
-                        feature_group=feature_group,
-                        feature_count=len(features)
-                    )
+                        # Filter specific feature names if requested
+                        if feature_names:
+                            features = {name: features[name] for name in feature_names if name in features}
 
-                    return features
+                        self.logger.debug(
+                            "Features retrieved from cache",
+                            entity_id=entity_id,
+                            feature_group=feature_group,
+                            feature_count=len(features)
+                        )
 
-                except (pickle.PickleError, KeyError) as e:
-                    self.logger.warning(
-                        "Failed to deserialize cached features, falling back to database",
-                        entity_id=entity_id,
-                        feature_group=feature_group,
-                        error=str(e)
-                    )
+                        return features
+
+                    except (pickle.PickleError, KeyError) as e:
+                        self.logger.warning(
+                            "Failed to deserialize cached features, falling back to database",
+                            entity_id=entity_id,
+                            feature_group=feature_group,
+                            error=str(e)
+                        )
+
+            except Exception as e:
+                self.logger.warning(
+                    "Redis cache unavailable, falling back to database",
+                    entity_id=entity_id,
+                    feature_group=feature_group,
+                    error=str(e)
+                )
 
             # Fallback to database
             return self._get_features_from_db(entity_id, feature_group, feature_names)
@@ -211,7 +221,7 @@ class FeatureStore:
                     cache_key = self._build_cache_key(entity_id, feature_group)
                     cached_data = {
                         'features': features,
-                        'event_timestamp': datetime.utcnow().isoformat(),
+                        'event_timestamp': datetime.now(timezone.utc).isoformat(),
                         'feature_group': feature_group,
                         'entity_id': entity_id
                     }
@@ -278,7 +288,7 @@ class FeatureStore:
             Number of features cleaned up
         """
         try:
-            current_time = datetime.utcnow()
+            current_time = datetime.now(timezone.utc)
 
             with get_session() as session:
                 # Mark expired features as inactive
@@ -324,7 +334,7 @@ class FeatureStore:
                 "redis_connected": False,
                 "database_connected": False,
                 "cache_info": {},
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
 
             # Check Redis connectivity
@@ -378,7 +388,7 @@ class FeatureStore:
             event_timestamp: Event timestamp
             ttl_seconds: TTL in seconds
         """
-        ttl_timestamp = datetime.utcnow() + timedelta(seconds=ttl_seconds)
+        ttl_timestamp = datetime.now(timezone.utc) + timedelta(seconds=ttl_seconds)
 
         with get_session() as session:
             for feature_name, feature_value in features.items():

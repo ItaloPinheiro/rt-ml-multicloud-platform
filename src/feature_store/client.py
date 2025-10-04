@@ -1,6 +1,6 @@
 """Feature store client for simplified feature access and management."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional, Union
 import structlog
 
@@ -398,7 +398,7 @@ class FeatureStoreClient:
                     "feature_counts": {name: count for name, count in feature_counts},
                     "data_type_distribution": {dtype: count for dtype, count in data_type_counts},
                     "total_features": sum(count for _, count in feature_counts),
-                    "timestamp": datetime.utcnow().isoformat()
+                    "timestamp": datetime.now(timezone.utc).isoformat()
                 }
 
                 self.logger.debug(

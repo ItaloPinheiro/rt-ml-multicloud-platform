@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from typing import Dict, Any, List, Optional, Union
-from pydantic import BaseModel, Field, validator, field_serializer
+from pydantic import BaseModel, Field, field_validator, field_serializer
 import json
 
 
@@ -12,25 +12,27 @@ class PredictionRequest(BaseModel):
     features: Dict[str, Any] = Field(
         ...,
         description="Feature dictionary for prediction",
-        example={
-            "amount": 250.00,
-            "merchant_category": "electronics",
-            "hour_of_day": 14,
-            "is_weekend": False,
-            "risk_score": 0.3
+        json_schema_extra={
+            "example": {
+                "amount": 250.00,
+                "merchant_category": "electronics",
+                "hour_of_day": 14,
+                "is_weekend": False,
+                "risk_score": 0.3
+            }
         }
     )
 
     model_name: str = Field(
         default="fraud_detector",
         description="Name of the model to use for prediction",
-        example="fraud_detector"
+        json_schema_extra={"example": "fraud_detector"}
     )
 
     version: Optional[str] = Field(
         default="latest",
         description="Model version (latest, specific version, or stage)",
-        example="latest"
+        json_schema_extra={"example": "latest"}
     )
 
     return_probabilities: bool = Field(
@@ -38,7 +40,8 @@ class PredictionRequest(BaseModel):
         description="Whether to return prediction probabilities"
     )
 
-    @validator('features')
+    @field_validator('features')
+    @classmethod
     def validate_features(cls, v):
         """Validate that features is a non-empty dictionary."""
         if not isinstance(v, dict) or len(v) == 0:
@@ -95,8 +98,8 @@ class BatchPredictionRequest(BaseModel):
     instances: List[Dict[str, Any]] = Field(
         ...,
         description="List of feature dictionaries for batch prediction",
-        min_items=1,
-        max_items=1000
+        min_length=1,
+        max_length=1000
     )
 
     model_name: str = Field(
@@ -114,7 +117,8 @@ class BatchPredictionRequest(BaseModel):
         description="Whether to return prediction probabilities"
     )
 
-    @validator('instances')
+    @field_validator('instances')
+    @classmethod
     def validate_instances(cls, v):
         """Validate instances list."""
         if not v:
@@ -197,11 +201,13 @@ class HealthCheck(BaseModel):
     checks: Dict[str, str] = Field(
         ...,
         description="Individual service health checks",
-        example={
-            "api": "healthy",
-            "mlflow": "healthy",
-            "redis": "healthy",
-            "database": "healthy"
+        json_schema_extra={
+            "example": {
+                "api": "healthy",
+                "mlflow": "healthy",
+                "redis": "healthy",
+                "database": "healthy"
+            }
         }
     )
 
@@ -264,7 +270,7 @@ class FeatureImportance(BaseModel):
     importance_type: str = Field(
         ...,
         description="Type of importance calculation",
-        example="gain"
+        json_schema_extra={"example": "gain"}
     )
 
     timestamp: datetime = Field(..., description="Calculation timestamp")

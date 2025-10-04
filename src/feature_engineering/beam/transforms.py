@@ -70,14 +70,14 @@ class FeatureExtraction(beam.DoFn):
             # Extract data from message wrapper if present
             data = element.get("data", element)
             message_id = element.get("message_id", "unknown")
-            timestamp = element.get("timestamp", datetime.utcnow().isoformat())
+            timestamp = element.get("timestamp", datetime.now(timezone.utc).isoformat())
 
             # Convert timestamp to datetime if it's a string
             if isinstance(timestamp, str):
                 try:
                     timestamp_dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
                 except ValueError:
-                    timestamp_dt = datetime.utcnow()
+                    timestamp_dt = datetime.now(timezone.utc)
             else:
                 timestamp_dt = timestamp
 
@@ -85,7 +85,7 @@ class FeatureExtraction(beam.DoFn):
             features = {
                 "message_id": message_id,
                 "timestamp": timestamp_dt.isoformat(),
-                "processed_at": datetime.utcnow().isoformat(),
+                "processed_at": datetime.now(timezone.utc).isoformat(),
             }
 
             # Extract domain-specific features
@@ -108,7 +108,7 @@ class FeatureExtraction(beam.DoFn):
                 "error": str(e),
                 "element": str(element)[:1000],  # Truncate large elements
                 "transform": "FeatureExtraction",
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
 
             self.logger.error(
@@ -408,7 +408,7 @@ class AggregateFeatures(beam.DoFn):
                 "high_amount_ratio": sum(1 for f in features_list if f.get("is_high_amount", False)) / len(features_list),
                 "unusual_time_ratio": sum(1 for f in features_list if f.get("is_unusual_time", False)) / len(features_list),
 
-                "processed_at": datetime.utcnow().isoformat()
+                "processed_at": datetime.now(timezone.utc).isoformat()
             }
 
             yield aggregated
@@ -419,7 +419,7 @@ class AggregateFeatures(beam.DoFn):
                 "key": str(key),
                 "feature_count": len(features_list) if 'features_list' in locals() else 0,
                 "transform": "AggregateFeatures",
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
 
             self.logger.error(
@@ -502,6 +502,6 @@ class ValidateFeatures(beam.DoFn):
                 "error": str(e),
                 "element": str(element)[:1000],
                 "transform": "ValidateFeatures",
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
             yield TaggedOutput('errors', error_info)
