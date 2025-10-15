@@ -234,6 +234,39 @@ services:
       retries: 5
 
   # =================================================================
+  # Redis Exporter - Prometheus metrics for Redis
+  # =================================================================
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    container_name: ml-redis-exporter
+    ports:
+      - "9121:9121"
+    environment:
+      REDIS_ADDR: redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  # =================================================================
+  # PostgreSQL Exporter - Prometheus metrics for PostgreSQL
+  # =================================================================
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: ml-postgres-exporter
+    ports:
+      - "9187:9187"
+    environment:
+      DATA_SOURCE_NAME: postgresql://mlflow:mlflow123@mlflow-db:5432/mlflow?sslmode=disable
+    depends_on:
+      mlflow-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9187/metrics"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # =================================================================
   # Apache Beam Runner - BUILD FROM LOCAL DOCKERFILE (optional profile)
   # =================================================================
   beam-runner:

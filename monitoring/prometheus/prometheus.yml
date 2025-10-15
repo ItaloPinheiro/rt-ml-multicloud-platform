@@ -20,12 +20,11 @@ scrape_configs:
   - job_name: 'model-api'
     static_configs:
       - targets: ['model-api:8000']
-    metrics_path: '/metrics'
+    metrics_path: '/metrics/'
     scrape_interval: 10s
     scrape_timeout: 5s
     scheme: http
-    params:
-      format: ['prometheus']
+    enable_compression: false
 
   # =================================================================
   # MLflow Server Metrics
@@ -39,11 +38,11 @@ scrape_configs:
     scheme: http
 
   # =================================================================
-  # Redis Metrics (using redis_exporter if added)
+  # Redis Metrics (using redis_exporter)
   # =================================================================
   - job_name: 'redis'
     static_configs:
-      - targets: ['redis:6379']
+      - targets: ['redis-exporter:9121']
     metrics_path: '/metrics'
     scrape_interval: 15s
     scrape_timeout: 5s
@@ -59,11 +58,11 @@ scrape_configs:
     scrape_timeout: 5s
 
   # =================================================================
-  # PostgreSQL Metrics (if postgres_exporter is added)
+  # PostgreSQL Metrics (using postgres_exporter)
   # =================================================================
   - job_name: 'postgres'
     static_configs:
-      - targets: ['mlflow-db:5432']
+      - targets: ['postgres-exporter:9187']
     metrics_path: '/metrics'
     scrape_interval: 30s
     scrape_timeout: 10s
