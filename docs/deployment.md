@@ -1,93 +1,68 @@
 # Deployment Guide
 
 ## Overview
-This repository supports both local development and production deployments with separate Docker Compose configurations.
 
-## Docker Compose Structure
+The platform supports local development and production deployments with different Docker Compose configurations.
+
+## Configuration Files
 
 ```
-docker-compose.yml          # Base services (shared)
-docker-compose.local.yml    # Local/demo overrides (MinIO, Redpanda)
-docker-compose.prod.yml     # Production overrides (Kafka, cloud storage)
-.env.example                # Base environment template
-envs/                       # Environment-specific templates
-  ├── .env.local           # Local development configuration
-  ├── .env.staging         # Staging environment configuration
-  └── .env.production      # Production environment configuration
+docker-compose.yml          # Base services
+docker-compose.local.yml    # Local overrides (MinIO, Redpanda)
+docker-compose.prod.yml     # Production overrides (Kafka, scaling)
+.env.example                # Environment template
 ```
 
 ## Local Development
 
 ### Quick Start
-```bash
-# Start local environment
-./scripts/start-local.sh
 
-# Or manually:
-cp envs/.env.local .env
-docker-compose -f docker-compose.yml -f docker-compose.local.yml up -d
+```bash
+# Setup environment
+cp .env.example .env
+
+# Start services
+docker-compose up -d
 
 # Run demo
 ./scripts/demo/demo.sh
 
 # Stop services
-docker-compose -f docker-compose.yml -f docker-compose.local.yml down
+docker-compose down
 ```
 
 ### Local Services
-- **Redpanda**: Lightweight Kafka alternative (port 9092)
-- **MinIO**: Local S3-compatible storage (port 9000/9001)
-- **MLflow**: With PostgreSQL backend and MinIO artifacts
-- **Redis**: Feature store with 256MB memory
-- **Model API**: Auto-reload enabled, 2 workers
+- **Redpanda**: Lightweight Kafka (port 9092)
+- **MinIO**: S3-compatible storage (ports 9000/9001)
+- **MLflow**: Model registry with PostgreSQL
+- **Redis**: Feature caching
+- **Model API**: FastAPI with hot reload
 - **Monitoring**: Prometheus + Grafana
-
-### Local URLs
-- Model API: http://localhost:8000
-- API Docs: http://localhost:8000/docs
-- MLflow: http://localhost:5000
-- Grafana: http://localhost:3001 (admin/admin123)
-- MinIO: http://localhost:9001 (minioadmin/minioadmin123)
-- Prometheus: http://localhost:9090
 
 ## Production Deployment
 
 ### Prerequisites
-1. Cloud storage bucket (S3/GCS) for MLflow artifacts
-2. Production database credentials
-3. SSL certificates (if using NGINX)
-4. Monitoring integration (Sentry/Datadog optional)
+- Cloud storage for MLflow artifacts (S3/GCS)
+- Production database credentials
+- Sufficient resources (4+ CPU cores, 8+ GB RAM)
 
 ### Setup
+
 ```bash
-# 1. Create production environment file
+# 1. Create production environment
 cp envs/.env.production .env
 
-# 2. Edit .env with production values
-vim .env
-# Set all CHANGE_ME values:
-# - Database passwords
-# - Redis password
-# - Cloud storage paths
-# - API keys
+# 2. Edit .env with production values:
+# - Strong passwords for PostgreSQL and Redis
+# - Cloud storage configuration (S3/GCS)
+# - API authentication keys
 
 # 3. Start production services
-./scripts/start-prod.sh
-
-# Or manually:
 docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
-# 4. Enable NGINX (optional)
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml --profile web up -d
+# 4. Verify deployment
+curl http://localhost:8000/health
 ```
-
-### Production Services
-- **Kafka + Zookeeper**: Full Kafka for production messaging
-- **PostgreSQL**: Production database with strong passwords
-- **Redis**: 1GB memory with password protection
-- **MLflow**: Connected to cloud storage (S3/GCS)
-- **Model API**: 4 workers, 2 replicas, auto-scaling
-- **Monitoring**: Production-grade Prometheus + Grafana
 
 ### Production Configuration
 
@@ -104,160 +79,154 @@ model-api:
 redis:
   resources:
     limits:
-      cpus: '1'
       memory: 1.5G
 ```
 
 #### Security
-- All passwords from environment variables
-- Redis password protection
-- NGINX SSL termination (optional)
+- Password protection for all services
+- Environment variable isolation
 - API key authentication
 - CORS restrictions
 
 ## Environment Variables
 
-### Critical Production Variables
+### Required for Production
+
 ```bash
 # Database
-POSTGRES_PASSWORD=strong_password_here
+POSTGRES_PASSWORD=<strong_password>
 POSTGRES_USER=mlflow_prod
 POSTGRES_DB=mlflow_production
 
 # Redis
-REDIS_PASSWORD=redis_password_here
+REDIS_PASSWORD=<redis_password>
 
 # Cloud Storage (choose one)
-# AWS
+# AWS S3
 MLFLOW_ARTIFACT_ROOT=s3://your-bucket/mlflow
-AWS_ACCESS_KEY_ID=your_key
-AWS_SECRET_ACCESS_KEY=your_secret
+AWS_ACCESS_KEY_ID=<your_key>
+AWS_SECRET_ACCESS_KEY=<your_secret>
 
-# GCP
+# Google Cloud Storage
 MLFLOW_ARTIFACT_ROOT=gs://your-bucket/mlflow
-GCP_PROJECT=your-project
+GCP_PROJECT=<your-project>
 GOOGLE_APPLICATION_CREDENTIALS=/app/gcp-key.json
 
-# API
-PRELOAD_MODELS=model_name:production
+# API Configuration
 API_WORKERS=4
 MODEL_CACHE_SIZE=10
-
-# Monitoring
-GRAFANA_ADMIN_PASSWORD=secure_password
+MODEL_UPDATE_INTERVAL=60
 ```
 
-## Deployment Commands
+## Kubernetes Deployment
 
-### Local
+Deploy to Kubernetes cluster:
+
 ```bash
-# Start
-docker-compose -f docker-compose.yml -f docker-compose.local.yml up -d
+# Apply base configuration
+kubectl apply -f k8s/base/
 
-# Logs
-docker-compose -f docker-compose.yml -f docker-compose.local.yml logs -f model-api
+# Apply production overlay
+kubectl apply -f k8s/overlays/production/
 
-# Stop
-docker-compose -f docker-compose.yml -f docker-compose.local.yml down
+# Check deployment
+kubectl get pods -l app=ml-pipeline
 
-# Clean everything
-docker-compose -f docker-compose.yml -f docker-compose.local.yml down -v
-```
-
-### Production
-```bash
-# Start
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
-
-# Scale API
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d --scale model-api=3
-
-# Update single service
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d --no-deps model-api
-
-# Logs
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml logs -f
-
-# Stop
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml down
+# View logs
+kubectl logs -l app=ml-pipeline-api -f
 ```
 
 ## Health Checks
 
-All services include health checks:
+All services include health endpoints:
 
 ```bash
-# Check all services
-for service in 8000 5000 9090 3001; do
-  echo "Checking port $service..."
-  curl -s http://localhost:$service/health || echo "Not ready"
-done
+# Check individual services
+curl http://localhost:8000/health  # API
+curl http://localhost:5000/health  # MLflow
+curl http://localhost:9090/-/healthy  # Prometheus
+curl http://localhost:3001/api/health  # Grafana
+```
 
-# Production health endpoint
-curl https://your-domain.com/health
+## Scaling
+
+### Docker Compose
+```bash
+# Scale API replicas
+docker-compose -f docker-compose.yml -f docker-compose.prod.yml \
+  up -d --scale model-api=3
+```
+
+### Kubernetes
+```bash
+# Scale deployment
+kubectl scale deployment ml-pipeline-api --replicas=5
 ```
 
 ## Monitoring
 
-### Metrics Available
-- API request latency
-- Model prediction time
-- Cache hit rates
+### Available Metrics
+- Request latency (P50, P95, P99)
+- Prediction throughput
 - Model version tracking
+- Cache hit rates
 - Resource utilization
 
-### Grafana Dashboards
-1. API Performance
-2. Model Metrics
-3. Infrastructure Health
-4. Cache Performance
+### Grafana Access
+- URL: http://localhost:3001
+- Default: admin/admin123
+- Change password in production
+
+## Backup and Recovery
+
+### Database Backup
+```bash
+# Backup MLflow database
+docker exec postgres pg_dump -U mlflow mlflow_production > backup.sql
+
+# Restore database
+docker exec -i postgres psql -U mlflow mlflow_production < backup.sql
+```
+
+### Model Artifacts
+Models are stored in cloud storage (S3/GCS) which should have its own backup strategy.
 
 ## Troubleshooting
 
-### Local Issues
+### Service Issues
 ```bash
-# Reset everything
-docker-compose -f docker-compose.yml -f docker-compose.local.yml down -v
-rm -rf model_cache/
-docker-compose -f docker-compose.yml -f docker-compose.local.yml up -d
+# Check status
+docker-compose ps
 
-# Check MinIO bucket
-docker exec ml-mlflow-minio mc ls local/mlflow
+# View logs
+docker-compose logs --tail=100 model-api
+
+# Restart service
+docker-compose restart model-api
 ```
 
-### Production Issues
+### Performance Issues
 ```bash
-# Check service status
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml ps
+# Monitor resources
+docker stats
 
-# View recent logs
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml logs --tail=100
-
-# Restart single service
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml restart model-api
+# Check metrics
+curl http://localhost:8000/metrics
 ```
 
-## Migration Guide
+## Migration from Local to Production
 
-### From Local to Production
-1. Train models in local environment
-2. Promote models to "Production" stage in MLflow
-3. Export model artifacts to cloud storage
-4. Update production `.env` with model names
-5. Deploy production services
-6. Verify model loading
-
-### Rollback Procedure
-1. Change model stage in MLflow UI
-2. API auto-updates within 60 seconds
-3. Or force reload: `curl -X POST https://api/models/reload`
+1. Export models from local MLflow
+2. Upload to production artifact storage
+3. Update production database with model metadata
+4. Deploy production services
+5. Verify model loading
 
 ## Best Practices
 
-1. **Never commit `.env` files** with real credentials
-2. **Use separate MLflow experiments** for dev/staging/prod
-3. **Monitor resource usage** and adjust limits
-4. **Regular backups** of PostgreSQL and model artifacts
-5. **Use health checks** before routing traffic
-6. **Implement gradual rollouts** with multiple API replicas
-7. **Set up alerts** in Grafana for critical metrics
+1. Use separate MLflow experiments for environments
+2. Implement gradual rollouts for new models
+3. Monitor resource usage and scale accordingly
+4. Regular database backups
+5. Use health checks before routing traffic
+6. Keep audit logs of model deployments

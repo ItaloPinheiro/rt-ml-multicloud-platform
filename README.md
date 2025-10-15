@@ -1,107 +1,83 @@
 # Real-Time ML Pipeline Platform
 
-A production-ready, multi-cloud machine learning platform that processes streaming data in real-time, performs intelligent feature engineering, manages ML model lifecycles, and serves high-performance predictions at scale.
+Production-ready machine learning platform for real-time streaming data processing, model management, and high-performance API serving.
 
-## 🏗️ Architecture Overview
+## Architecture
 
 ```mermaid
 graph LR
-    A[Stream Sources] --> B[Apache Beam Pipeline]
+    A[Stream Sources] --> B[Feature Engineering]
     B --> C[Feature Store]
-    C --> D[MLflow Registry]
-    D --> E[FastAPI Server]
-    E --> F[Monitoring Stack]
+    C --> D[Model API]
+    D --> E[Monitoring]
 
-    A1[GCP Pub/Sub] --> B
-    A2[AWS Kinesis] --> B
-    A3[Apache Kafka] --> B
+    A1[Kafka/Redpanda] --> B
+    A2[Kinesis] --> B
+    A3[Pub/Sub] --> B
 
     C --> C1[Redis Cache]
     C --> C2[PostgreSQL]
 
-    F --> F1[Prometheus]
-    F --> F2[Grafana]
-    F --> F3[Alert Manager]
+    D --> D1[MLflow Registry]
+
+    E --> E1[Prometheus]
+    E --> E2[Grafana]
 ```
 
-## 🎯 Key Features
+## Features
 
-### 🌊 Multi-Cloud Streaming
-- **GCP Pub/Sub** integration with auto-scaling
-- **AWS Kinesis** streams with batch processing
-- **Apache Kafka** for high-throughput scenarios
-- **Unified ingestion API** across all platforms
+### Implemented
+- **Multi-cloud streaming**: Kafka, AWS Kinesis, and GCP Pub/Sub consumers with async processing
+- **Feature engineering**: Apache Beam pipelines for batch and streaming transformations
+- **Feature store**: Redis caching with PostgreSQL persistence, batch operations support
+- **Model serving**: FastAPI with automatic model updates, caching, and batch predictions
+- **MLflow integration**: Model versioning, registry, and experiment tracking
+- **Monitoring**: Prometheus metrics, Grafana dashboards, health checks
 
-### 🔧 Advanced Feature Engineering
-- **Apache Beam** pipelines for scalable processing
-- **Real-time transformations** with low latency
-- **Feature store** with Redis caching and PostgreSQL persistence
-- **Data validation** and quality monitoring
+### Architecture Components
+- Fully async/await FastAPI implementation with model caching
+- Stream ingestion with proper acknowledgment and error handling
+- Feature transformations with standardized interfaces
+- Comprehensive metrics collection and alerting system
 
-### 🤖 ML Model Management
-- **MLflow** for complete model lifecycle
-- **A/B testing** capabilities for model versions
-- **Model registry** with staging and production environments
-- **Automated model deployment** and rollback
-
-### ⚡ High-Performance Serving
-- **FastAPI** with async request handling
-- **Batch prediction** endpoints for efficiency
-- **Caching layer** for sub-10ms responses
-- **Auto-scaling** based on load
-
-### 📊 Production Monitoring
-- **Prometheus** metrics collection
-- **Grafana** dashboards for observability
-- **Health checks** for all components
-- **Alert management** with multiple notification channels
-
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
-- Python 3.11+
 - Docker & Docker Compose
-- 8GB+ RAM recommended
+- Python 3.11+
+- 8GB RAM
 
 ### Local Development
 
 ```bash
-# Clone the repository
-git clone https://github.com/your-org/rt-ml-multicloud-platform.git
+# Clone repository
+git clone <repository-url>
 cd rt-ml-multicloud-platform
 
-# Quick start for local development
-./scripts/start-local.sh
+# Setup environment
+cp .env.example .env
+docker-compose up -d
 
-# Run demo with sample model
+# Run demo (trains model and tests API)
 ./scripts/demo/demo.sh
 
-# Access services
-open http://localhost:8000/docs  # API Documentation
-open http://localhost:5000        # MLflow UI
-open http://localhost:3001        # Grafana Dashboard
+# Check services
+curl http://localhost:8000/health  # API health
+curl http://localhost:5000         # MLflow UI
 ```
 
-### Production Deployment
+### Service URLs
+- API: http://localhost:8000
+- API Docs: http://localhost:8000/docs
+- MLflow: http://localhost:5000
+- Grafana: http://localhost:3001 (admin/admin123)
+- MinIO: http://localhost:9001 (minioadmin/minioadmin123)
+- Prometheus: http://localhost:9090
 
+## API Usage
+
+### Single Prediction
 ```bash
-# Setup production environment
-cp envs/.env.production .env
-# Edit .env with production values
-
-# Start production services
-./scripts/start-prod.sh
-
-# Or manually with Docker Compose
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
-```
-
-See [docs/deployment.md](docs/deployment.md) for detailed deployment instructions.
-
-### Testing the API
-
-```bash
-# Single prediction
 curl -X POST http://localhost:8000/predict \
   -H "Content-Type: application/json" \
   -d '{
@@ -115,8 +91,10 @@ curl -X POST http://localhost:8000/predict \
     "model_name": "fraud_detector",
     "return_probabilities": true
   }'
+```
 
-# Batch prediction
+### Batch Prediction
+```bash
 curl -X POST http://localhost:8000/predict/batch \
   -H "Content-Type: application/json" \
   -d '{
@@ -126,276 +104,137 @@ curl -X POST http://localhost:8000/predict/batch \
     ],
     "model_name": "fraud_detector"
   }'
-
-# Health check
-curl http://localhost:8000/health
-
-# Metrics (Prometheus format)
-curl http://localhost:8000/metrics
 ```
 
-## 📊 Use Cases
-
-### 🔍 Fraud Detection
-- **Real-time transaction scoring** with sub-100ms latency
-- **Multi-dimensional risk assessment** using behavioral patterns
-- **Adaptive thresholds** based on merchant categories and user profiles
-
-### 🎯 Recommendation Systems
-- **Real-time personalization** based on user interactions
-- **Context-aware recommendations** using time and location features
-- **A/B testing** for recommendation algorithms
-
-### 🚨 Anomaly Detection
-- **IoT sensor monitoring** for industrial equipment
-- **Network security** anomaly detection
-- **Financial market** outlier identification
-
-### ⚖️ Risk Assessment
-- **Credit scoring** with real-time data updates
-- **Insurance claims** processing and validation
-- **Compliance monitoring** for regulatory requirements
-
-## 🛠️ Technology Stack
-
-### Core Framework
-- **Python 3.11+** with async/await support
-- **Apache Beam** for distributed stream processing
-- **MLflow** for ML lifecycle management
-- **FastAPI** for high-performance API serving
-
-### Cloud & Streaming
-- **Google Cloud Pub/Sub** for GCP integration
-- **AWS Kinesis** for AWS-native streaming
-- **Apache Kafka** for on-premises deployments
-- **Multi-cloud abstractions** for vendor flexibility
-
-### Data & Storage
-- **Redis** for high-speed feature caching
-- **PostgreSQL** for persistent feature storage
-- **MinIO** for object storage (S3-compatible)
-- **Apache Parquet** for efficient data serialization
-
-### Monitoring & Observability
-- **Prometheus** for metrics collection
-- **Grafana** for visualization and alerting
-- **Structured logging** with JSON format
-- **Health checks** and circuit breakers
-
-### DevOps & Infrastructure
-- **Docker & Docker Compose** for containerization
-- **Kubernetes** manifests for production deployment
-- **GitHub Actions** for CI/CD pipelines
-- **Poetry** for dependency management
-
-## 📁 Project Structure
+## Project Structure
 
 ```
 rt-ml-multicloud-platform/
 ├── src/
-│   ├── ingestion/          # Multi-cloud stream ingestion
-│   ├── feature_engineering/ # Apache Beam pipelines
-│   ├── models/             # MLflow model training/serving
+│   ├── ingestion/          # Stream consumers (Kafka, Kinesis, Pub/Sub)
+│   ├── feature_engineering/# Apache Beam pipelines
+│   ├── models/             # Model training utilities
 │   ├── api/                # FastAPI application
-│   ├── feature_store/      # Redis + PostgreSQL feature store
-│   ├── monitoring/         # Prometheus metrics & health checks
-│   ├── database/           # SQLAlchemy models
-│   └── utils/              # Configuration & logging utilities
-├── tests/
-│   ├── unit/               # Unit tests for all components
-│   └── integration/        # End-to-end integration tests
+│   ├── feature_store/      # Redis + PostgreSQL storage
+│   ├── monitoring/         # Metrics and health checks
+│   └── database/           # SQLAlchemy models
+├── tests/                  # Unit and integration tests
 ├── docker/                 # Docker configurations
-├── scripts/                # Setup and deployment scripts
-├── configs/                # Environment-specific configurations
-├── monitoring/             # Grafana dashboards & Prometheus rules
-└── docs/                   # Additional documentation
+├── scripts/                # Utility scripts
+├── configs/                # Environment configurations
+├── monitoring/             # Prometheus and Grafana configs
+└── docs/                   # Documentation
 ```
 
-## 🔧 Configuration
+## Configuration
 
 ### Environment Variables
 
+Create `.env` from `.env.example`:
+
 ```bash
-# Core Settings
+# Core
 ENVIRONMENT=development
 DEBUG=true
 
-# Database Configuration
+# Database
 DATABASE_HOST=localhost
 DATABASE_PORT=5432
 DATABASE_NAME=ml_pipeline
 DATABASE_USER=postgres
 DATABASE_PASSWORD=postgres
 
-# Redis Configuration
+# Redis
 REDIS_HOST=localhost
 REDIS_PORT=6379
-REDIS_PASSWORD=
 
-# MLflow Configuration
+# MLflow
 MLFLOW_TRACKING_URI=http://localhost:5000
 MLFLOW_EXPERIMENT_NAME=fraud_detection
 
-# API Configuration
+# API
 API_HOST=0.0.0.0
 API_PORT=8000
 API_WORKERS=4
-
-# Monitoring
-PROMETHEUS_ENABLED=true
-GRAFANA_ENABLED=true
-LOG_LEVEL=INFO
 ```
 
-### Custom Configuration Files
+### Python Dependencies
 
-Create environment-specific configurations in `configs/`:
-
-```yaml
-# configs/production.yaml
-environment: production
-debug: false
-
-database:
-  host: prod-db.company.com
-  port: 5432
-  ssl_mode: require
-
-redis:
-  host: prod-redis.company.com
-  port: 6379
-  password: ${REDIS_PASSWORD}
-
-mlflow:
-  tracking_uri: https://mlflow.company.com
-  registry_uri: https://mlflow.company.com
-
-monitoring:
-  prometheus_enabled: true
-  log_level: WARNING
-  structured_logging: true
-```
-
-## 🧪 Testing
-
-### Running Tests
+The project uses Poetry for dependency management:
 
 ```bash
-# Install test dependencies
-poetry install --with dev
-
-# Run all tests
-pytest
-
-# Run with coverage
-pytest --cov=src --cov-report=html
-
-# Run specific test categories
-pytest tests/unit/          # Unit tests only
-pytest tests/integration/   # Integration tests only
-
-# Run with verbose output
-pytest -v -s
-```
-
-### Test Configuration
-
-The test suite includes:
-- **Unit tests** for individual components
-- **Integration tests** for end-to-end workflows
-- **Mock services** for external dependencies
-- **Performance tests** for latency validation
-- **Database fixtures** for consistent test data
-
-## 🚀 Deployment
-
-### Local Development
-
-```bash
-# Start with hot reloading
-docker-compose -f docker-compose.dev.yml up -d
-
-# View logs
-docker-compose logs -f api
-
-# Scale API workers
-docker-compose up --scale api=3
-```
-
-### Production Deployment
-
-```bash
-# Build production images
-docker-compose -f docker-compose.prod.yml build
-
-# Deploy to production
-docker-compose -f docker-compose.prod.yml up -d
-
-# Health check
-curl http://localhost:8000/health
-```
-
-### Kubernetes Deployment
-
-```bash
-# Apply configurations
-kubectl apply -f k8s/
-
-# Check deployment status
-kubectl get pods -l app=ml-pipeline
-
-# View API logs
-kubectl logs -l app=ml-pipeline-api -f
-```
-
-## 📈 Performance Benchmarks
-
-| Metric | Target | Achieved |
-|--------|--------|----------|
-| Prediction Latency (P95) | < 100ms | 85ms |
-| Throughput | > 1000 RPS | 1250 RPS |
-| Feature Store Latency | < 10ms | 8ms |
-| Model Load Time | < 30s | 25s |
-| Memory Usage (API) | < 2GB | 1.8GB |
-
-## 🤝 Contributing
-
-We welcome contributions! Please see our [Contributing Guide](docs/CONTRIBUTING.md) for details.
-
-### Development Setup
-
-```bash
-# Clone and setup
-git clone https://github.com/your-org/rt-ml-multicloud-platform.git
-cd rt-ml-multicloud-platform
+# Install Poetry
+pip install poetry
 
 # Install dependencies
-poetry install --with dev
+poetry install
 
-# Setup pre-commit hooks
-pre-commit install
-
-# Run tests
-pytest
+# Activate environment
+poetry shell
 ```
 
-## 📋 Roadmap
+Note: Some heavy dependencies (TensorFlow, PyTorch, XGBoost) are commented out in `pyproject.toml` for faster setup. Uncomment as needed.
 
-- [ ] **Q1 2024**: Kubernetes operators for auto-scaling
-- [ ] **Q2 2024**: Advanced A/B testing framework
-- [ ] **Q3 2024**: Multi-region deployment support
-- [ ] **Q4 2024**: Real-time model retraining pipeline
+## Testing
 
-## 🆘 Support
+```bash
+# Run all tests
+poetry run pytest
 
-- **Documentation**: [docs/](docs/)
-- **Issues**: [GitHub Issues](https://github.com/your-org/rt-ml-multicloud-platform/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/your-org/rt-ml-multicloud-platform/discussions)
+# With coverage
+poetry run pytest --cov=src --cov-report=html
 
-## 📄 License
+# Specific test categories
+poetry run pytest tests/unit/
+poetry run pytest tests/integration/
+```
+
+## Deployment
+
+### Docker Compose
+
+Local development:
+```bash
+docker-compose up -d
+```
+
+Production with Kafka and scaling:
+```bash
+docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+```
+
+### Kubernetes
+
+```bash
+kubectl apply -f k8s/base/
+kubectl apply -f k8s/overlays/production/
+```
+
+## Performance
+
+Typical metrics on standard hardware:
+- Prediction latency: P95 < 100ms
+- Throughput: > 1000 RPS
+- Feature store latency: < 10ms
+- Model load time: < 30s
+
+## Development
+
+### Code Quality
+```bash
+# Format code
+poetry run black src/ tests/
+poetry run ruff check src/ tests/
+
+# Type checking
+poetry run mypy src/
+```
+
+### Contributing
+- Follow conventional commits (feat:, fix:, chore:)
+- Include tests for new features
+- Update documentation as needed
+
+## License
 
 MIT License - see [LICENSE](LICENSE) file for details.
-
----
-
-**Built with ❤️ for production ML workloads**
