@@ -1,0 +1,20 @@
+{
+  "model_name": "fraud_detector",
+  "model_type": "fraud_detection",
+  "version": "1.0.0",
+  "description": "Demo fraud detection model for credit card transactions",
+  "features": [
+    "amount",
+    "hour_of_day",
+    "day_of_week",
+    "is_weekend",
+    "transaction_count_24h",
+    "avg_amount_30d",
+    "risk_score",
+    "merchant_category_encoded",
+    "payment_method_encoded"
+  ],
+  "target": "fraud_probability",
+  "threshold": 0.5,
+  "created_at": "2025-09-27T18:18:43.589380"
+}

@@ -16,6 +16,7 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import Pipeline
 from sklearn.metrics import accuracy_score, precision_score, recall_score
 
 # Set MLflow tracking URI and S3 configuration
@@ -30,134 +31,131 @@ os.environ["MLFLOW_S3_ENDPOINT_URL"] = "http://localhost:9000"
 DATA_ROOT = os.getenv("DATA_ROOT", "sample_data")
 DEMO_DATASET = os.path.join(DATA_ROOT, "demo", "datasets", "fraud_detection.csv")
 
-# Load data
-print("Loading training data...")
-df = pd.read_csv(DEMO_DATASET)
+def main():
+    # Load data
+    print(f"Loading training data from {DEMO_DATASET}...")
+    if not os.path.exists(DEMO_DATASET):
+        print(f"Error: Dataset not found at {DEMO_DATASET}")
+        sys.exit(1)
 
-# Prepare features and target
-feature_columns = [col for col in df.columns if col != 'label']
-X = df[feature_columns]
-y = df['label']
+    df = pd.read_csv(DEMO_DATASET)
 
-# Split data
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    # Prepare features and target
+    feature_columns = [col for col in df.columns if col != 'label']
+    X = df[feature_columns]
+    y = df['label']
 
-# Scale features
-scaler = StandardScaler()
-X_train_scaled = scaler.fit_transform(X_train)
-X_test_scaled = scaler.transform(X_test)
+    # Split data
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# Train model
-print("Training Random Forest model...")
-model = RandomForestClassifier(n_estimators=100, random_state=42)
-model.fit(X_train_scaled, y_train)
+    # Create Pipeline
+    # This ensures the model expects raw feature inputs (with column names) and scales them internally
+    print("Training Random Forest Pipeline...")
+    pipeline = Pipeline([
+        ('scaler', StandardScaler()),
+        ('clf', RandomForestClassifier(n_estimators=100, random_state=42))
+    ])
+    
+    pipeline.fit(X_train, y_train)
 
-# Make predictions
-y_pred = model.predict(X_test_scaled)
+    # Make predictions
+    y_pred = pipeline.predict(X_test)
 
-# Calculate metrics
-accuracy = accuracy_score(y_test, y_pred)
-precision = precision_score(y_test, y_pred, zero_division=0)
-recall = recall_score(y_test, y_pred, zero_division=0)
+    # Calculate metrics
+    accuracy = accuracy_score(y_test, y_pred)
+    precision = precision_score(y_test, y_pred, zero_division=0)
+    recall = recall_score(y_test, y_pred, zero_division=0)
 
-print(f"Accuracy: {accuracy:.3f}")
-print(f"Precision: {precision:.3f}")
-print(f"Recall: {recall:.3f}")
+    print(f"Accuracy: {accuracy:.3f}")
+    print(f"Precision: {precision:.3f}")
+    print(f"Recall: {recall:.3f}")
 
-# Create or get experiment with S3 artifact location
-experiment_name = "fraud_detection_demo"
-try:
-    experiment = mlflow.get_experiment_by_name(experiment_name)
-    if experiment is None:
-        # Create experiment with S3 artifact location
-        artifact_location = "s3://mlflow/fraud_detection_demo"
-        experiment_id = mlflow.create_experiment(
-            experiment_name,
-            artifact_location=artifact_location
-        )
-        print(f"Created experiment with S3 storage: {artifact_location}")
-    else:
-        experiment_id = experiment.experiment_id
-        print(f"Using existing experiment, artifact location: {experiment.artifact_location}")
-except Exception as e:
-    print(f"Using default experiment: {e}")
-    experiment_id = "0"
-
-# Log to MLflow
-print("Logging model to MLflow...")
-try:
-    run = mlflow.start_run(experiment_id=experiment_id)
-
-    # Log parameters
-    mlflow.log_param("model_type", "random_forest")
-    mlflow.log_param("n_estimators", 100)
-    mlflow.log_param("test_size", 0.2)
-
-    # Log metrics
-    mlflow.log_metric("accuracy", accuracy)
-    mlflow.log_metric("precision", precision)
-    mlflow.log_metric("recall", recall)
-
-    # Log model (without registered_model_name to avoid API issues)
-    model_info = mlflow.sklearn.log_model(
-        model,
-        "model",
-        signature=mlflow.models.infer_signature(X_test_scaled, y_pred)
-    )
-
-    # Save run ID for registration
-    run_id = run.info.run_id
-    print(f"Model logged with run_id: {run_id}")
-
-    # End run explicitly to avoid Unicode error
-    mlflow.end_run()
-
-except UnicodeEncodeError as e:
-    # Handle Unicode error gracefully
-    print(f"Unicode error handled (this is okay): {e}")
-    # Make sure we have the run_id before ending the run
-    if mlflow.active_run():
-        run_id = mlflow.active_run().info.run_id
-    mlflow.end_run()
-except Exception as e:
-    print(f"Error during MLflow logging: {e}")
-    mlflow.end_run()
-    raise
-
-# Register model separately
-try:
-    print("Registering model...")
-    client = mlflow.MlflowClient()
-
-    # Create registered model
+    # Create or get experiment with S3 artifact location
+    experiment_name = "fraud_detection_demo"
     try:
-        client.create_registered_model("fraud_detector")
-        print("Created new registered model: fraud_detector")
-    except Exception:
-        print("Registered model already exists")
+        experiment = mlflow.get_experiment_by_name(experiment_name)
+        if experiment is None:
+            # Create experiment with S3 artifact location
+            artifact_location = "s3://mlflow/fraud_detection_demo"
+            experiment_id = mlflow.create_experiment(
+                experiment_name,
+                artifact_location=artifact_location
+            )
+            print(f"Created experiment with S3 storage: {artifact_location}")
+        else:
+            experiment_id = experiment.experiment_id
+            print(f"Using existing experiment, artifact location: {experiment.artifact_location}")
+    except Exception as e:
+        print(f"Using default experiment: {e}")
+        experiment_id = "0"
 
-    # Create model version
-    model_version = client.create_model_version(
-        name="fraud_detector",
-        source=f"runs:/{run_id}/model",
-        run_id=run_id
-    )
+    # Log to MLflow
+    print("Logging model to MLflow...")
+    try:
+        with mlflow.start_run(experiment_id=experiment_id) as run:
+            # Log parameters
+            mlflow.log_param("model_type", "random_forest_pipeline")
+            mlflow.log_param("n_estimators", 100)
+            mlflow.log_param("test_size", 0.2)
 
-    print(f"Registered model version: {model_version.version}")
+            # Log metrics
+            mlflow.log_metric("accuracy", accuracy)
+            mlflow.log_metric("precision", precision)
+            mlflow.log_metric("recall", recall)
 
-    # Transition to production
-    client.transition_model_version_stage(
-        name="fraud_detector",
-        version=model_version.version,
-        stage="Production"
-    )
-    print("Model transitioned to Production stage")
+            # Log model (Pipeline)
+            # Infer signature from actual DataFrame inputs to preserve column names
+            mlflow.sklearn.log_model(
+                pipeline,
+                "model",
+                signature=mlflow.models.infer_signature(X_test, y_pred)
+            )
 
-except Exception as e:
-    print(f"Model registration failed (this is okay for demo): {e}")
+            # Save run ID for registration
+            run_id = run.info.run_id
+            print(f"Model logged with run_id: {run_id}")
 
-print("\nModel training complete!")
-print(f"MLflow UI: http://localhost:5000")
-if run_id:
-    print(f"Run ID: {run_id}")
-    print(f"View run: http://localhost:5000/#/experiments/{experiment_id}/runs/{run_id}")
+    except Exception as e:
+        print(f"Error during MLflow logging: {e}")
+        sys.exit(1)
+
+    # Register model separately
+    try:
+        print("Registering model...")
+        client = mlflow.MlflowClient()
+
+        # Create registered model
+        try:
+            client.create_registered_model("fraud_detector")
+            print("Created new registered model: fraud_detector")
+        except Exception:
+            print("Registered model already exists")
+
+        # Create model version
+        model_version = client.create_model_version(
+            name="fraud_detector",
+            source=f"runs:/{run_id}/model",
+            run_id=run_id
+        )
+
+        print(f"Registered model version: {model_version.version}")
+
+        # Transition to production
+        client.transition_model_version_stage(
+            name="fraud_detector",
+            version=model_version.version,
+            stage="Production"
+        )
+        print("Model transitioned to Production stage")
+
+    except Exception as e:
+        print(f"Model registration failed (this is okay for demo): {e}")
+
+    print("\nModel training complete!")
+    print(f"MLflow UI: http://localhost:5000")
+    if run_id:
+        print(f"Run ID: {run_id}")
+        print(f"View run: http://localhost:5000/#/experiments/{experiment_id}/runs/{run_id}")
+
+if __name__ == "__main__":
+    main()

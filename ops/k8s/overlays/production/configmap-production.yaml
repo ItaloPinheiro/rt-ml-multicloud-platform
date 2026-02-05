@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ml-pipeline-config
+  namespace: ml-pipeline
+data:
+  ENVIRONMENT: "production"
+  DEBUG: "false"
+  API_WORKERS: "8"
+  LOG_LEVEL: "WARNING"
+  BATCH_SIZE: "2000"
+  MODEL_CACHE_SIZE: "20"
+  FEATURE_STORE_TTL: "7200"  # 2 hours for production
+  MAX_RETRIES: "5"
+  # Performance optimizations
+  UVICORN_WORKER_CLASS: "uvicorn.workers.UvicornWorker"
+  UVICORN_KEEP_ALIVE: "5"
+  UVICORN_MAX_REQUESTS: "1000"
+  UVICORN_MAX_REQUESTS_JITTER: "100"
