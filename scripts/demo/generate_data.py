@@ -13,7 +13,7 @@ import pandas as pd
 import numpy as np
 
 # Configuration
-DATA_ROOT = os.getenv("DATA_ROOT", "sample_data")
+DATA_ROOT = os.getenv("DATA_ROOT", "data/sample")
 GENERATED_DIR = os.path.join(DATA_ROOT, "generated")
 DEMO_DIR = os.path.join(DATA_ROOT, "demo")
 DEMO_DATASETS_DIR = os.path.join(DEMO_DIR, "datasets")
@@ -183,8 +183,14 @@ def create_sample_request_file(transactions: List[Dict[str, Any]]) -> None:
     """Create a sample request file for API testing."""
     sample_transaction = random.choice(transactions)
 
+    # Prepare features matching training data
+    features = sample_transaction["features"].copy()
+    features['amount'] = sample_transaction['amount']
+    features['merchant_category_encoded'] = hash(sample_transaction['merchant_category']) % 100
+    features['payment_method_encoded'] = hash(sample_transaction['payment_method']) % 10
+
     sample_request = {
-        "features": sample_transaction["features"],
+        "features": features,
         "model_name": "fraud_detector",
         "return_probabilities": True
     }

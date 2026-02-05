@@ -290,7 +290,7 @@ jobs:
         echo "" >> release-notes.md
 
         echo "### Docker Compose" >> release-notes.md
-        echo "Update your \`docker-compose.yml\` to use \`ghcr.io/${{ github.repository }}:$VERSION\`" >> release-notes.md
+        echo "Update your \`ops/local/docker-compose.yml\` to use \`ghcr.io/${{ github.repository }}:$VERSION\`" >> release-notes.md
 
         # Output for GitHub
         {

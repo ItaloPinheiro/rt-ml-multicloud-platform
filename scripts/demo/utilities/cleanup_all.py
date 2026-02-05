@@ -188,7 +188,7 @@ COMMIT;
             print("  docker exec ml-mlflow-db psql -U mlflow -d mlflow -c \"DELETE FROM experiments WHERE lifecycle_stage = 'deleted';\"")
             print("\nFor complete reset:")
             print("  docker exec ml-mlflow-db psql -U mlflow -d mlflow -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;'")
-            print("  docker-compose restart mlflow-server")
+            print("  docker-compose -f ops/local/docker-compose.yml -f ops/local/docker-compose.override.yml restart mlflow-server")
     else:
         print("Database cleanup cancelled")
 

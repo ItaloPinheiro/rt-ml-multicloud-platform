@@ -1,6 +1,7 @@
-# Claude AI Files
+# AI Files
 .claude/
-CLAUDE.md
+.antigravity/
+.agent/
 
 # Generated sample data
 sample_data/generated/
@@ -296,7 +297,7 @@ mlruns/
 mlartifacts/
 
 # Model artifacts
-models/
+/models/
 artifacts/
 *.pkl
 *.joblib
@@ -410,3 +411,6 @@ docs/generated/
 
 # Ignore local scripts
 scripts/local/
+
+# Ignore project tar gz files
+*.tar.gz
