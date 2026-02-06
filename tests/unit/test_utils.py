@@ -340,7 +340,7 @@ class TestLogging:
         """Test LogContext context manager."""
         # This test requires structlog to be available
         try:
-            import structlog
+            pass
 
             with LogContext(user_id="user_123", request_id="req_456"):
                 # Context should be bound

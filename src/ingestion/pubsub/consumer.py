@@ -126,9 +126,8 @@ class PubSubConsumer(StreamIngestion):
 
         try:
             # Configure flow control if specified
-            flow_control_settings = None
             if self.flow_control:
-                flow_control_settings = pubsub_v1.types.FlowControl(
+                pubsub_v1.types.FlowControl(
                     max_messages=self.flow_control.get("max_messages", 1000),
                     max_bytes=self.flow_control.get(
                         "max_bytes", 100 * 1024 * 1024

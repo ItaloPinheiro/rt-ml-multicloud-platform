@@ -16,6 +16,7 @@ import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -195,7 +196,7 @@ class ModelTrainer:
             signature = mlflow.models.infer_signature(X_test, y_pred)
 
             # Use explicit parameter name to avoid deprecation warning
-            model_info = mlflow.sklearn.log_model(
+            mlflow.sklearn.log_model(
                 sk_model=pipeline,
                 name="model",  # MLflow 2.9+ uses 'name' instead of 'artifact_path'
                 signature=signature,
@@ -221,8 +222,7 @@ class ModelTrainer:
             client = mlflow.MlflowClient()
 
             # Get current run's metrics
-            current_run = client.get_run(run_id)
-            current_metrics = current_run.data.metrics
+            client.get_run(run_id)
 
             # Create registered model if it doesn't exist
             try:

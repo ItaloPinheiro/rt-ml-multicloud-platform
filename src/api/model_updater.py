@@ -185,7 +185,7 @@ class ModelUpdateManager:
             start_time = time.time()
 
             # Load the new model (this will cache it)
-            model = await self.model_manager.load_model(model_name, version)
+            await self.model_manager.load_model(model_name, version)
 
             load_time = time.time() - start_time
 
@@ -328,7 +328,7 @@ class ModelUpdateManager:
                         if version != "latest":
                             self.current_versions[model_name] = version
                             break
-            except:
+            except Exception:
                 pass
 
         while True:

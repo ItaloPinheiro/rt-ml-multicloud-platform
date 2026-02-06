@@ -117,7 +117,7 @@ class FastModelLoader:
                         model_key = f"{prefix}model.pkl"
                         logger.info(f"Found model at s3://{bucket}/{model_key}")
                         break
-                except:
+                except Exception:
                     continue
 
             if not model_key:
@@ -167,7 +167,7 @@ class FastModelLoader:
             with open(model_file, "wb") as f:
                 pickle.dump(model._model_impl, f)
             logger.info(f"Cached model to {model_file}")
-        except:
+        except Exception:
             pass  # Not all models can be pickled
 
         return model

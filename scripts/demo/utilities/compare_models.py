@@ -132,7 +132,7 @@ def promote_best_model(
         try:
             client.create_registered_model(model_name)
             print(f"\nCreated registered model: {model_name}")
-        except:
+        except Exception:
             print(f"\nRegistered model {model_name} already exists")
 
         # Create model version from best run

@@ -191,7 +191,7 @@ COMMIT;
                 # Clean up temp file
                 try:
                     os.unlink(temp_sql_file)
-                except:
+                except Exception:
                     pass
 
         except Exception as e:

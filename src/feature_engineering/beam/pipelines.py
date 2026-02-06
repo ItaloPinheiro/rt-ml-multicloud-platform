@@ -19,14 +19,7 @@ try:
     from apache_beam.io.gcp.bigquery import BigQueryDisposition, CreateDisposition
     from apache_beam.io.kafka import ReadFromKafka, WriteToKafka
     from apache_beam.options.pipeline_options import (
-        GoogleCloudOptions,
         PipelineOptions,
-        StandardOptions,
-    )
-    from apache_beam.transforms.trigger import (
-        AccumulationMode,
-        AfterProcessingTime,
-        AfterWatermark,
     )
     from apache_beam.transforms.window import FixedWindows, Sessions, SlidingWindows
 except ImportError:

@@ -407,7 +407,7 @@ class LogContext:
 def setup_request_logging():
     """Setup request-specific logging for web applications."""
     try:
-        import uuid
+        pass
         from contextvars import ContextVar
 
         # Create context variable for request ID

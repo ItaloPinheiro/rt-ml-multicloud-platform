@@ -312,7 +312,7 @@ class FeatureStore:
                     session.query(FeatureStoreModel)
                     .filter(
                         FeatureStoreModel.ttl_timestamp <= current_time,
-                        FeatureStoreModel.is_active == True,
+                        FeatureStoreModel.is_active is True,
                     )
                     .update({FeatureStoreModel.is_active: False})
                 )
@@ -447,7 +447,7 @@ class FeatureStore:
             query = session.query(FeatureStoreModel).filter(
                 FeatureStoreModel.entity_id == entity_id,
                 FeatureStoreModel.feature_group == feature_group,
-                FeatureStoreModel.is_active == True,
+                FeatureStoreModel.is_active is True,
             )
 
             if feature_names:
@@ -479,7 +479,7 @@ class FeatureStore:
             query = session.query(FeatureStoreModel).filter(
                 FeatureStoreModel.entity_id.in_(entity_ids),
                 FeatureStoreModel.feature_group == feature_group,
-                FeatureStoreModel.is_active == True,
+                FeatureStoreModel.is_active is True,
             )
 
             if feature_names:
