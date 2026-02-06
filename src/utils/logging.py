@@ -178,6 +178,9 @@ def configure_structlog(
         logging.getLogger().addHandler(console_handler)
 
     if log_file:
+        # Create log directory if it doesn't exist
+        Path(log_file).parent.mkdir(parents=True, exist_ok=True)
+
         file_handler = logging.FileHandler(log_file)
         if formatter:
             file_handler.setFormatter(formatter)

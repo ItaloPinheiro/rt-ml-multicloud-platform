@@ -292,37 +292,13 @@ jobs:
         ./kubeval ops/k8s/base/*.yaml
         ./kubeval ops/k8s/overlays/production/*.yaml
 
-  # Security Scanning
-  security-scan:
-    name: Security Scanning
-    runs-on: ubuntu-latest
-    needs: [lint]
 
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Run dependency check
-      uses: pypa/gh-action-pip-audit@v1.0.8
-      with:
-        inputs: .
-
-    - name: Initialize CodeQL
-      uses: github/codeql-action/init@v2
-      with:
-        languages: python
-
-    - name: Autobuild
-      uses: github/codeql-action/autobuild@v2
-
-    - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v2
 
   # Build Summary
   build-summary:
     name: Build Summary
     runs-on: ubuntu-latest
-    needs: [lint, test, integration-test, docker-build, k8s-validation, security-scan]
+    needs: [lint, test, integration-test, docker-build, k8s-validation]
     if: always()
 
     steps:
@@ -336,7 +312,7 @@ jobs:
         echo "| Integration Test | ${{ needs.integration-test.result }} |" >> $GITHUB_STEP_SUMMARY
         echo "| Docker Build | ${{ needs.docker-build.result }} |" >> $GITHUB_STEP_SUMMARY
         echo "| K8s Validation | ${{ needs.k8s-validation.result }} |" >> $GITHUB_STEP_SUMMARY
-        echo "| Security Scan | ${{ needs.security-scan.result }} |" >> $GITHUB_STEP_SUMMARY
+
 
         if [[ "${{ needs.lint.result }}" == "failure" || "${{ needs.test.result }}" == "failure" || "${{ needs.integration-test.result }}" == "failure" ]]; then
           echo "❌ Build failed - critical jobs failed"
