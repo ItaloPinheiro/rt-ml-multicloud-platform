@@ -30,7 +30,7 @@ httpx = "^0.28.0"  # Updated for MLflow 3.4.0 compatibility
 
 # Data Processing
 pandas = "^2.2.0"  # pandas 2.2+ supports numpy 2.x
-numpy = "^2.0.0"  # Use numpy 2.x for Python 3.13
+numpy = "^1.26.0"  # Pin to <2.0 for broader compatibility
 # pyarrow = "^15.0.0"  # Optional
 # polars = "^0.20.0"  # Optional
 
