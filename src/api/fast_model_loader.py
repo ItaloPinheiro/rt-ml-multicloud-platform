@@ -47,7 +47,7 @@ class FastModelLoader:
 
     def get_cache_key(self, model_name: str, version: str) -> str:
         """Generate cache key for model."""
-        return hashlib.md5(f"{model_name}:{version}".encode()).hexdigest()
+        return hashlib.md5(f"{model_name}:{version}".encode(), usedforsecurity=False).hexdigest()
 
     def get_cached_model_path(self, model_name: str, version: str) -> Optional[Path]:
         """Check if model exists in cache."""

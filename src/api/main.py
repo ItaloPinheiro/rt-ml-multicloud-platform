@@ -350,7 +350,7 @@ class ModelManager:
         try:
             # Generate cache key for prediction
             features_hash = hashlib.md5(
-                json.dumps(features, sort_keys=True).encode()
+                json.dumps(features, sort_keys=True).encode(), usedforsecurity=False
             ).hexdigest()
             cache_key = f"pred:{model_name}:{version}:{features_hash}"
 
