@@ -176,11 +176,7 @@ jobs:
         pip install poetry
         poetry install --with test
 
-    - name: Run database migrations
-      env:
-        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
-      run: |
-        poetry run alembic upgrade head
+
 
     - name: Run integration tests
       env:
@@ -215,7 +211,10 @@ jobs:
 
     - name: Test Docker image
       run: |
-        docker run --rm ml-pipeline:test python -c "import src; print('Import successful')"
+        docker run --rm ml-pipeline:test ls -la /app
+        docker run --rm ml-pipeline:test ls -la /app/src
+        docker run --rm ml-pipeline:test pip list
+        docker run --rm ml-pipeline:test python -c "import sys; print(sys.path); import src; print('Import successful')"
 
     - name: Run security scan on Docker image
       uses: aquasecurity/trivy-action@master
