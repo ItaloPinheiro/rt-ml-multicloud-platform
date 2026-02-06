@@ -233,11 +233,8 @@ jobs:
         format: 'sarif'
         output: 'trivy-results.sarif'
 
-    - name: Upload Trivy scan results to GitHub Security tab
-      uses: github/codeql-action/upload-sarif@v3
-      if: always()
-      with:
-        sarif_file: 'trivy-results.sarif'
+    # Note: upload-sarif removed - requires GitHub Advanced Security (paid feature for private repos)
+    # SARIF results are still saved as artifacts below
 
     - name: Run Trivy vulnerability scanner (JSON output)
       uses: aquasecurity/trivy-action@master
