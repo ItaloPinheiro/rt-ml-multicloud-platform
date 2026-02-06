@@ -14,7 +14,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Poetry
-RUN pip install poetry==1.7.1
+RUN pip install poetry==1.8.5
 
 # Copy dependency files
 COPY pyproject.toml poetry.lock README.md ./

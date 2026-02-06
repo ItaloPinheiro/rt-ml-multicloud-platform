@@ -70,6 +70,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       security-events: write
+      contents: read
 
     steps:
     - name: Checkout code
@@ -215,6 +216,7 @@ jobs:
         push: false
         tags: ml-pipeline:security-scan
         cache-from: type=gha
+        load: true
 
     - name: Run Trivy vulnerability scanner
       uses: aquasecurity/trivy-action@master
