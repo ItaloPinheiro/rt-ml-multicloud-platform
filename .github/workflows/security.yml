@@ -100,15 +100,18 @@ jobs:
 
     - name: Initialize CodeQL
       uses: github/codeql-action/init@v3
+      continue-on-error: true  # Code Scanning requires GitHub Advanced Security
       with:
         languages: python
         queries: security-and-quality
 
     - name: Autobuild
       uses: github/codeql-action/autobuild@v3
+      continue-on-error: true
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v3
+      continue-on-error: true  # Code Scanning requires GitHub Advanced Security
       with:
         category: '/language:python'
 
