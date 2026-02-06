@@ -5,15 +5,15 @@ aggregating features from streaming data using Apache Beam.
 """
 
 import json
-import numpy as np
 from datetime import datetime, timezone
-from typing import Dict, Any, List, Optional, Tuple, Iterable
-import logging
+from typing import Any, Dict, Iterable, Optional, Tuple
+
+import numpy as np
 
 try:
     import apache_beam as beam
-    from apache_beam.transforms.window import TimestampedValue
     from apache_beam.pvalue import TaggedOutput
+    from apache_beam.transforms.window import TimestampedValue
 except ImportError:
     beam = None
     TimestampedValue = None
@@ -75,7 +75,9 @@ class FeatureExtraction(beam.DoFn):
             # Convert timestamp to datetime if it's a string
             if isinstance(timestamp, str):
                 try:
-                    timestamp_dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                    timestamp_dt = datetime.fromisoformat(
+                        timestamp.replace("Z", "+00:00")
+                    )
                 except ValueError:
                     timestamp_dt = datetime.now(timezone.utc)
             else:
@@ -108,16 +110,16 @@ class FeatureExtraction(beam.DoFn):
                 "error": str(e),
                 "element": str(element)[:1000],  # Truncate large elements
                 "transform": "FeatureExtraction",
-                "timestamp": datetime.now(timezone.utc).isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 
             self.logger.error(
                 "Feature extraction failed",
                 error=str(e),
-                element_type=type(element).__name__
+                element_type=type(element).__name__,
             )
 
-            yield TaggedOutput('errors', error_info)
+            yield TaggedOutput("errors", error_info)
 
     def _extract_transaction_features(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Extract transaction-specific features.
@@ -185,7 +187,7 @@ class FeatureExtraction(beam.DoFn):
             "is_night": timestamp.hour < 6 or timestamp.hour > 22,
             "quarter": (timestamp.month - 1) // 3 + 1,
             "week_of_year": timestamp.isocalendar()[1],
-            "unix_timestamp": int(timestamp.timestamp())
+            "unix_timestamp": int(timestamp.timestamp()),
         }
 
     def _extract_categorical_features(self, data: Dict[str, Any]) -> Dict[str, Any]:
@@ -276,7 +278,9 @@ class FeatureExtraction(beam.DoFn):
         # Transaction frequency features
         transaction_count = features.get("transaction_count", 0)
         account_age_days = features.get("account_age_days", 1)
-        derived["avg_transactions_per_day"] = transaction_count / max(account_age_days, 1)
+        derived["avg_transactions_per_day"] = transaction_count / max(
+            account_age_days, 1
+        )
 
         return derived
 
@@ -352,7 +356,9 @@ class AggregateFeatures(beam.DoFn):
         """Setup method called once per worker."""
         self.logger.info("AggregateFeatures transform initialized")
 
-    def process(self, element: Tuple[Any, Iterable[Dict[str, Any]]]) -> Iterable[Dict[str, Any]]:
+    def process(
+        self, element: Tuple[Any, Iterable[Dict[str, Any]]]
+    ) -> Iterable[Dict[str, Any]]:
         """Aggregate features for a group of elements.
 
         Args:
@@ -379,7 +385,6 @@ class AggregateFeatures(beam.DoFn):
                 "window_start": min(f.get("timestamp", "") for f in features_list),
                 "window_end": max(f.get("timestamp", "") for f in features_list),
                 "record_count": len(features_list),
-
                 # Amount aggregations
                 "total_amount": sum(amounts),
                 "avg_amount": np.mean(amounts) if amounts else 0,
@@ -387,28 +392,41 @@ class AggregateFeatures(beam.DoFn):
                 "min_amount": min(amounts) if amounts else 0,
                 "max_amount": max(amounts) if amounts else 0,
                 "median_amount": np.median(amounts) if amounts else 0,
-
                 # Risk aggregations
                 "avg_risk_score": np.mean(risk_scores) if risk_scores else 0,
                 "max_risk_score": max(risk_scores) if risk_scores else 0,
                 "avg_fraud_score": np.mean(fraud_scores) if fraud_scores else 0,
                 "max_fraud_score": max(fraud_scores) if fraud_scores else 0,
-
                 # Categorical aggregations
-                "unique_merchants": len(set(f.get("merchant_category", "") for f in features_list)),
-                "unique_channels": len(set(f.get("channel", "") for f in features_list)),
-                "unique_payment_methods": len(set(f.get("payment_method", "") for f in features_list)),
-
+                "unique_merchants": len(
+                    set(f.get("merchant_category", "") for f in features_list)
+                ),
+                "unique_channels": len(
+                    set(f.get("channel", "") for f in features_list)
+                ),
+                "unique_payment_methods": len(
+                    set(f.get("payment_method", "") for f in features_list)
+                ),
                 # Temporal aggregations
-                "weekend_transactions": sum(1 for f in features_list if f.get("is_weekend", False)),
-                "night_transactions": sum(1 for f in features_list if f.get("is_night", False)),
-                "business_hours_transactions": sum(1 for f in features_list if f.get("is_business_hours", False)),
-
+                "weekend_transactions": sum(
+                    1 for f in features_list if f.get("is_weekend", False)
+                ),
+                "night_transactions": sum(
+                    1 for f in features_list if f.get("is_night", False)
+                ),
+                "business_hours_transactions": sum(
+                    1 for f in features_list if f.get("is_business_hours", False)
+                ),
                 # Computed ratios
-                "high_amount_ratio": sum(1 for f in features_list if f.get("is_high_amount", False)) / len(features_list),
-                "unusual_time_ratio": sum(1 for f in features_list if f.get("is_unusual_time", False)) / len(features_list),
-
-                "processed_at": datetime.now(timezone.utc).isoformat()
+                "high_amount_ratio": sum(
+                    1 for f in features_list if f.get("is_high_amount", False)
+                )
+                / len(features_list),
+                "unusual_time_ratio": sum(
+                    1 for f in features_list if f.get("is_unusual_time", False)
+                )
+                / len(features_list),
+                "processed_at": datetime.now(timezone.utc).isoformat(),
             }
 
             yield aggregated
@@ -417,18 +435,16 @@ class AggregateFeatures(beam.DoFn):
             error_info = {
                 "error": str(e),
                 "key": str(key),
-                "feature_count": len(features_list) if 'features_list' in locals() else 0,
+                "feature_count": (
+                    len(features_list) if "features_list" in locals() else 0
+                ),
                 "transform": "AggregateFeatures",
-                "timestamp": datetime.now(timezone.utc).isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 
-            self.logger.error(
-                "Feature aggregation failed",
-                error=str(e),
-                key=str(key)
-            )
+            self.logger.error("Feature aggregation failed", error=str(e), key=str(key))
 
-            yield TaggedOutput('errors', error_info)
+            yield TaggedOutput("errors", error_info)
 
 
 class ValidateFeatures(beam.DoFn):
@@ -462,14 +478,16 @@ class ValidateFeatures(beam.DoFn):
             validation_results = {
                 "is_valid": True,
                 "validation_errors": [],
-                "features": element.copy()
+                "features": element.copy(),
             }
 
             # Check required fields
             for field in self.required_fields:
                 if field not in element or element[field] is None:
                     validation_results["is_valid"] = False
-                    validation_results["validation_errors"].append(f"Missing required field: {field}")
+                    validation_results["validation_errors"].append(
+                        f"Missing required field: {field}"
+                    )
 
             # Validate numeric ranges
             for field, (min_val, max_val) in self.numeric_ranges.items():
@@ -495,13 +513,13 @@ class ValidateFeatures(beam.DoFn):
             if validation_results["is_valid"]:
                 yield element
             else:
-                yield TaggedOutput('invalid', validation_results)
+                yield TaggedOutput("invalid", validation_results)
 
         except Exception as e:
             error_info = {
                 "error": str(e),
                 "element": str(element)[:1000],
                 "transform": "ValidateFeatures",
-                "timestamp": datetime.now(timezone.utc).isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
-            yield TaggedOutput('errors', error_info)
+            yield TaggedOutput("errors", error_info)

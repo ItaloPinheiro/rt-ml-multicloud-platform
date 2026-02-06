@@ -1,10 +1,10 @@
 """Health checking and service monitoring for ML pipeline components."""
 
 import asyncio
-import time
 from datetime import datetime, timedelta, timezone
-from typing import Dict, Any, List, Optional, Callable, Awaitable
 from enum import Enum
+from typing import Any, Awaitable, Callable, Dict, Optional
+
 import structlog
 
 logger = structlog.get_logger()
@@ -12,6 +12,7 @@ logger = structlog.get_logger()
 
 class HealthStatus(Enum):
     """Health status enumeration."""
+
     HEALTHY = "healthy"
     DEGRADED = "degraded"
     UNHEALTHY = "unhealthy"
@@ -28,7 +29,7 @@ class HealthCheck:
         timeout_seconds: float = 5.0,
         interval_seconds: float = 30.0,
         failure_threshold: int = 3,
-        success_threshold: int = 1
+        success_threshold: int = 1,
     ):
         """Initialize health check.
 
@@ -70,8 +71,7 @@ class HealthCheck:
         try:
             # Execute check with timeout
             result = await asyncio.wait_for(
-                self.check_function(),
-                timeout=self.timeout_seconds
+                self.check_function(), timeout=self.timeout_seconds
             )
 
             if result:
@@ -126,21 +126,31 @@ class HealthCheck:
         return {
             "name": self.name,
             "status": self.status.value,
-            "last_check_time": self.last_check_time.isoformat() if self.last_check_time else None,
-            "last_success_time": self.last_success_time.isoformat() if self.last_success_time else None,
-            "last_failure_time": self.last_failure_time.isoformat() if self.last_failure_time else None,
+            "last_check_time": (
+                self.last_check_time.isoformat() if self.last_check_time else None
+            ),
+            "last_success_time": (
+                self.last_success_time.isoformat() if self.last_success_time else None
+            ),
+            "last_failure_time": (
+                self.last_failure_time.isoformat() if self.last_failure_time else None
+            ),
             "consecutive_failures": self.consecutive_failures,
             "consecutive_successes": self.consecutive_successes,
             "total_checks": self.total_checks,
             "total_failures": self.total_failures,
-            "success_rate": (self.total_checks - self.total_failures) / self.total_checks if self.total_checks > 0 else 0,
+            "success_rate": (
+                (self.total_checks - self.total_failures) / self.total_checks
+                if self.total_checks > 0
+                else 0
+            ),
             "last_error": self.last_error,
             "configuration": {
                 "timeout_seconds": self.timeout_seconds,
                 "interval_seconds": self.interval_seconds,
                 "failure_threshold": self.failure_threshold,
-                "success_threshold": self.success_threshold
-            }
+                "success_threshold": self.success_threshold,
+            },
         }
 
 
@@ -209,15 +219,17 @@ class HealthChecker:
             return {
                 "overall_status": HealthStatus.HEALTHY.value,
                 "timestamp": datetime.now(timezone.utc).isoformat(),
-                "uptime_seconds": (datetime.now(timezone.utc) - self.start_time).total_seconds(),
+                "uptime_seconds": (
+                    datetime.now(timezone.utc) - self.start_time
+                ).total_seconds(),
                 "checks": {},
                 "summary": {
                     "total_checks": 0,
                     "healthy_checks": 0,
                     "degraded_checks": 0,
                     "unhealthy_checks": 0,
-                    "unknown_checks": 0
-                }
+                    "unknown_checks": 0,
+                },
             }
 
         # Execute all checks concurrently
@@ -243,15 +255,17 @@ class HealthChecker:
         return {
             "overall_status": overall_status.value,
             "timestamp": datetime.now(timezone.utc).isoformat(),
-            "uptime_seconds": (datetime.now(timezone.utc) - self.start_time).total_seconds(),
+            "uptime_seconds": (
+                datetime.now(timezone.utc) - self.start_time
+            ).total_seconds(),
             "checks": checks_info,
             "summary": {
                 "total_checks": len(self.health_checks),
                 "healthy_checks": status_counts[HealthStatus.HEALTHY],
                 "degraded_checks": status_counts[HealthStatus.DEGRADED],
                 "unhealthy_checks": status_counts[HealthStatus.UNHEALTHY],
-                "unknown_checks": status_counts[HealthStatus.UNKNOWN]
-            }
+                "unknown_checks": status_counts[HealthStatus.UNKNOWN],
+            },
         }
 
     async def get_check_status(self, name: str) -> Optional[Dict[str, Any]]:
@@ -282,7 +296,9 @@ class HealthChecker:
                         next_checks[name] = current_time
                     else:
                         # Calculate next check time based on interval
-                        next_check_time = check.last_check_time + timedelta(seconds=check.interval_seconds)
+                        next_check_time = check.last_check_time + timedelta(
+                            seconds=check.interval_seconds
+                        )
                         next_checks[name] = next_check_time
 
                 # Find checks that need to be executed
@@ -316,9 +332,13 @@ class HealthChecker:
         try:
             await check.execute_check()
         except Exception as e:
-            self.logger.error(f"Unexpected error executing health check {name}: {str(e)}")
+            self.logger.error(
+                f"Unexpected error executing health check {name}: {str(e)}"
+            )
 
-    def _calculate_overall_status(self, status_counts: Dict[HealthStatus, int]) -> HealthStatus:
+    def _calculate_overall_status(
+        self, status_counts: Dict[HealthStatus, int]
+    ) -> HealthStatus:
         """Calculate overall health status from individual check statuses.
 
         Args:
@@ -342,7 +362,9 @@ class HealthChecker:
         # All checks are healthy
         return HealthStatus.HEALTHY
 
-    def create_database_check(self, connection_test_func: Callable[[], Awaitable[bool]]) -> HealthCheck:
+    def create_database_check(
+        self, connection_test_func: Callable[[], Awaitable[bool]]
+    ) -> HealthCheck:
         """Create a database connectivity health check.
 
         Args:
@@ -357,7 +379,7 @@ class HealthChecker:
             timeout_seconds=5.0,
             interval_seconds=30.0,
             failure_threshold=3,
-            success_threshold=1
+            success_threshold=1,
         )
 
     def create_redis_check(self, redis_client) -> HealthCheck:
@@ -369,9 +391,10 @@ class HealthChecker:
         Returns:
             Redis health check
         """
+
         async def redis_ping():
             try:
-                if hasattr(redis_client, 'ping'):
+                if hasattr(redis_client, "ping"):
                     return redis_client.ping()
                 return False
             except Exception:
@@ -383,7 +406,7 @@ class HealthChecker:
             timeout_seconds=3.0,
             interval_seconds=15.0,
             failure_threshold=2,
-            success_threshold=1
+            success_threshold=1,
         )
 
     def create_mlflow_check(self, mlflow_client) -> HealthCheck:
@@ -395,6 +418,7 @@ class HealthChecker:
         Returns:
             MLflow health check
         """
+
         async def mlflow_ping():
             try:
                 # Test by listing experiments
@@ -409,7 +433,7 @@ class HealthChecker:
             timeout_seconds=10.0,
             interval_seconds=60.0,
             failure_threshold=3,
-            success_threshold=1
+            success_threshold=1,
         )
 
     def create_memory_check(self, max_memory_mb: float) -> HealthCheck:
@@ -421,9 +445,11 @@ class HealthChecker:
         Returns:
             Memory health check
         """
+
         async def memory_check():
             try:
                 import psutil
+
                 process = psutil.Process()
                 memory_mb = process.memory_info().rss / 1024 / 1024
                 return memory_mb <= max_memory_mb
@@ -436,5 +462,5 @@ class HealthChecker:
             timeout_seconds=2.0,
             interval_seconds=30.0,
             failure_threshold=5,
-            success_threshold=2
+            success_threshold=2,
         )

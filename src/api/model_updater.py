@@ -7,12 +7,12 @@ with zero-downtime updates and proper health checks.
 import asyncio
 import os
 import time
-from datetime import datetime, timedelta, timezone
-from typing import Dict, Any, Optional, List
-import logging
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
+
 import mlflow
-from mlflow.tracking import MlflowClient
 import structlog
+from mlflow.tracking import MlflowClient
 
 # Configure structured logging
 logger = structlog.get_logger()
@@ -26,7 +26,7 @@ class ModelUpdateManager:
         model_manager,
         mlflow_uri: str = "http://mlflow-server:5000",
         check_interval: int = 60,  # Check every minute
-        models_to_track: Optional[List[str]] = None
+        models_to_track: Optional[List[str]] = None,
     ):
         """Initialize the model update manager.
 
@@ -57,7 +57,7 @@ class ModelUpdateManager:
         logger.info(
             "Model update manager initialized",
             models=self.models_to_track,
-            check_interval=check_interval
+            check_interval=check_interval,
         )
 
     def _get_tracked_models(self) -> List[str]:
@@ -89,27 +89,32 @@ class ModelUpdateManager:
         try:
             # Get the latest version (which should be our production model)
             versions = self.mlflow_client.search_model_versions(
-                f"name='{model_name}'",
-                order_by=["version_number DESC"],
-                max_results=1
+                f"name='{model_name}'", order_by=["version_number DESC"], max_results=1
             )
 
             if versions:
                 # Check if this version has a "Production" tag or alias
                 # For now, we'll use the latest version as production
                 latest_version = versions[0]
-                logger.debug(f"Found latest model version {latest_version.version} for {model_name}")
+                logger.debug(
+                    f"Found latest model version {latest_version.version} for {model_name}"
+                )
 
                 # Optional: Check for production alias/tag if using MLflow 2.9+
                 # This is forward-compatible with the new alias system
                 try:
                     # Try to get model by alias if available in newer MLflow versions
                     from mlflow import MlflowClient
+
                     client = MlflowClient()
                     # Try the new alias-based API (MLflow 2.9+)
-                    model_version = client.get_model_version_by_alias(model_name, "production")
+                    model_version = client.get_model_version_by_alias(
+                        model_name, "production"
+                    )
                     if model_version:
-                        logger.debug(f"Found model with 'production' alias: version {model_version.version}")
+                        logger.debug(
+                            f"Found model with 'production' alias: version {model_version.version}"
+                        )
                         return model_version.version
                 except (AttributeError, Exception):
                     # Method doesn't exist or failed, use latest version
@@ -122,7 +127,7 @@ class ModelUpdateManager:
             logger.error(
                 "Failed to get latest model version",
                 model_name=model_name,
-                error=str(e)
+                error=str(e),
             )
             return None
 
@@ -149,25 +154,20 @@ class ModelUpdateManager:
                             "New model version detected",
                             model=model_name,
                             current=current_version,
-                            latest=latest_version
+                            latest=latest_version,
                         )
 
                 self.last_check[model_name] = datetime.now(timezone.utc)
 
             except Exception as e:
                 logger.error(
-                    "Error checking model updates",
-                    model=model_name,
-                    error=str(e)
+                    "Error checking model updates", model=model_name, error=str(e)
                 )
 
         return updates
 
     async def load_new_model(
-        self,
-        model_name: str,
-        version: str,
-        validate: bool = True
+        self, model_name: str, version: str, validate: bool = True
     ) -> bool:
         """Load a new model version with validation.
 
@@ -180,11 +180,7 @@ class ModelUpdateManager:
             True if successful, False otherwise
         """
         try:
-            logger.info(
-                "Loading new model version",
-                model=model_name,
-                version=version
-            )
+            logger.info("Loading new model version", model=model_name, version=version)
 
             start_time = time.time()
 
@@ -197,9 +193,7 @@ class ModelUpdateManager:
                 # Validate the model with a test prediction
                 if not await self._validate_model(model_name, version):
                     logger.error(
-                        "Model validation failed",
-                        model=model_name,
-                        version=version
+                        "Model validation failed", model=model_name, version=version
                     )
                     # Remove from cache
                     cache_key = f"model:{model_name}:{version}"
@@ -211,14 +205,16 @@ class ModelUpdateManager:
             self.current_versions[model_name] = version
 
             # Record update in history
-            self.update_history.append({
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-                "model_name": model_name,
-                "old_version": old_version,
-                "new_version": version,
-                "load_time_seconds": load_time,
-                "status": "success"
-            })
+            self.update_history.append(
+                {
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "model_name": model_name,
+                    "old_version": old_version,
+                    "new_version": version,
+                    "load_time_seconds": load_time,
+                    "status": "success",
+                }
+            )
 
             self.update_count += 1
 
@@ -226,15 +222,19 @@ class ModelUpdateManager:
                 "Model updated successfully",
                 model=model_name,
                 version=version,
-                load_time=f"{load_time:.2f}s"
+                load_time=f"{load_time:.2f}s",
             )
 
             # Update the "latest" alias to point to new version
             latest_key = f"model:{model_name}:latest"
             new_key = f"model:{model_name}:{version}"
             if new_key in self.model_manager.models:
-                self.model_manager.models[latest_key] = self.model_manager.models[new_key]
-                self.model_manager.model_metadata[latest_key] = self.model_manager.model_metadata[new_key].copy()
+                self.model_manager.models[latest_key] = self.model_manager.models[
+                    new_key
+                ]
+                self.model_manager.model_metadata[latest_key] = (
+                    self.model_manager.model_metadata[new_key].copy()
+                )
 
             return True
 
@@ -243,19 +243,21 @@ class ModelUpdateManager:
                 "Failed to load new model",
                 model=model_name,
                 version=version,
-                error=str(e)
+                error=str(e),
             )
 
             self.failed_updates += 1
 
-            self.update_history.append({
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-                "model_name": model_name,
-                "old_version": self.current_versions.get(model_name),
-                "new_version": version,
-                "status": "failed",
-                "error": str(e)
-            })
+            self.update_history.append(
+                {
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "model_name": model_name,
+                    "old_version": self.current_versions.get(model_name),
+                    "new_version": version,
+                    "status": "failed",
+                    "error": str(e),
+                }
+            )
 
             return False
 
@@ -270,17 +272,17 @@ class ModelUpdateManager:
             True if validation passes
         """
         try:
-            # Create test data
+            # Create test data (use floats for nullable-safe schema compatibility)
             test_features = {
-                "hour_of_day": 12,
-                "day_of_week": 1,
-                "is_weekend": 0,
-                "transaction_count_24h": 5,
+                "hour_of_day": 12.0,
+                "day_of_week": 1.0,
+                "is_weekend": False,
+                "transaction_count_24h": 5.0,
                 "avg_amount_30d": 100.0,
                 "risk_score": 0.5,
                 "amount": 50.0,
-                "merchant_category_encoded": 1,
-                "payment_method_encoded": 1
+                "merchant_category_encoded": 1.0,
+                "payment_method_encoded": 1.0,
             }
 
             # Try a prediction
@@ -288,7 +290,7 @@ class ModelUpdateManager:
                 model_name=model_name,
                 features=test_features,
                 version=version,
-                return_probabilities=False
+                return_probabilities=False,
             )
 
             # Check if we got a valid result
@@ -297,7 +299,7 @@ class ModelUpdateManager:
                     "Model validation passed",
                     model=model_name,
                     version=version,
-                    test_prediction=result["prediction"]
+                    test_prediction=result["prediction"],
                 )
                 return True
 
@@ -308,7 +310,7 @@ class ModelUpdateManager:
                 "Model validation error",
                 model=model_name,
                 version=version,
-                error=str(e)
+                error=str(e),
             )
             return False
 
@@ -338,15 +340,13 @@ class ModelUpdateManager:
                     logger.info(
                         "Found model updates",
                         count=len(updates),
-                        models=list(updates.keys())
+                        models=list(updates.keys()),
                     )
 
                     # Load new models
                     for model_name, new_version in updates.items():
                         success = await self.load_new_model(
-                            model_name,
-                            new_version,
-                            validate=True
+                            model_name, new_version, validate=True
                         )
 
                         if success:
@@ -357,17 +357,11 @@ class ModelUpdateManager:
                 await asyncio.sleep(self.check_interval)
 
             except Exception as e:
-                logger.error(
-                    "Error in update loop",
-                    error=str(e)
-                )
+                logger.error("Error in update loop", error=str(e))
                 await asyncio.sleep(self.check_interval)
 
     async def _cleanup_old_versions(
-        self,
-        model_name: str,
-        keep_version: str,
-        keep_count: int = 2
+        self, model_name: str, keep_version: str, keep_count: int = 2
     ):
         """Clean up old model versions from cache.
 
@@ -386,23 +380,23 @@ class ModelUpdateManager:
                         cached_versions.append((version, key))
 
             # Sort by version number
-            cached_versions.sort(key=lambda x: int(x[0]) if x[0].isdigit() else 0, reverse=True)
+            cached_versions.sort(
+                key=lambda x: int(x[0]) if x[0].isdigit() else 0, reverse=True
+            )
 
             # Remove old versions keeping only recent ones
-            for version, key in cached_versions[keep_count-1:]:
+            for version, key in cached_versions[keep_count - 1 :]:
                 logger.info(
                     "Removing old model version from cache",
                     model=model_name,
-                    version=version
+                    version=version,
                 )
                 self.model_manager.models.pop(key, None)
                 self.model_manager.model_metadata.pop(key, None)
 
         except Exception as e:
             logger.error(
-                "Error cleaning up old versions",
-                model=model_name,
-                error=str(e)
+                "Error cleaning up old versions", model=model_name, error=str(e)
             )
 
     def get_status(self) -> Dict[str, Any]:
@@ -421,15 +415,12 @@ class ModelUpdateManager:
             "update_count": self.update_count,
             "failed_updates": self.failed_updates,
             "check_interval_seconds": self.check_interval,
-            "recent_updates": self.update_history[-10:]  # Last 10 updates
+            "recent_updates": self.update_history[-10:],  # Last 10 updates
         }
 
 
 async def handle_model_webhook(
-    model_name: str,
-    version: str,
-    action: str,
-    update_manager: ModelUpdateManager
+    model_name: str, version: str, action: str, update_manager: ModelUpdateManager
 ) -> Dict[str, Any]:
     """Handle webhook notification for model updates.
 
@@ -443,37 +434,28 @@ async def handle_model_webhook(
         Response dictionary
     """
     logger.info(
-        "Received model webhook",
-        model=model_name,
-        version=version,
-        action=action
+        "Received model webhook", model=model_name, version=version, action=action
     )
 
     # Only process if it's a tracked model
     if model_name not in update_manager.models_to_track:
-        return {
-            "status": "ignored",
-            "reason": "Model not tracked",
-            "model": model_name
-        }
+        return {"status": "ignored", "reason": "Model not tracked", "model": model_name}
 
     # Trigger immediate update check
     if action in ["registered", "transitioned_to_production"]:
         success = await update_manager.load_new_model(
-            model_name,
-            version,
-            validate=True
+            model_name, version, validate=True
         )
 
         return {
             "status": "processed" if success else "failed",
             "model": model_name,
             "version": version,
-            "action": action
+            "action": action,
         }
 
     return {
         "status": "ignored",
         "reason": f"Action {action} not handled",
-        "model": model_name
+        "model": model_name,
     }

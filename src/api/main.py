@@ -4,15 +4,15 @@ This module provides a production-ready REST API for serving ML models
 with comprehensive monitoring, caching, and error handling.
 """
 
-import time
 import asyncio
 import os
-from datetime import datetime, timezone
-from typing import Dict, Any, List, Optional
+import time
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
 
 try:
-    from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends, Request
+    from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Request
     from fastapi.middleware.cors import CORSMiddleware
     from fastapi.middleware.gzip import GZipMiddleware
     from fastapi.responses import JSONResponse
@@ -20,7 +20,7 @@ except ImportError:
     raise ImportError("fastapi is required. Install with: pip install fastapi")
 
 try:
-    from prometheus_client import Counter, Histogram, Gauge, make_asgi_app
+    from prometheus_client import Counter, Gauge, Histogram, make_asgi_app
 except ImportError:
     Counter = Histogram = Gauge = make_asgi_app = None
 
@@ -36,19 +36,26 @@ except ImportError:
     mlflow = None
     MlflowClient = None
 
-import pandas as pd
-import numpy as np
-import json
 import hashlib
-import structlog
+import json
 from uuid import uuid4
 
-from src.api.schemas import (
-    PredictionRequest, PredictionResponse, BatchPredictionRequest, BatchPredictionResponse,
-    ModelInfo, HealthCheck, ErrorResponse, MetricsResponse, FeatureImportance,
-    ModelUpdateRequest, ModelUpdateResponse
-)
+import numpy as np
+import pandas as pd
+import structlog
+
 from src.api.model_updater import ModelUpdateManager, handle_model_webhook
+from src.api.schemas import (
+    BatchPredictionRequest,
+    BatchPredictionResponse,
+    ErrorResponse,
+    HealthCheck,
+    ModelInfo,
+    ModelUpdateRequest,
+    ModelUpdateResponse,
+    PredictionRequest,
+    PredictionResponse,
+)
 
 # Import simple predict router
 try:
@@ -66,7 +73,7 @@ structlog.configure(
         structlog.processors.TimeStamper(fmt="iso"),
         structlog.processors.StackInfoRenderer(),
         structlog.processors.format_exc_info,
-        structlog.dev.ConsoleRenderer()
+        structlog.dev.ConsoleRenderer(),
     ],
     context_class=dict,
     logger_factory=structlog.stdlib.LoggerFactory(),
@@ -78,43 +85,41 @@ logger = structlog.get_logger()
 # Prometheus metrics (if available)
 if Counter is not None:
     prediction_counter = Counter(
-        'ml_predictions_total',
-        'Total predictions made',
-        ['model_name', 'model_version', 'status']
+        "ml_predictions_total",
+        "Total predictions made",
+        ["model_name", "model_version", "status"],
     )
     prediction_latency = Histogram(
-        'ml_prediction_duration_seconds',
-        'Prediction latency in seconds',
-        ['model_name', 'model_version']
+        "ml_prediction_duration_seconds",
+        "Prediction latency in seconds",
+        ["model_name", "model_version"],
     )
     batch_prediction_counter = Counter(
-        'ml_batch_predictions_total',
-        'Total batch predictions made',
-        ['model_name', 'model_version', 'status']
+        "ml_batch_predictions_total",
+        "Total batch predictions made",
+        ["model_name", "model_version", "status"],
     )
     model_load_counter = Counter(
-        'ml_model_loads_total',
-        'Total model loads',
-        ['model_name', 'model_version', 'status']
+        "ml_model_loads_total",
+        "Total model loads",
+        ["model_name", "model_version", "status"],
     )
-    active_models_gauge = Gauge(
-        'ml_active_models',
-        'Number of active models loaded'
-    )
+    active_models_gauge = Gauge("ml_active_models", "Number of active models loaded")
     api_requests_counter = Counter(
-        'ml_api_requests_total',
-        'Total API requests',
-        ['endpoint', 'method', 'status']
+        "ml_api_requests_total", "Total API requests", ["endpoint", "method", "status"]
     )
 else:
     # Create dummy metrics if Prometheus is not available
     class DummyMetric:
         def labels(self, **kwargs):
             return self
+
         def inc(self, amount=1):
             pass
+
         def observe(self, amount):
             pass
+
         def set(self, value):
             pass
 
@@ -129,7 +134,9 @@ else:
 class ModelManager:
     """Manage ML models with caching and lifecycle management."""
 
-    def __init__(self, mlflow_uri: str, cache_host: str = "redis", cache_port: int = 6379):
+    def __init__(
+        self, mlflow_uri: str, cache_host: str = "redis", cache_port: int = 6379
+    ):
         """Initialize model manager.
 
         Args:
@@ -150,7 +157,7 @@ class ModelManager:
                     port=cache_port,
                     decode_responses=True,
                     socket_timeout=5,
-                    socket_connect_timeout=5
+                    socket_connect_timeout=5,
                 )
                 # Test connection
                 self.cache.ping()
@@ -186,7 +193,9 @@ class ModelManager:
 
         # Check if model is already loaded
         if cache_key in self.models:
-            logger.debug("Model loaded from memory cache", model=model_name, version=version)
+            logger.debug(
+                "Model loaded from memory cache", model=model_name, version=version
+            )
             return self.models[cache_key]
 
         if self.client is None:
@@ -204,7 +213,10 @@ class ModelManager:
                     # Get the latest version
                     versions = self.client.search_model_versions(f"name='{model_name}'")
                     if not versions:
-                        raise HTTPException(status_code=404, detail=f"No versions found for model {model_name}")
+                        raise HTTPException(
+                            status_code=404,
+                            detail=f"No versions found for model {model_name}",
+                        )
                     # Sort by version number and get the latest
                     versions.sort(key=lambda x: int(x.version), reverse=True)
                     model_version = versions[0].version
@@ -217,19 +229,22 @@ class ModelManager:
                     # First try the new alias system (MLflow 2.9+)
                     try:
                         model_version_obj = self.client.get_model_version_by_alias(
-                            model_name,
-                            version.lower()
+                            model_name, version.lower()
                         )
                         if model_version_obj:
                             model_version = model_version_obj.version
                             model_uri = f"models:/{model_name}/{model_version}"
-                            logger.info(f"Using {version} model version {model_version} (via alias)")
+                            logger.info(
+                                f"Using {version} model version {model_version} (via alias)"
+                            )
                     except (AttributeError, Exception):
                         # Alias API not available, fall back to tags or latest
                         logger.debug(f"Alias API not available for {version}")
 
                         # Search for models with the deployment_status tag
-                        versions = self.client.search_model_versions(f"name='{model_name}'")
+                        versions = self.client.search_model_versions(
+                            f"name='{model_name}'"
+                        )
                         production_model = None
 
                         # Look for model tagged as production
@@ -241,17 +256,21 @@ class ModelManager:
                         if production_model:
                             model_version = production_model.version
                             model_uri = f"models:/{model_name}/{model_version}"
-                            logger.info(f"Using {version} model version {model_version} (via tag)")
+                            logger.info(
+                                f"Using {version} model version {model_version} (via tag)"
+                            )
                         else:
                             # No tagged model found, use latest as production
                             if versions and version.lower() == "production":
                                 model_version = versions[0].version
                                 model_uri = f"models:/{model_name}/{model_version}"
-                                logger.info(f"Using latest version {model_version} as {version}")
+                                logger.info(
+                                    f"Using latest version {model_version} as {version}"
+                                )
                             else:
                                 raise HTTPException(
                                     status_code=404,
-                                    detail=f"No {version} model found for {model_name}"
+                                    detail=f"No {version} model found for {model_name}",
                                 )
                 else:
                     model_uri = f"models:/{model_name}/{version}"
@@ -263,8 +282,10 @@ class ModelManager:
             logger.info(f"Loading model from URI: {model_uri}")
             # Load the model - run synchronously in executor to avoid blocking
             loop = asyncio.get_event_loop()
-            model = await loop.run_in_executor(None, mlflow.pyfunc.load_model, model_uri)
-            logger.info(f"Model loaded successfully")
+            model = await loop.run_in_executor(
+                None, mlflow.pyfunc.load_model, model_uri
+            )
+            logger.info("Model loaded successfully")
 
             # Cache the model
             self.models[cache_key] = model
@@ -275,15 +296,13 @@ class ModelManager:
                 "version": model_version,
                 "uri": model_uri,
                 "loaded_at": datetime.now(timezone.utc).isoformat(),
-                "load_time_ms": (time.time() - start_time) * 1000
+                "load_time_ms": (time.time() - start_time) * 1000,
             }
 
             # Update metrics
             load_time = time.time() - start_time
             model_load_counter.labels(
-                model_name=model_name,
-                model_version=model_version,
-                status="success"
+                model_name=model_name, model_version=model_version, status="success"
             ).inc()
             active_models_gauge.set(len(self.models))
 
@@ -291,32 +310,29 @@ class ModelManager:
                 "Model loaded successfully",
                 model=model_name,
                 version=model_version,
-                load_time_ms=load_time * 1000
+                load_time_ms=load_time * 1000,
             )
 
             return model
 
         except Exception as e:
             model_load_counter.labels(
-                model_name=model_name,
-                model_version=version,
-                status="error"
+                model_name=model_name, model_version=version, status="error"
             ).inc()
 
             logger.error(
-                "Model loading failed",
-                model=model_name,
-                version=version,
-                error=str(e)
+                "Model loading failed", model=model_name, version=version, error=str(e)
             )
-            raise HTTPException(status_code=500, detail=f"Failed to load model: {str(e)}")
+            raise HTTPException(
+                status_code=500, detail=f"Failed to load model: {str(e)}"
+            )
 
     async def predict(
         self,
         model_name: str,
         features: Dict[str, Any],
         version: str = "latest",
-        return_probabilities: bool = True
+        return_probabilities: bool = True,
     ) -> Dict[str, Any]:
         """Make prediction with caching.
 
@@ -345,15 +361,15 @@ class ModelManager:
                     cached_result = self.cache.get(cache_key)
                     if cached_result:
                         cached_result = json.loads(cached_result)
-                        logger.debug("Prediction served from cache", cache_key=cache_key)
+                        logger.debug(
+                            "Prediction served from cache", cache_key=cache_key
+                        )
                 except Exception as e:
                     logger.warning("Cache read failed", error=str(e))
 
             if cached_result:
                 prediction_counter.labels(
-                    model_name=model_name,
-                    model_version=version,
-                    status="cache_hit"
+                    model_name=model_name, model_version=version, status="cache_hit"
                 ).inc()
                 return cached_result
 
@@ -370,13 +386,17 @@ class ModelManager:
             probabilities = None
             if return_probabilities:
                 try:
-                    if hasattr(model, 'predict_proba'):
+                    if hasattr(model, "predict_proba"):
                         probabilities = model.predict_proba(features_df)[0].tolist()
                     else:
                         # Try to get probabilities from the underlying model
-                        underlying_model = getattr(model, '_model_impl', None)
-                        if underlying_model and hasattr(underlying_model, 'predict_proba'):
-                            probabilities = underlying_model.predict_proba(features_df)[0].tolist()
+                        underlying_model = getattr(model, "_model_impl", None)
+                        if underlying_model and hasattr(
+                            underlying_model, "predict_proba"
+                        ):
+                            probabilities = underlying_model.predict_proba(features_df)[
+                                0
+                            ].tolist()
                 except Exception as e:
                     logger.warning("Failed to get probabilities", error=str(e))
 
@@ -390,36 +410,35 @@ class ModelManager:
 
             # Prepare result
             result = {
-                "prediction": float(prediction[0]) if isinstance(prediction[0], (np.integer, np.floating)) else prediction[0],
+                "prediction": (
+                    float(prediction[0])
+                    if isinstance(prediction[0], (np.integer, np.floating))
+                    else prediction[0]
+                ),
                 "probabilities": probabilities,
                 "model_name": model_name,
                 "model_version": actual_version,
                 "latency_ms": latency_ms,
                 "timestamp": datetime.now(timezone.utc),
-                "features_used": features
+                "features_used": features,
             }
 
             # Cache result
             if self.cache and latency_ms < 1000:  # Only cache fast predictions
                 try:
                     self.cache.setex(
-                        cache_key,
-                        300,  # 5 minutes TTL
-                        json.dumps(result, default=str)
+                        cache_key, 300, json.dumps(result, default=str)  # 5 minutes TTL
                     )
                 except Exception as e:
                     logger.warning("Cache write failed", error=str(e))
 
             # Update metrics
             prediction_counter.labels(
-                model_name=model_name,
-                model_version=actual_version,
-                status="success"
+                model_name=model_name, model_version=actual_version, status="success"
             ).inc()
 
             prediction_latency.labels(
-                model_name=model_name,
-                model_version=actual_version
+                model_name=model_name, model_version=actual_version
             ).observe(latency_ms / 1000)
 
             return result
@@ -428,16 +447,11 @@ class ModelManager:
             raise
         except Exception as e:
             prediction_counter.labels(
-                model_name=model_name,
-                model_version=version,
-                status="error"
+                model_name=model_name, model_version=version, status="error"
             ).inc()
 
             logger.error(
-                "Prediction failed",
-                model=model_name,
-                version=version,
-                error=str(e)
+                "Prediction failed", model=model_name, version=version, error=str(e)
             )
             raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
 
@@ -446,7 +460,7 @@ class ModelManager:
         model_name: str,
         instances: List[Dict[str, Any]],
         version: str = "latest",
-        return_probabilities: bool = True
+        return_probabilities: bool = True,
     ) -> Dict[str, Any]:
         """Make batch predictions.
 
@@ -475,12 +489,16 @@ class ModelManager:
             probabilities = None
             if return_probabilities:
                 try:
-                    if hasattr(model, 'predict_proba'):
+                    if hasattr(model, "predict_proba"):
                         probabilities = model.predict_proba(features_df).tolist()
                     else:
-                        underlying_model = getattr(model, '_model_impl', None)
-                        if underlying_model and hasattr(underlying_model, 'predict_proba'):
-                            probabilities = underlying_model.predict_proba(features_df).tolist()
+                        underlying_model = getattr(model, "_model_impl", None)
+                        if underlying_model and hasattr(
+                            underlying_model, "predict_proba"
+                        ):
+                            probabilities = underlying_model.predict_proba(
+                                features_df
+                            ).tolist()
                 except Exception as e:
                     logger.warning("Failed to get batch probabilities", error=str(e))
 
@@ -505,14 +523,12 @@ class ModelManager:
                 "batch_size": len(instances),
                 "total_latency_ms": total_latency_ms,
                 "avg_latency_ms": avg_latency_ms,
-                "timestamp": datetime.now(timezone.utc)
+                "timestamp": datetime.now(timezone.utc),
             }
 
             # Update metrics
             batch_prediction_counter.labels(
-                model_name=model_name,
-                model_version=actual_version,
-                status="success"
+                model_name=model_name, model_version=actual_version, status="success"
             ).inc()
 
             return result
@@ -521,9 +537,7 @@ class ModelManager:
             raise
         except Exception as e:
             batch_prediction_counter.labels(
-                model_name=model_name,
-                model_version=version,
-                status="error"
+                model_name=model_name, model_version=version, status="error"
             ).inc()
 
             logger.error(
@@ -531,9 +545,11 @@ class ModelManager:
                 model=model_name,
                 version=version,
                 batch_size=len(instances),
-                error=str(e)
+                error=str(e),
             )
-            raise HTTPException(status_code=500, detail=f"Batch prediction failed: {str(e)}")
+            raise HTTPException(
+                status_code=500, detail=f"Batch prediction failed: {str(e)}"
+            )
 
     def get_model_info(self) -> List[Dict[str, Any]]:
         """Get information about loaded models."""
@@ -546,21 +562,17 @@ class ModelManager:
             # Only add if we haven't seen this model, or if this version is newer
             if model_name not in seen_models:
                 seen_models[model_name] = metadata
-                models_info.append({
-                    "cache_key": cache_key,
-                    **metadata
-                })
+                models_info.append({"cache_key": cache_key, **metadata})
             else:
                 # Keep the most recent load (higher loaded_at timestamp)
                 existing = seen_models[model_name]
                 if metadata.get("loaded_at", "") > existing.get("loaded_at", ""):
                     # Remove the old entry and add the new one
-                    models_info = [m for m in models_info if m.get("name") != model_name]
+                    models_info = [
+                        m for m in models_info if m.get("name") != model_name
+                    ]
                     seen_models[model_name] = metadata
-                    models_info.append({
-                        "cache_key": cache_key,
-                        **metadata
-                    })
+                    models_info.append({"cache_key": cache_key, **metadata})
 
         return models_info
 
@@ -575,7 +587,9 @@ class ModelManager:
         """
         if model_name:
             # Clear specific model
-            keys_to_remove = [k for k in self.models.keys() if k.startswith(f"model:{model_name}:")]
+            keys_to_remove = [
+                k for k in self.models.keys() if k.startswith(f"model:{model_name}:")
+            ]
         else:
             # Clear all models
             keys_to_remove = list(self.models.keys())
@@ -586,7 +600,9 @@ class ModelManager:
 
         active_models_gauge.set(len(self.models))
 
-        logger.info("Model cache cleared", removed_count=len(keys_to_remove), model=model_name)
+        logger.info(
+            "Model cache cleared", removed_count=len(keys_to_remove), model=model_name
+        )
         return len(keys_to_remove)
 
 
@@ -624,7 +640,9 @@ async def lifespan(app: FastAPI):
                     await model_manager.load_model(model_name.strip(), version.strip())
                     logger.info("Preloaded model", model=model_name, version=version)
                 except Exception as e:
-                    logger.warning("Failed to preload model", model=model_name, error=str(e))
+                    logger.warning(
+                        "Failed to preload model", model=model_name, error=str(e)
+                    )
     except Exception as e:
         logger.warning("Failed to preload models", error=str(e))
 
@@ -636,7 +654,7 @@ async def lifespan(app: FastAPI):
             update_manager = ModelUpdateManager(
                 model_manager=model_manager,
                 mlflow_uri=mlflow_uri,
-                check_interval=check_interval
+                check_interval=check_interval,
             )
 
             # Start background update task
@@ -668,7 +686,7 @@ app = FastAPI(
     lifespan=lifespan,
     docs_url="/docs",
     redoc_url="/redoc",
-    openapi_url="/openapi.json"
+    openapi_url="/openapi.json",
 )
 
 # Add middleware
@@ -710,7 +728,7 @@ async def track_requests(request: Request, call_next):
         api_requests_counter.labels(
             endpoint=request.url.path,
             method=request.method,
-            status=response.status_code
+            status=response.status_code,
         ).inc()
 
         # Log request
@@ -720,7 +738,7 @@ async def track_requests(request: Request, call_next):
             path=request.url.path,
             status_code=response.status_code,
             latency_ms=latency * 1000,
-            request_id=request_id
+            request_id=request_id,
         )
 
         # Add request ID to response headers
@@ -756,13 +774,17 @@ async def health_check():
     else:
         checks["redis"] = "unavailable"
 
-    overall_status = "healthy" if all(v in ["healthy", "unavailable"] for v in checks.values()) else "degraded"
+    overall_status = (
+        "healthy"
+        if all(v in ["healthy", "unavailable"] for v in checks.values())
+        else "degraded"
+    )
 
     return HealthCheck(
         status=overall_status,
         timestamp=datetime.now(timezone.utc),
         version="1.0.0",
-        checks=checks
+        checks=checks,
     )
 
 
@@ -778,15 +800,12 @@ async def predict(request: PredictionRequest, background_tasks: BackgroundTasks)
             model_name=request.model_name,
             features=request.features,
             version=request.version,
-            return_probabilities=request.return_probabilities
+            return_probabilities=request.return_probabilities,
         )
 
         # Log prediction in background
         background_tasks.add_task(
-            log_prediction,
-            request.model_name,
-            request.features,
-            result["prediction"]
+            log_prediction, request.model_name, request.features, result["prediction"]
         )
 
         return PredictionResponse(**result)
@@ -805,7 +824,7 @@ async def predict_batch(request: BatchPredictionRequest):
         model_name=request.model_name,
         instances=request.instances,
         version=request.version,
-        return_probabilities=request.return_probabilities
+        return_probabilities=request.return_probabilities,
     )
 
     return BatchPredictionResponse(**result)
@@ -819,13 +838,16 @@ async def list_models():
         raise HTTPException(status_code=500, detail="Model manager not initialized")
 
     models_info = model_manager.get_model_info()
-    return [ModelInfo(
-        name=info["name"],
-        versions=[info["version"]],
-        current_stage="loaded",
-        created_at=datetime.fromisoformat(info["loaded_at"]),
-        description=f"Loaded model with {info['load_time_ms']:.1f}ms load time"
-    ) for info in models_info]
+    return [
+        ModelInfo(
+            name=info["name"],
+            versions=[info["version"]],
+            current_stage="loaded",
+            created_at=datetime.fromisoformat(info["loaded_at"]),
+            description=f"Loaded model with {info['load_time_ms']:.1f}ms load time",
+        )
+        for info in models_info
+    ]
 
 
 @app.post("/models/reload")
@@ -848,7 +870,7 @@ async def reload_model(request: ModelUpdateRequest):
             new_version=target_version,
             status="success",
             timestamp=datetime.now(timezone.utc),
-            message=f"Model reloaded successfully. Cleared {cleared_count} cached versions."
+            message=f"Model reloaded successfully. Cleared {cleared_count} cached versions.",
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to reload model: {str(e)}")
@@ -861,7 +883,9 @@ async def clear_model_cache(model_name: str):
         raise HTTPException(status_code=500, detail="Model manager not initialized")
 
     cleared_count = model_manager.clear_cache(model_name)
-    return {"message": f"Cleared {cleared_count} cached versions for model {model_name}"}
+    return {
+        "message": f"Cleared {cleared_count} cached versions for model {model_name}"
+    }
 
 
 # Model update endpoints
@@ -869,15 +893,9 @@ async def clear_model_cache(model_name: str):
 async def get_update_status():
     """Get status of the model update manager."""
     if not update_manager:
-        return {
-            "enabled": False,
-            "message": "Model auto-update is disabled"
-        }
+        return {"enabled": False, "message": "Model auto-update is disabled"}
 
-    return {
-        "enabled": True,
-        **update_manager.get_status()
-    }
+    return {"enabled": True, **update_manager.get_status()}
 
 
 @app.post("/models/updates/check")
@@ -895,18 +913,12 @@ async def check_for_updates():
             success = await update_manager.load_new_model(model_name, version)
             results[model_name] = {
                 "version": version,
-                "status": "loaded" if success else "failed"
+                "status": "loaded" if success else "failed",
             }
 
-        return {
-            "updates_found": len(updates),
-            "results": results
-        }
+        return {"updates_found": len(updates), "results": results}
 
-    return {
-        "updates_found": 0,
-        "message": "All models are up to date"
-    }
+    return {"updates_found": 0, "message": "All models are up to date"}
 
 
 @app.post("/webhooks/mlflow/model-update")
@@ -917,10 +929,7 @@ async def mlflow_model_webhook(request: Request, background_tasks: BackgroundTas
     when a new model is registered or promoted to production.
     """
     if not update_manager:
-        return {
-            "status": "disabled",
-            "message": "Model auto-update is disabled"
-        }
+        return {"status": "disabled", "message": "Model auto-update is disabled"}
 
     try:
         payload = await request.json()
@@ -935,18 +944,14 @@ async def mlflow_model_webhook(request: Request, background_tasks: BackgroundTas
 
         # Handle the webhook in background
         background_tasks.add_task(
-            handle_model_webhook,
-            model_name,
-            version,
-            action,
-            update_manager
+            handle_model_webhook, model_name, version, action, update_manager
         )
 
         return {
             "status": "accepted",
             "model": model_name,
             "version": version,
-            "message": "Update will be processed in background"
+            "message": "Update will be processed in background",
         }
 
     except Exception as e:
@@ -963,14 +968,14 @@ async def log_prediction(model_name: str, features: Dict[str, Any], prediction: 
                 "model_name": model_name,
                 "features": features,
                 "prediction": prediction,
-                "timestamp": datetime.now(timezone.utc).isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 
             # Store in Redis stream for real-time monitoring
             model_manager.cache.xadd(
                 f"predictions:{model_name}",
                 prediction_data,
-                maxlen=10000  # Keep last 10k predictions
+                maxlen=10000,  # Keep last 10k predictions
             )
     except Exception as e:
         logger.error("Failed to log prediction", error=str(e))
@@ -985,8 +990,8 @@ async def http_exception_handler(request: Request, exc: HTTPException):
         content=ErrorResponse(
             error="HTTPException",
             message=exc.detail,
-            timestamp=datetime.now(timezone.utc)
-        ).model_dump()
+            timestamp=datetime.now(timezone.utc),
+        ).model_dump(),
     )
 
 
@@ -1001,6 +1006,6 @@ async def general_exception_handler(request: Request, exc: Exception):
             error="InternalServerError",
             message="An internal server error occurred",
             detail=str(exc),
-            timestamp=datetime.now(timezone.utc)
-        ).model_dump()
+            timestamp=datetime.now(timezone.utc),
+        ).model_dump(),
     )

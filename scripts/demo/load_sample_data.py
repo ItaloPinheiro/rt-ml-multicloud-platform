@@ -4,15 +4,15 @@ Load sample data into the feature store and database for demo purposes.
 """
 
 import json
+import logging
 import os
 import sys
-import logging
-from datetime import datetime
-from typing import Dict, List, Any
+from typing import Any, Dict, List
+
 import pandas as pd
 
 # Add project root to path for imports
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 sys.path.insert(0, project_root)
 
 try:
@@ -30,66 +30,76 @@ DATA_ROOT = os.getenv("DATA_ROOT", "sample_data")
 GENERATED_DIR = os.path.join(DATA_ROOT, "generated")
 DEMO_DATASETS_DIR = os.path.join(DATA_ROOT, "demo", "datasets")
 
+
 def load_json_file(filepath: str) -> List[Dict[str, Any]]:
     """Load JSON data from file."""
     if not os.path.exists(filepath):
         logger.error(f"File not found: {filepath}")
         return []
 
-    with open(filepath, 'r') as f:
+    with open(filepath, "r") as f:
         return json.load(f)
 
-def extract_users_from_transactions(transactions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+
+def extract_users_from_transactions(
+    transactions: List[Dict[str, Any]]
+) -> List[Dict[str, Any]]:
     """Extract unique users from transaction data."""
     users_dict = {}
 
     for transaction in transactions:
-        user_id = transaction['user_id']
+        user_id = transaction["user_id"]
         if user_id not in users_dict:
             users_dict[user_id] = {
-                'user_id': user_id,
-                'first_seen': transaction['timestamp'],
-                'transaction_count': 0,
-                'total_amount': 0.0,
-                'avg_amount': 0.0,
-                'fraud_count': 0
+                "user_id": user_id,
+                "first_seen": transaction["timestamp"],
+                "transaction_count": 0,
+                "total_amount": 0.0,
+                "avg_amount": 0.0,
+                "fraud_count": 0,
             }
 
         user = users_dict[user_id]
-        user['transaction_count'] += 1
-        user['total_amount'] += transaction['amount']
-        user['avg_amount'] = user['total_amount'] / user['transaction_count']
+        user["transaction_count"] += 1
+        user["total_amount"] += transaction["amount"]
+        user["avg_amount"] = user["total_amount"] / user["transaction_count"]
 
-        if transaction['label'] == 1:
-            user['fraud_count'] += 1
+        if transaction["label"] == 1:
+            user["fraud_count"] += 1
 
         # Update first_seen if this transaction is earlier
-        if transaction['timestamp'] < user['first_seen']:
-            user['first_seen'] = transaction['timestamp']
+        if transaction["timestamp"] < user["first_seen"]:
+            user["first_seen"] = transaction["timestamp"]
 
     return list(users_dict.values())
 
-def load_to_feature_store(transactions: List[Dict[str, Any]], users: List[Dict[str, Any]]) -> bool:
+
+def load_to_feature_store(
+    transactions: List[Dict[str, Any]], users: List[Dict[str, Any]]
+) -> bool:
     """Load data to feature store."""
     try:
         # Check if FeatureStoreClient is available
         if FeatureStoreClient is None:
-            logger.warning("FeatureStoreClient not available, skipping feature store loading")
+            logger.warning(
+                "FeatureStoreClient not available, skipping feature store loading"
+            )
             return False
 
         # Try direct Redis connection for demo
         import redis
+
         try:
             # Use localhost for Docker exposed port - try different connection parameters
             r = redis.Redis(
-                host='127.0.0.1',  # Use explicit IP instead of localhost
+                host="127.0.0.1",  # Use explicit IP instead of localhost
                 port=6379,
                 db=0,
                 decode_responses=True,
                 socket_connect_timeout=10,
                 socket_keepalive=True,
                 retry_on_timeout=True,
-                health_check_interval=30
+                health_check_interval=30,
             )
             # Test connection
             r.ping()
@@ -98,27 +108,35 @@ def load_to_feature_store(transactions: List[Dict[str, Any]], users: List[Dict[s
             # Store user features directly in Redis
             for user in users:
                 key = f"user_profile:{user['user_id']}"
-                r.hset(key, mapping={
-                    'transaction_count': str(user['transaction_count']),
-                    'avg_amount': str(user['avg_amount']),
-                    'total_amount': str(user['total_amount']),
-                    'fraud_count': str(user['fraud_count'])
-                })
+                r.hset(
+                    key,
+                    mapping={
+                        "transaction_count": str(user["transaction_count"]),
+                        "avg_amount": str(user["avg_amount"]),
+                        "total_amount": str(user["total_amount"]),
+                        "fraud_count": str(user["fraud_count"]),
+                    },
+                )
                 r.expire(key, 3600)  # 1 hour TTL
 
             logger.info(f"Loaded {len(users)} user profiles to Redis directly")
 
             # Store some transaction features
-            for i, transaction in enumerate(transactions[:100]):  # Just first 100 for demo
+            for i, transaction in enumerate(
+                transactions[:100]
+            ):  # Just first 100 for demo
                 key = f"transaction:{transaction['transaction_id']}"
-                r.hset(key, mapping={
-                    'amount': str(transaction['amount']),
-                    'user_id': transaction['user_id'],
-                    'merchant_category': transaction['merchant_category']
-                })
+                r.hset(
+                    key,
+                    mapping={
+                        "amount": str(transaction["amount"]),
+                        "user_id": transaction["user_id"],
+                        "merchant_category": transaction["merchant_category"],
+                    },
+                )
                 r.expire(key, 3600)
 
-            logger.info(f"Loaded 100 sample transactions to Redis")
+            logger.info("Loaded 100 sample transactions to Redis")
             return True
 
         except Exception as e:
@@ -130,7 +148,7 @@ def load_to_feature_store(transactions: List[Dict[str, Any]], users: List[Dict[s
         try:
             feature_store = FeatureStoreClient()
             # Initialize database if needed
-            if hasattr(feature_store, 'initialize_database'):
+            if hasattr(feature_store, "initialize_database"):
                 feature_store.initialize_database()
         except Exception as init_error:
             logger.warning(f"Could not initialize FeatureStoreClient: {init_error}")
@@ -141,18 +159,22 @@ def load_to_feature_store(transactions: List[Dict[str, Any]], users: List[Dict[s
         # Load user features
         for user in users:
             user_features = {
-                'user_id': user['user_id'],
-                'transaction_count': user['transaction_count'],
-                'avg_amount': user['avg_amount'],
-                'total_amount': user['total_amount'],
-                'fraud_rate': user['fraud_count'] / user['transaction_count'] if user['transaction_count'] > 0 else 0.0,
-                'first_seen': user['first_seen']
+                "user_id": user["user_id"],
+                "transaction_count": user["transaction_count"],
+                "avg_amount": user["avg_amount"],
+                "total_amount": user["total_amount"],
+                "fraud_rate": (
+                    user["fraud_count"] / user["transaction_count"]
+                    if user["transaction_count"] > 0
+                    else 0.0
+                ),
+                "first_seen": user["first_seen"],
             }
 
             feature_store.put_features(
-                entity_id=user['user_id'],
+                entity_id=user["user_id"],
                 features=user_features,
-                feature_group='user_profile'
+                feature_group="user_profile",
             )
 
         logger.info(f"Loaded {len(users)} user profiles to feature store")
@@ -161,20 +183,22 @@ def load_to_feature_store(transactions: List[Dict[str, Any]], users: List[Dict[s
         logger.info("Loading transaction features to feature store...")
 
         for transaction in transactions:
-            transaction_features = transaction.get('features', {}).copy()
-            transaction_features.update({
-                'transaction_id': transaction['transaction_id'],
-                'user_id': transaction['user_id'],
-                'amount': transaction['amount'],
-                'merchant_category': transaction['merchant_category'],
-                'payment_method': transaction['payment_method'],
-                'timestamp': transaction['timestamp']
-            })
+            transaction_features = transaction.get("features", {}).copy()
+            transaction_features.update(
+                {
+                    "transaction_id": transaction["transaction_id"],
+                    "user_id": transaction["user_id"],
+                    "amount": transaction["amount"],
+                    "merchant_category": transaction["merchant_category"],
+                    "payment_method": transaction["payment_method"],
+                    "timestamp": transaction["timestamp"],
+                }
+            )
 
             feature_store.put_features(
-                entity_id=transaction['transaction_id'],
+                entity_id=transaction["transaction_id"],
                 features=transaction_features,
-                feature_group='transaction_features'
+                feature_group="transaction_features",
             )
 
         logger.info(f"Loaded {len(transactions)} transaction features to feature store")
@@ -184,7 +208,10 @@ def load_to_feature_store(transactions: List[Dict[str, Any]], users: List[Dict[s
         logger.error(f"Failed to load data to feature store: {e}")
         return False
 
-def load_to_database(transactions: List[Dict[str, Any]], users: List[Dict[str, Any]]) -> bool:
+
+def load_to_database(
+    transactions: List[Dict[str, Any]], users: List[Dict[str, Any]]
+) -> bool:
     """Load data to PostgreSQL database."""
     try:
         # This is a simplified version - in a real implementation,
@@ -208,6 +235,7 @@ def load_to_database(transactions: List[Dict[str, Any]], users: List[Dict[str, A
         logger.error(f"Failed to load data to database: {e}")
         return False
 
+
 def verify_data_loading() -> bool:
     """Verify that data was loaded successfully."""
     try:
@@ -216,10 +244,7 @@ def verify_data_loading() -> bool:
         logger.info("Verifying data loading...")
 
         # Check if CSV files were created
-        required_files = [
-            "data/demo/transactions.csv",
-            "data/demo/users.csv"
-        ]
+        required_files = ["data/demo/transactions.csv", "data/demo/users.csv"]
 
         for file_path in required_files:
             if not os.path.exists(file_path):
@@ -233,6 +258,7 @@ def verify_data_loading() -> bool:
         logger.error(f"Data verification failed: {e}")
         return False
 
+
 def main():
     """Main function to load sample data."""
     logger.info("Loading sample data for ML pipeline demo...")
@@ -242,7 +268,9 @@ def main():
     transactions = load_json_file(transactions_file)
 
     if not transactions:
-        logger.error("No transaction data found. Please run 'python scripts/demo/generate_data.py' first")
+        logger.error(
+            "No transaction data found. Please run 'python scripts/demo/generate_data.py' first"
+        )
         sys.exit(1)
 
     # Always extract user data from transactions for consistency
@@ -273,13 +301,17 @@ def main():
     print(f"  Verification: {'OK' if verification_success else 'FAILED'}")
 
     # Calculate stats
-    fraud_count = sum(1 for t in transactions if t['label'] == 1)
+    fraud_count = sum(1 for t in transactions if t["label"] == 1)
     fraud_rate = fraud_count / len(transactions) * 100
 
-    print(f"\nDataset Statistics:")
+    print("\nDataset Statistics:")
     print(f"  Fraud transactions: {fraud_count} ({fraud_rate:.1f}%)")
-    print(f"  Average transaction: ${sum(t['amount'] for t in transactions) / len(transactions):.2f}")
-    print(f"  Merchant categories: {len(set(t['merchant_category'] for t in transactions))}")
+    print(
+        f"  Average transaction: ${sum(t['amount'] for t in transactions) / len(transactions):.2f}"
+    )
+    print(
+        f"  Merchant categories: {len(set(t['merchant_category'] for t in transactions))}"
+    )
 
     if feature_store_success and database_success and verification_success:
         logger.info("Sample data loaded successfully!")
@@ -287,6 +319,7 @@ def main():
     else:
         logger.error("Some data loading steps failed")
         return False
+
 
 if __name__ == "__main__":
     success = main()

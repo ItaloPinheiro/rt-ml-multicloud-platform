@@ -2,30 +2,35 @@
 Model training module for the ML platform.
 Can be run standalone or imported as a module.
 """
+
+import argparse
+import logging
 import os
 import sys
-import argparse
-from typing import Dict, Any, Tuple
+from typing import Any, Dict, Tuple
+
 import mlflow
 import mlflow.sklearn
-import pandas as pd
 import numpy as np
-from sklearn.model_selection import train_test_split
+import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
-import logging
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
+from sklearn.model_selection import train_test_split
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 
 class ModelTrainer:
     """Handles model training and MLflow logging."""
 
-    def __init__(self,
-                 mlflow_tracking_uri: str = "http://mlflow-server:5000",
-                 experiment_name: str = "fraud_detection_clean"):
+    def __init__(
+        self,
+        mlflow_tracking_uri: str = "http://mlflow-server:5000",
+        experiment_name: str = "fraud_detection_clean",
+    ):
         """Initialize the trainer with MLflow configuration."""
         self.mlflow_tracking_uri = mlflow_tracking_uri
         self.experiment_name = experiment_name
@@ -38,8 +43,12 @@ class ModelTrainer:
 
         # Configure S3/MinIO for artifact storage if running in container
         if os.getenv("MLFLOW_S3_ENDPOINT_URL"):
-            os.environ["AWS_ACCESS_KEY_ID"] = os.getenv("AWS_ACCESS_KEY_ID", "minioadmin")
-            os.environ["AWS_SECRET_ACCESS_KEY"] = os.getenv("AWS_SECRET_ACCESS_KEY", "minioadmin123")
+            os.environ["AWS_ACCESS_KEY_ID"] = os.getenv(
+                "AWS_ACCESS_KEY_ID", "minioadmin"
+            )
+            os.environ["AWS_SECRET_ACCESS_KEY"] = os.getenv(
+                "AWS_SECRET_ACCESS_KEY", "minioadmin123"
+            )
 
         # Create or get experiment with S3 artifact location
         try:
@@ -51,10 +60,11 @@ class ModelTrainer:
                     artifact_location = f"s3://mlflow/{self.experiment_name}"
 
                 self.experiment_id = mlflow.create_experiment(
-                    self.experiment_name,
-                    artifact_location=artifact_location
+                    self.experiment_name, artifact_location=artifact_location
                 )
-                logger.info(f"Created new experiment: {self.experiment_name} with S3 storage")
+                logger.info(
+                    f"Created new experiment: {self.experiment_name} with S3 storage"
+                )
             else:
                 self.experiment_id = experiment.experiment_id
                 logger.info(f"Using existing experiment: {self.experiment_name}")
@@ -71,17 +81,25 @@ class ModelTrainer:
         df = pd.read_csv(data_path)
 
         # Separate features and target
-        feature_columns = [col for col in df.columns if col != 'label']
+        feature_columns = [col for col in df.columns if col != "label"]
         X = df[feature_columns]
-        y = df['label']
+        y = df["label"]
+
+        # Cast integer columns to float64 for nullable-safe schema inference
+        # This prevents MLflow UserWarning about integer columns not handling missing values
+        int_columns = X.select_dtypes(include=["int64", "int32"]).columns
+        X = X.copy()  # Avoid SettingWithCopyWarning
+        X[int_columns] = X[int_columns].astype("float64")
 
         logger.info(f"Loaded {len(df)} samples with {len(feature_columns)} features")
         return X, y
 
-    def train_model(self,
-                   X_train: np.ndarray,
-                   y_train: np.ndarray,
-                   model_params: Dict[str, Any] = None) -> RandomForestClassifier:
+    def train_model(
+        self,
+        X_train: np.ndarray,
+        y_train: np.ndarray,
+        model_params: Dict[str, Any] = None,
+    ) -> RandomForestClassifier:
         """Train a Random Forest model."""
         if model_params is None:
             model_params = {"n_estimators": 100, "random_state": 42}
@@ -91,10 +109,9 @@ class ModelTrainer:
         model.fit(X_train, y_train)
         return model
 
-    def evaluate_model(self,
-                      model: RandomForestClassifier,
-                      X_test: np.ndarray,
-                      y_test: np.ndarray) -> Dict[str, float]:
+    def evaluate_model(
+        self, model: RandomForestClassifier, X_test: np.ndarray, y_test: np.ndarray
+    ) -> Dict[str, float]:
         """Evaluate model performance."""
         y_pred = model.predict(X_test)
 
@@ -102,7 +119,7 @@ class ModelTrainer:
             "accuracy": accuracy_score(y_test, y_pred),
             "precision": precision_score(y_test, y_pred, zero_division=0),
             "recall": recall_score(y_test, y_pred, zero_division=0),
-            "f1_score": f1_score(y_test, y_pred, zero_division=0)
+            "f1_score": f1_score(y_test, y_pred, zero_division=0),
         }
 
         logger.info("Model evaluation metrics:")
@@ -111,11 +128,13 @@ class ModelTrainer:
 
         return metrics
 
-    def train_and_log(self,
-                     data_path: str,
-                     model_name: str = "fraud_detector",
-                     test_size: float = 0.2,
-                     model_params: Dict[str, Any] = None):
+    def train_and_log(
+        self,
+        data_path: str,
+        model_name: str = "fraud_detector",
+        test_size: float = 0.2,
+        model_params: Dict[str, Any] = None,
+    ):
         """Complete training pipeline with MLflow logging."""
         # Load data
         X, y = self.load_data(data_path)
@@ -130,16 +149,17 @@ class ModelTrainer:
 
         # Create Pipeline (Scaler + Model)
         # We need to import Pipeline if it's not available in class scope (it is imported at top level)
-        from sklearn.pipeline import Pipeline
-        from sklearn.preprocessing import StandardScaler
         from sklearn.ensemble import RandomForestClassifier
+        from sklearn.pipeline import Pipeline
 
         logger.info(f"Training Random Forest Pipeline with params: {model_params}")
-        
-        pipeline = Pipeline([
-            ('scaler', StandardScaler()),
-            ('clf', RandomForestClassifier(**model_params))
-        ])
+
+        pipeline = Pipeline(
+            [
+                ("scaler", StandardScaler()),
+                ("clf", RandomForestClassifier(**model_params)),
+            ]
+        )
 
         # Start MLflow run
         with mlflow.start_run(experiment_id=self.experiment_id) as run:
@@ -152,7 +172,7 @@ class ModelTrainer:
                 "accuracy": accuracy_score(y_test, y_pred),
                 "precision": precision_score(y_test, y_pred, zero_division=0),
                 "recall": recall_score(y_test, y_pred, zero_division=0),
-                "f1_score": f1_score(y_test, y_pred, zero_division=0)
+                "f1_score": f1_score(y_test, y_pred, zero_division=0),
             }
 
             logger.info("Model evaluation metrics:")
@@ -177,8 +197,8 @@ class ModelTrainer:
             # Use explicit parameter name to avoid deprecation warning
             model_info = mlflow.sklearn.log_model(
                 sk_model=pipeline,
-                artifact_path="model",  # This is still required for the path in the artifact store
-                signature=signature
+                name="model",  # MLflow 2.9+ uses 'name' instead of 'artifact_path'
+                signature=signature,
             )
 
             logger.info(f"Model logged with run_id: {run.info.run_id}")
@@ -213,9 +233,7 @@ class ModelTrainer:
 
             # Create model version
             model_version = client.create_model_version(
-                name=model_name,
-                source=f"runs:/{run_id}/model",
-                run_id=run_id
+                name=model_name, source=f"runs:/{run_id}/model", run_id=run_id
             )
 
             logger.info(f"Registered model version: {model_version.version}")
@@ -231,9 +249,11 @@ class ModelTrainer:
                     client.set_registered_model_alias(
                         name=model_name,
                         alias="production",
-                        version=model_version.version
+                        version=model_version.version,
                     )
-                    logger.info(f"Model {model_name} v{model_version.version} set as 'production' alias")
+                    logger.info(
+                        f"Model {model_name} v{model_version.version} set as 'production' alias"
+                    )
                 except (AttributeError, Exception) as e:
                     # Fallback: Just tag the model as production
                     logger.debug(f"Alias API not available, using tags: {e}")
@@ -241,12 +261,14 @@ class ModelTrainer:
                         name=model_name,
                         version=model_version.version,
                         key="deployment_status",
-                        value="production"
+                        value="production",
                     )
                     # Also tag previous production models as archived
                     try:
                         # Get all versions and update their tags
-                        all_versions = client.search_model_versions(f"name='{model_name}'")
+                        all_versions = client.search_model_versions(
+                            f"name='{model_name}'"
+                        )
                         for v in all_versions:
                             if v.version != model_version.version:
                                 # Check if it was production
@@ -255,13 +277,17 @@ class ModelTrainer:
                                         name=model_name,
                                         version=v.version,
                                         key="deployment_status",
-                                        value="archived"
+                                        value="archived",
                                     )
-                                    logger.info(f"Marked previous production model v{v.version} as archived")
+                                    logger.info(
+                                        f"Marked previous production model v{v.version} as archived"
+                                    )
                     except Exception as e:
                         logger.debug(f"Could not update previous versions: {e}")
 
-                    logger.info(f"Model {model_name} v{model_version.version} tagged as production")
+                    logger.info(
+                        f"Model {model_name} v{model_version.version} tagged as production"
+                    )
 
         except Exception as e:
             logger.error(f"Failed to register model: {e}")
@@ -275,57 +301,51 @@ def main():
         "--data-path",
         type=str,
         default="/app/sample_data/small/training_data.csv",
-        help="Path to training data CSV"
+        help="Path to training data CSV",
     )
     parser.add_argument(
         "--mlflow-uri",
         type=str,
         default=os.getenv("MLFLOW_TRACKING_URI", "http://mlflow-server:5000"),
-        help="MLflow tracking URI"
+        help="MLflow tracking URI",
     )
     parser.add_argument(
         "--experiment",
         type=str,
         default="fraud_detection",
-        help="MLflow experiment name"
+        help="MLflow experiment name",
     )
     parser.add_argument(
         "--model-name",
         type=str,
         default="fraud_detector",
-        help="Name for registered model"
+        help="Name for registered model",
     )
     parser.add_argument(
-        "--n-estimators",
-        type=int,
-        default=100,
-        help="Number of trees in Random Forest"
+        "--n-estimators", type=int, default=100, help="Number of trees in Random Forest"
     )
 
     args = parser.parse_args()
 
     # Initialize trainer
     trainer = ModelTrainer(
-        mlflow_tracking_uri=args.mlflow_uri,
-        experiment_name=args.experiment
+        mlflow_tracking_uri=args.mlflow_uri, experiment_name=args.experiment
     )
 
     # Train model
-    model_params = {
-        "n_estimators": args.n_estimators,
-        "random_state": 42,
-        "n_jobs": -1
-    }
+    model_params = {"n_estimators": args.n_estimators, "random_state": 42, "n_jobs": -1}
 
     try:
         run_id, metrics = trainer.train_and_log(
             data_path=args.data_path,
             model_name=args.model_name,
-            model_params=model_params
+            model_params=model_params,
         )
 
         logger.info("Training completed successfully!")
-        logger.info(f"View run in MLflow UI: {args.mlflow_uri}/#/experiments/0/runs/{run_id}")
+        logger.info(
+            f"View run in MLflow UI: {args.mlflow_uri}/#/experiments/0/runs/{run_id}"
+        )
 
     except Exception as e:
         logger.error(f"Training failed: {e}")

@@ -6,23 +6,40 @@ and batch feature engineering, supporting multiple cloud platforms.
 
 import json
 from datetime import datetime, timezone
-from typing import Dict, Any, Optional, List
-import logging
+from typing import Any, Dict, Optional
 
 try:
     import apache_beam as beam
-    from apache_beam.options.pipeline_options import PipelineOptions, GoogleCloudOptions, StandardOptions
-    from apache_beam.io import ReadFromPubSub, WriteToBigQuery, ReadFromText, WriteToText
-    from apache_beam.io.kafka import ReadFromKafka, WriteToKafka
-    from apache_beam.transforms.window import FixedWindows, SlidingWindows, Sessions
-    from apache_beam.transforms.trigger import AfterProcessingTime, AfterWatermark, AccumulationMode
+    from apache_beam.io import (
+        ReadFromPubSub,
+        ReadFromText,
+        WriteToBigQuery,
+        WriteToText,
+    )
     from apache_beam.io.gcp.bigquery import BigQueryDisposition, CreateDisposition
+    from apache_beam.io.kafka import ReadFromKafka, WriteToKafka
+    from apache_beam.options.pipeline_options import (
+        GoogleCloudOptions,
+        PipelineOptions,
+        StandardOptions,
+    )
+    from apache_beam.transforms.trigger import (
+        AccumulationMode,
+        AfterProcessingTime,
+        AfterWatermark,
+    )
+    from apache_beam.transforms.window import FixedWindows, Sessions, SlidingWindows
 except ImportError:
     beam = None
     PipelineOptions = None
 
-from src.feature_engineering.beam.transforms import FeatureExtraction, AggregateFeatures, ValidateFeatures
 import structlog
+
+from src.feature_engineering.beam.transforms import (
+    AggregateFeatures,
+    FeatureExtraction,
+    ValidateFeatures,
+)
 
 logger = structlog.get_logger()
 
@@ -60,7 +77,7 @@ class FeatureEngineeringPipeline:
         self.pipeline_options = self._create_pipeline_options()
         self.logger = logger.bind(
             runner=config.get("runner", "DirectRunner"),
-            project=config.get("project", "local")
+            project=config.get("project", "local"),
         )
 
     def _create_pipeline_options(self) -> PipelineOptions:
@@ -76,7 +93,9 @@ class FeatureEngineeringPipeline:
         options.append(f"--runner={runner}")
 
         # Job naming
-        job_name = self.config.get("job_name", f"ml-pipeline-{datetime.now().strftime('%Y%m%d-%H%M%S')}")
+        job_name = self.config.get(
+            "job_name", f"ml-pipeline-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+        )
         options.append(f"--job_name={job_name}")
 
         # Cloud-specific options
@@ -96,23 +115,27 @@ class FeatureEngineeringPipeline:
                 options.append(f"--staging_location={staging_location}")
 
             # Dataflow-specific optimizations
-            options.extend([
-                "--streaming",
-                "--enable_streaming_engine",
-                "--autoscaling_algorithm=THROUGHPUT_BASED",
-                f"--max_num_workers={self.config.get('max_workers', 10)}",
-                f"--num_workers={self.config.get('num_workers', 1)}",
-                "--disk_size_gb=50",
-                "--worker_machine_type=n1-standard-2",
-                "--use_public_ips=false"
-            ])
+            options.extend(
+                [
+                    "--streaming",
+                    "--enable_streaming_engine",
+                    "--autoscaling_algorithm=THROUGHPUT_BASED",
+                    f"--max_num_workers={self.config.get('max_workers', 10)}",
+                    f"--num_workers={self.config.get('num_workers', 1)}",
+                    "--disk_size_gb=50",
+                    "--worker_machine_type=n1-standard-2",
+                    "--use_public_ips=false",
+                ]
+            )
 
         elif runner == "DirectRunner":
             # Direct runner optimizations
-            options.extend([
-                "--direct_running_mode=multi_threading",
-                f"--direct_num_workers={self.config.get('num_workers', 4)}"
-            ])
+            options.extend(
+                [
+                    "--direct_running_mode=multi_threading",
+                    f"--direct_num_workers={self.config.get('num_workers', 4)}",
+                ]
+            )
 
         # Additional options
         additional_options = self.config.get("pipeline_options", [])
@@ -121,9 +144,7 @@ class FeatureEngineeringPipeline:
         pipeline_options = PipelineOptions(options)
 
         self.logger.info(
-            "Created pipeline options",
-            runner=runner,
-            options_count=len(options)
+            "Created pipeline options", runner=runner, options_count=len(options)
         )
 
         return pipeline_options
@@ -144,21 +165,17 @@ class FeatureEngineeringPipeline:
             raw_events = self._create_input_source(pipeline, input_config)
 
             # Feature extraction with error handling
-            features_and_errors = (
-                raw_events
-                | "ExtractFeatures" >> beam.ParDo(FeatureExtraction(feature_config))
-                    .with_outputs("errors", main="features")
-            )
+            features_and_errors = raw_events | "ExtractFeatures" >> beam.ParDo(
+                FeatureExtraction(feature_config)
+            ).with_outputs("errors", main="features")
 
             features = features_and_errors["features"]
             extraction_errors = features_and_errors["errors"]
 
             # Validate features
-            validated_and_invalid = (
-                features
-                | "ValidateFeatures" >> beam.ParDo(ValidateFeatures(feature_config.get("validation", {})))
-                    .with_outputs("invalid", "errors", main="valid")
-            )
+            validated_and_invalid = features | "ValidateFeatures" >> beam.ParDo(
+                ValidateFeatures(feature_config.get("validation", {}))
+            ).with_outputs("invalid", "errors", main="valid")
 
             valid_features = validated_and_invalid["valid"]
             invalid_features = validated_and_invalid["invalid"]
@@ -171,8 +188,10 @@ class FeatureEngineeringPipeline:
             aggregated_features = (
                 windowed_features
                 | "GroupByKey" >> beam.GroupBy(lambda x: x.get("user_id", "unknown"))
-                | "AggregateFeatures" >> beam.ParDo(AggregateFeatures())
-                    .with_outputs("errors", main="aggregated")
+                | "AggregateFeatures"
+                >> beam.ParDo(AggregateFeatures()).with_outputs(
+                    "errors", main="aggregated"
+                )
             )
 
             final_aggregated = aggregated_features["aggregated"]
@@ -186,17 +205,19 @@ class FeatureEngineeringPipeline:
                 errors={
                     "extraction": extraction_errors,
                     "validation": validation_errors,
-                    "aggregation": aggregation_errors
+                    "aggregation": aggregation_errors,
                 },
                 invalid=invalid_features,
-                output_config=output_config
+                output_config=output_config,
             )
 
             self.logger.info("Streaming pipeline created successfully")
 
         return pipeline.run()
 
-    def run_batch_pipeline(self, input_path: str, output_path: str) -> beam.pipeline.PipelineResult:
+    def run_batch_pipeline(
+        self, input_path: str, output_path: str
+    ) -> beam.pipeline.PipelineResult:
         """Run batch feature engineering pipeline.
 
         Args:
@@ -221,25 +242,30 @@ class FeatureEngineeringPipeline:
             features = (
                 raw_data
                 | "ExtractFeatures" >> beam.ParDo(FeatureExtraction(feature_config))
-                | "FilterFeatures" >> beam.Filter(lambda x: not isinstance(x, dict) or x.get("error") is None)
+                | "FilterFeatures"
+                >> beam.Filter(
+                    lambda x: not isinstance(x, dict) or x.get("error") is None
+                )
             )
 
             # Write features to output
             features | "WriteFeatures" >> WriteToText(
                 file_path_prefix=f"{output_path}/features",
                 file_name_suffix=".json",
-                shard_name_template="-SS-of-NN"
+                shard_name_template="-SS-of-NN",
             )
 
             self.logger.info(
                 "Batch pipeline created successfully",
                 input_path=input_path,
-                output_path=output_path
+                output_path=output_path,
             )
 
         return pipeline.run().wait_until_finish()
 
-    def _create_input_source(self, pipeline: beam.Pipeline, input_config: Dict[str, Any]):
+    def _create_input_source(
+        self, pipeline: beam.Pipeline, input_config: Dict[str, Any]
+    ):
         """Create input source based on configuration.
 
         Args:
@@ -259,14 +285,14 @@ class FeatureEngineeringPipeline:
                 return (
                     pipeline
                     | "ReadFromPubSub" >> ReadFromPubSub(subscription=subscription)
-                    | "DecodeMessages" >> beam.Map(lambda x: x.decode('utf-8'))
+                    | "DecodeMessages" >> beam.Map(lambda x: x.decode("utf-8"))
                     | "ParsePubSubJSON" >> beam.Map(self._parse_json_safely)
                 )
             elif topic:
                 return (
                     pipeline
                     | "ReadFromPubSubTopic" >> ReadFromPubSub(topic=topic)
-                    | "DecodeTopicMessages" >> beam.Map(lambda x: x.decode('utf-8'))
+                    | "DecodeTopicMessages" >> beam.Map(lambda x: x.decode("utf-8"))
                     | "ParseTopicJSON" >> beam.Map(self._parse_json_safely)
                 )
 
@@ -276,15 +302,19 @@ class FeatureEngineeringPipeline:
 
             return (
                 pipeline
-                | "ReadFromKafka" >> ReadFromKafka(
+                | "ReadFromKafka"
+                >> ReadFromKafka(
                     consumer_config={
                         "bootstrap.servers": bootstrap_servers,
                         "group.id": input_config.get("group_id", "ml-pipeline"),
-                        "auto.offset.reset": input_config.get("auto_offset_reset", "latest")
+                        "auto.offset.reset": input_config.get(
+                            "auto_offset_reset", "latest"
+                        ),
                     },
-                    topics=topics
+                    topics=topics,
                 )
-                | "ExtractKafkaValue" >> beam.Map(lambda record: record[1].decode('utf-8'))
+                | "ExtractKafkaValue"
+                >> beam.Map(lambda record: record[1].decode("utf-8"))
                 | "ParseKafkaJSON" >> beam.Map(self._parse_json_safely)
             )
 
@@ -313,7 +343,9 @@ class FeatureEngineeringPipeline:
         window_size = window_config.get("size_seconds", 60)
 
         if window_type == "fixed":
-            return pcollection | "FixedWindows" >> beam.WindowInto(FixedWindows(window_size))
+            return pcollection | "FixedWindows" >> beam.WindowInto(
+                FixedWindows(window_size)
+            )
 
         elif window_type == "sliding":
             slide_period = window_config.get("slide_seconds", 30)
@@ -336,7 +368,7 @@ class FeatureEngineeringPipeline:
         aggregated,
         errors: Dict[str, Any],
         invalid,
-        output_config: Dict[str, Any]
+        output_config: Dict[str, Any],
     ):
         """Write pipeline outputs to configured destinations.
 
@@ -359,7 +391,7 @@ class FeatureEngineeringPipeline:
                 table=f"{project}:{dataset}.features",
                 schema="SCHEMA_AUTODETECT",
                 write_disposition=BigQueryDisposition.WRITE_APPEND,
-                create_disposition=CreateDisposition.CREATE_IF_NEEDED
+                create_disposition=CreateDisposition.CREATE_IF_NEEDED,
             )
 
             # Write aggregated features
@@ -367,20 +399,21 @@ class FeatureEngineeringPipeline:
                 table=f"{project}:{dataset}.aggregated_features",
                 schema="SCHEMA_AUTODETECT",
                 write_disposition=BigQueryDisposition.WRITE_APPEND,
-                create_disposition=CreateDisposition.CREATE_IF_NEEDED
+                create_disposition=CreateDisposition.CREATE_IF_NEEDED,
             )
 
             # Write errors
             all_errors = (
-                (errors["extraction"], errors["validation"], errors["aggregation"])
-                | "FlattenErrors" >> beam.Flatten()
-            )
+                errors["extraction"],
+                errors["validation"],
+                errors["aggregation"],
+            ) | "FlattenErrors" >> beam.Flatten()
 
             all_errors | "WriteErrorsToBQ" >> WriteToBigQuery(
                 table=f"{project}:{dataset}.errors",
                 schema="SCHEMA_AUTODETECT",
                 write_disposition=BigQueryDisposition.WRITE_APPEND,
-                create_disposition=CreateDisposition.CREATE_IF_NEEDED
+                create_disposition=CreateDisposition.CREATE_IF_NEEDED,
             )
 
             # Write invalid features
@@ -388,7 +421,7 @@ class FeatureEngineeringPipeline:
                 table=f"{project}:{dataset}.invalid_features",
                 schema="SCHEMA_AUTODETECT",
                 write_disposition=BigQueryDisposition.WRITE_APPEND,
-                create_disposition=CreateDisposition.CREATE_IF_NEEDED
+                create_disposition=CreateDisposition.CREATE_IF_NEEDED,
             )
 
         elif output_type == "file":
@@ -396,14 +429,12 @@ class FeatureEngineeringPipeline:
 
             # Write features
             features | "WriteFeaturesToFile" >> WriteToText(
-                file_path_prefix=f"{output_path}/features",
-                file_name_suffix=".json"
+                file_path_prefix=f"{output_path}/features", file_name_suffix=".json"
             )
 
             # Write aggregated features
             aggregated | "WriteAggregatedToFile" >> WriteToText(
-                file_path_prefix=f"{output_path}/aggregated",
-                file_name_suffix=".json"
+                file_path_prefix=f"{output_path}/aggregated", file_name_suffix=".json"
             )
 
         elif output_type == "kafka":
@@ -412,20 +443,24 @@ class FeatureEngineeringPipeline:
             # Write features to Kafka
             (
                 features
-                | "FormatFeaturesForKafka" >> beam.Map(lambda x: (None, json.dumps(x).encode('utf-8')))
-                | "WriteFeaturesToKafka" >> WriteToKafka(
+                | "FormatFeaturesForKafka"
+                >> beam.Map(lambda x: (None, json.dumps(x).encode("utf-8")))
+                | "WriteFeaturesToKafka"
+                >> WriteToKafka(
                     producer_config={"bootstrap.servers": bootstrap_servers},
-                    topic=output_config.get("features_topic", "ml-features")
+                    topic=output_config.get("features_topic", "ml-features"),
                 )
             )
 
             # Write aggregated features to Kafka
             (
                 aggregated
-                | "FormatAggregatedForKafka" >> beam.Map(lambda x: (None, json.dumps(x).encode('utf-8')))
-                | "WriteAggregatedToKafka" >> WriteToKafka(
+                | "FormatAggregatedForKafka"
+                >> beam.Map(lambda x: (None, json.dumps(x).encode("utf-8")))
+                | "WriteAggregatedToKafka"
+                >> WriteToKafka(
                     producer_config={"bootstrap.servers": bootstrap_servers},
-                    topic=output_config.get("aggregated_topic", "ml-aggregated")
+                    topic=output_config.get("aggregated_topic", "ml-aggregated"),
                 )
             )
 
@@ -444,7 +479,9 @@ class FeatureEngineeringPipeline:
             self.logger.warning("Failed to parse JSON", data=json_string[:100])
             return None
 
-    def create_test_data_pipeline(self, output_path: str, num_records: int = 1000) -> beam.pipeline.PipelineResult:
+    def create_test_data_pipeline(
+        self, output_path: str, num_records: int = 1000
+    ) -> beam.pipeline.PipelineResult:
         """Create a pipeline that generates test data for development.
 
         Args:
@@ -461,12 +498,14 @@ class FeatureEngineeringPipeline:
             return {
                 "user_id": f"user_{random.randint(1, 100)}",
                 "amount": round(random.uniform(10, 1000), 2),
-                "merchant_category": random.choice(["grocery", "gas", "restaurant", "retail", "online"]),
+                "merchant_category": random.choice(
+                    ["grocery", "gas", "restaurant", "retail", "online"]
+                ),
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 "payment_method": random.choice(["credit", "debit", "cash", "mobile"]),
                 "is_weekend": random.choice([True, False]),
                 "risk_score": round(random.uniform(0, 1), 3),
-                "account_age_days": random.randint(1, 3650)
+                "account_age_days": random.randint(1, 3650),
             }
 
         with beam.Pipeline(options=self.pipeline_options) as pipeline:
@@ -478,25 +517,20 @@ class FeatureEngineeringPipeline:
             )
 
             test_data | "WriteTestData" >> WriteToText(
-                file_path_prefix=output_path,
-                file_name_suffix=".json"
+                file_path_prefix=output_path, file_name_suffix=".json"
             )
 
             self.logger.info(
                 "Test data pipeline created",
                 output_path=output_path,
-                num_records=num_records
+                num_records=num_records,
             )
 
         return pipeline.run()
 
 
 def create_dataflow_pipeline_config(
-    project: str,
-    region: str,
-    bucket: str,
-    input_subscription: str,
-    output_dataset: str
+    project: str, region: str, bucket: str, input_subscription: str, output_dataset: str
 ) -> Dict[str, Any]:
     """Create a standard Dataflow pipeline configuration.
 
@@ -520,33 +554,24 @@ def create_dataflow_pipeline_config(
         "num_workers": 2,
         "input_config": {
             "type": "pubsub",
-            "subscription": f"projects/{project}/subscriptions/{input_subscription}"
+            "subscription": f"projects/{project}/subscriptions/{input_subscription}",
         },
         "output_config": {
             "type": "bigquery",
             "project": project,
-            "dataset": output_dataset
+            "dataset": output_dataset,
         },
-        "window_config": {
-            "type": "fixed",
-            "size_seconds": 60
-        },
+        "window_config": {"type": "fixed", "size_seconds": 60},
         "feature_config": {
             "validation": {
                 "required_fields": ["user_id", "amount", "timestamp"],
-                "numeric_ranges": {
-                    "amount": [0, 100000],
-                    "risk_score": [0, 1]
-                }
+                "numeric_ranges": {"amount": [0, 100000], "risk_score": [0, 1]},
             }
-        }
+        },
     }
 
 
-def create_local_pipeline_config(
-    input_file: str,
-    output_path: str
-) -> Dict[str, Any]:
+def create_local_pipeline_config(input_file: str, output_path: str) -> Dict[str, Any]:
     """Create a local development pipeline configuration.
 
     Args:
@@ -559,20 +584,12 @@ def create_local_pipeline_config(
     return {
         "runner": "DirectRunner",
         "num_workers": 4,
-        "input_config": {
-            "type": "file",
-            "file_pattern": input_file
-        },
-        "output_config": {
-            "type": "file",
-            "path": output_path
-        },
+        "input_config": {"type": "file", "file_pattern": input_file},
+        "output_config": {"type": "file", "path": output_path},
         "feature_config": {
             "validation": {
                 "required_fields": ["user_id", "amount"],
-                "numeric_ranges": {
-                    "amount": [0, 10000]
-                }
+                "numeric_ranges": {"amount": [0, 10000]},
             }
-        }
+        },
     }

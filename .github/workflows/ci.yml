@@ -36,23 +36,21 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -r requirements-dev.txt
+        pip install poetry
+        poetry install --with dev
 
     - name: Run code formatting check (Black)
-      run: black --check --diff .
+      run: poetry run black --check --diff .
 
-    - name: Run import sorting check (isort)
-      run: isort --check-only --diff .
-
-    - name: Run linting (flake8)
-      run: flake8 src/ tests/
+    - name: Run linting (Ruff)
+      run: poetry run ruff check .
 
     - name: Run type checking (mypy)
-      run: mypy src/
-      continue-on-error: true  # Allow type checking to fail for now
+      run: poetry run mypy src/
+      continue-on-error: true
 
     - name: Run security check (bandit)
-      run: bandit -r src/ -f json -o bandit-report.json
+      run: poetry run bandit -r src/ -f json -o bandit-report.json
       continue-on-error: true
 
     - name: Upload security report
@@ -114,8 +112,8 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install -r requirements-dev.txt
+        pip install poetry
+        poetry install --with test
 
     - name: Run unit tests
       env:
@@ -123,7 +121,7 @@ jobs:
         REDIS_URL: redis://localhost:6379/0
         ENVIRONMENT: test
       run: |
-        pytest tests/unit/ -v --cov=src --cov-report=xml --cov-report=html
+        poetry run pytest tests/unit/ -v --cov=src --cov-report=xml --cov-report=html
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
@@ -175,14 +173,14 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install -r requirements-dev.txt
+        pip install poetry
+        poetry install --with test
 
     - name: Run database migrations
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
       run: |
-        python -m alembic upgrade head
+        poetry run alembic upgrade head
 
     - name: Run integration tests
       env:
@@ -190,7 +188,7 @@ jobs:
         REDIS_URL: redis://localhost:6379/0
         ENVIRONMENT: test
       run: |
-        pytest tests/integration/ -v --tb=short
+        poetry run pytest tests/integration/ -v --tb=short
 
   # Docker Build and Test
   docker-build:
@@ -209,7 +207,7 @@ jobs:
       uses: docker/build-push-action@v5
       with:
         context: .
-        file: ./docker/Dockerfile
+        file: ./ops/docker/api/Dockerfile
         push: false
         tags: ml-pipeline:test
         cache-from: type=gha
@@ -251,21 +249,21 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install -r requirements-dev.txt
+        pip install poetry
+        poetry install --with dev
 
     - name: Start services with Docker Compose
       run: |
-        docker-compose -f docker-compose.test.yml up -d
+        docker-compose -f ops/local/docker-compose.yml up -d
         sleep 30  # Wait for services to be ready
 
     - name: Run performance tests
       run: |
-        pytest tests/performance/ -v --tb=short
+        poetry run pytest tests/performance/ -v --tb=short
 
     - name: Stop services
       run: |
-        docker-compose -f docker-compose.test.yml down
+        docker-compose -f ops/local/docker-compose.yml down
 
   # Kubernetes Validation
   k8s-validation:
@@ -284,15 +282,15 @@ jobs:
 
     - name: Validate Kubernetes manifests
       run: |
-        kubectl apply --dry-run=client -k k8s/base/
-        kubectl apply --dry-run=client -k k8s/overlays/production/
+        kubectl apply --dry-run=client -k ops/k8s/base/
+        kubectl apply --dry-run=client -k ops/k8s/overlays/production/
 
     - name: Run kubeval for manifest validation
       run: |
         wget https://github.com/instrumenta/kubeval/releases/latest/download/kubeval-linux-amd64.tar.gz
         tar xf kubeval-linux-amd64.tar.gz
-        ./kubeval k8s/base/*.yaml
-        ./kubeval k8s/overlays/production/*.yaml
+        ./kubeval ops/k8s/base/*.yaml
+        ./kubeval ops/k8s/overlays/production/*.yaml
 
   # Security Scanning
   security-scan:
@@ -307,7 +305,7 @@ jobs:
     - name: Run dependency check
       uses: pypa/gh-action-pip-audit@v1.0.8
       with:
-        inputs: requirements.txt requirements-dev.txt
+        inputs: .
 
     - name: Initialize CodeQL
       uses: github/codeql-action/init@v2

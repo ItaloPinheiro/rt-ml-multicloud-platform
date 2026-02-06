@@ -1,13 +1,18 @@
 """Unit tests for database models and session management."""
 
-import pytest
 from datetime import datetime, timedelta, timezone
+
+import pytest
 from sqlalchemy.exc import IntegrityError
 
 from src.database.models import (
-    Experiment, ModelRun, FeatureStore, PredictionLog, DataDriftMonitoring
+    DataDriftMonitoring,
+    Experiment,
+    FeatureStore,
+    ModelRun,
+    PredictionLog,
 )
-from src.database.session import DatabaseManager, get_session, create_test_database
+from src.database.session import DatabaseManager, create_test_database
 
 
 class TestDatabaseModels:
@@ -18,14 +23,16 @@ class TestDatabaseModels:
         experiment = Experiment(
             name="test_experiment",
             description="Test experiment description",
-            tags={"version": "1.0", "type": "classification"}
+            tags={"version": "1.0", "type": "classification"},
         )
 
         db_session.add(experiment)
         db_session.commit()
 
         # Verify experiment was created
-        retrieved = db_session.query(Experiment).filter_by(name="test_experiment").first()
+        retrieved = (
+            db_session.query(Experiment).filter_by(name="test_experiment").first()
+        )
         assert retrieved is not None
         assert retrieved.name == "test_experiment"
         assert retrieved.description == "Test experiment description"
@@ -69,7 +76,7 @@ class TestDatabaseModels:
             model_type="classification",
             framework="sklearn",
             training_data_size=10000,
-            validation_score=0.93
+            validation_score=0.93,
         )
 
         db_session.add(model_run)
@@ -90,9 +97,7 @@ class TestDatabaseModels:
 
         # Valid status
         model_run = ModelRun(
-            experiment_id=experiment.id,
-            model_name="test_model",
-            status="RUNNING"
+            experiment_id=experiment.id, model_name="test_model", status="RUNNING"
         )
         db_session.add(model_run)
         db_session.commit()
@@ -111,16 +116,18 @@ class TestDatabaseModels:
             data_type="numeric",
             event_timestamp=datetime.now(timezone.utc),
             source_system="user_service",
-            tags={"version": "1.0"}
+            tags={"version": "1.0"},
         )
 
         db_session.add(feature)
         db_session.commit()
 
         # Verify feature was created
-        retrieved = db_session.query(FeatureStore).filter_by(
-            entity_id="user_123", feature_name="age"
-        ).first()
+        retrieved = (
+            db_session.query(FeatureStore)
+            .filter_by(entity_id="user_123", feature_name="age")
+            .first()
+        )
         assert retrieved is not None
         assert retrieved.feature_value == 25
         assert retrieved.data_type == "numeric"
@@ -136,7 +143,7 @@ class TestDatabaseModels:
             feature_name="age",
             feature_value=25,
             data_type="numeric",
-            event_timestamp=timestamp
+            event_timestamp=timestamp,
         )
         db_session.add(feature1)
         db_session.commit()
@@ -148,7 +155,7 @@ class TestDatabaseModels:
             feature_name="age",
             feature_value=30,
             data_type="numeric",
-            event_timestamp=timestamp
+            event_timestamp=timestamp,
         )
         db_session.add(feature2)
 
@@ -166,7 +173,7 @@ class TestDatabaseModels:
             feature_name="test_feature",
             feature_value="test",
             data_type="categorical",
-            event_timestamp=datetime.now(timezone.utc)
+            event_timestamp=datetime.now(timezone.utc),
         )
         db_session.add(feature)
         db_session.commit()
@@ -183,9 +190,7 @@ class TestDatabaseModels:
         db_session.commit()
 
         model_run = ModelRun(
-            experiment_id=experiment.id,
-            model_name="fraud_detector",
-            status="FINISHED"
+            experiment_id=experiment.id, model_name="fraud_detector", status="FINISHED"
         )
         db_session.add(model_run)
         db_session.commit()
@@ -201,14 +206,16 @@ class TestDatabaseModels:
             probabilities=[0.9, 0.1],
             latency_ms=25.5,
             user_id="user_123",
-            status_code=200
+            status_code=200,
         )
 
         db_session.add(prediction_log)
         db_session.commit()
 
         # Verify prediction log was created
-        retrieved = db_session.query(PredictionLog).filter_by(request_id="req_123").first()
+        retrieved = (
+            db_session.query(PredictionLog).filter_by(request_id="req_123").first()
+        )
         assert retrieved is not None
         assert retrieved.model_name == "fraud_detector"
         assert retrieved.input_features["amount"] == 100.0
@@ -221,13 +228,15 @@ class TestDatabaseModels:
             model_version="1.0",
             input_features={},
             prediction={},
-            status_code=200
+            status_code=200,
         )
         db_session.add(prediction_log)
         db_session.commit()
 
         # Invalid status code should raise error
-        with pytest.raises(ValueError, match="Status code must be a valid HTTP status code"):
+        with pytest.raises(
+            ValueError, match="Status code must be a valid HTTP status code"
+        ):
             prediction_log.status_code = 999
 
     def test_data_drift_monitoring_creation(self, db_session):
@@ -247,16 +256,18 @@ class TestDatabaseModels:
             reference_period_end=datetime.now(timezone.utc) - timedelta(days=7),
             reference_data_size=10000,
             current_data_size=1000,
-            detection_method="psi"
+            detection_method="psi",
         )
 
         db_session.add(drift_record)
         db_session.commit()
 
         # Verify drift record was created
-        retrieved = db_session.query(DataDriftMonitoring).filter_by(
-            model_name="fraud_detector"
-        ).first()
+        retrieved = (
+            db_session.query(DataDriftMonitoring)
+            .filter_by(model_name="fraud_detector")
+            .first()
+        )
         assert retrieved is not None
         assert retrieved.drift_score == 0.15
         assert retrieved.is_drift_detected is True
@@ -270,9 +281,7 @@ class TestDatabaseModels:
         db_session.commit()
 
         model_run = ModelRun(
-            experiment_id=experiment.id,
-            model_name="test_model",
-            status="FINISHED"
+            experiment_id=experiment.id, model_name="test_model", status="FINISHED"
         )
         db_session.add(model_run)
         db_session.commit()
@@ -283,17 +292,21 @@ class TestDatabaseModels:
             model_name="test_model",
             model_version="1.0",
             input_features={},
-            prediction={}
+            prediction={},
         )
         db_session.add(prediction_log)
         db_session.commit()
 
         # Test relationships
-        retrieved_experiment = db_session.query(Experiment).filter_by(name="test_experiment").first()
+        retrieved_experiment = (
+            db_session.query(Experiment).filter_by(name="test_experiment").first()
+        )
         assert len(retrieved_experiment.model_runs) == 1
         assert retrieved_experiment.model_runs[0].model_name == "test_model"
 
-        retrieved_model_run = db_session.query(ModelRun).filter_by(model_name="test_model").first()
+        retrieved_model_run = (
+            db_session.query(ModelRun).filter_by(model_name="test_model").first()
+        )
         assert retrieved_model_run.experiment.name == "test_experiment"
         assert len(retrieved_model_run.prediction_logs) == 1
 
@@ -364,12 +377,16 @@ class TestDatabaseSession:
 
         # Verify tables were created
         from src.database.models import Base
+
         metadata = Base.metadata
         table_names = [table.name for table in metadata.sorted_tables]
 
         expected_tables = [
-            "experiments", "model_runs", "feature_store",
-            "prediction_logs", "data_drift_monitoring"
+            "experiments",
+            "model_runs",
+            "feature_store",
+            "prediction_logs",
+            "data_drift_monitoring",
         ]
 
         for table_name in expected_tables:
@@ -400,8 +417,7 @@ class TestDatabaseIndexes:
         base_time = datetime.now(timezone.utc)
         for i in range(10):
             experiment = Experiment(
-                name=f"experiment_{i}",
-                created_at=base_time - timedelta(days=i)
+                name=f"experiment_{i}", created_at=base_time - timedelta(days=i)
             )
             db_session.add(experiment)
         db_session.commit()
@@ -413,9 +429,11 @@ class TestDatabaseIndexes:
         # Test created_at index (query by date range)
         # Use cutoff just after experiment_5's timestamp to ensure it's included
         cutoff_date = base_time - timedelta(days=5, seconds=1)
-        recent_experiments = db_session.query(Experiment).filter(
-            Experiment.created_at >= cutoff_date
-        ).all()
+        recent_experiments = (
+            db_session.query(Experiment)
+            .filter(Experiment.created_at >= cutoff_date)
+            .all()
+        )
         assert len(recent_experiments) == 6  # experiments 0-5
 
     def test_model_run_indexes(self, db_session):
@@ -432,7 +450,7 @@ class TestDatabaseIndexes:
                 model_name=f"model_{i % 2}",  # Two different model names
                 model_version=f"v{i}",
                 status="FINISHED",
-                start_time=datetime.now(timezone.utc) - timedelta(hours=i)
+                start_time=datetime.now(timezone.utc) - timedelta(hours=i),
             )
             db_session.add(model_run)
         db_session.commit()
@@ -442,9 +460,11 @@ class TestDatabaseIndexes:
         assert len(model_0_runs) == 3  # Runs 0, 2, 4
 
         # Test composite index (model_name, model_version)
-        specific_run = db_session.query(ModelRun).filter_by(
-            model_name="model_1", model_version="v1"
-        ).first()
+        specific_run = (
+            db_session.query(ModelRun)
+            .filter_by(model_name="model_1", model_version="v1")
+            .first()
+        )
         assert specific_run is not None
 
     def test_feature_store_indexes(self, db_session):
@@ -463,19 +483,23 @@ class TestDatabaseIndexes:
                         feature_name=name,
                         feature_value=42,
                         data_type="numeric",
-                        event_timestamp=datetime.now(timezone.utc)
+                        event_timestamp=datetime.now(timezone.utc),
                     )
                     db_session.add(feature)
         db_session.commit()
 
         # Test entity_id index
-        user_1_features = db_session.query(FeatureStore).filter_by(entity_id="user_1").all()
+        user_1_features = (
+            db_session.query(FeatureStore).filter_by(entity_id="user_1").all()
+        )
         assert len(user_1_features) == 6  # 2 groups * 3 features
 
         # Test composite index (entity_id, feature_group, feature_name)
-        specific_feature = db_session.query(FeatureStore).filter_by(
-            entity_id="user_2",
-            feature_group="demographics",
-            feature_name="age"
-        ).first()
+        specific_feature = (
+            db_session.query(FeatureStore)
+            .filter_by(
+                entity_id="user_2", feature_group="demographics", feature_name="age"
+            )
+            .first()
+        )
         assert specific_feature is not None

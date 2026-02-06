@@ -1,13 +1,11 @@
 """Unit tests for monitoring and observability components."""
 
 import asyncio
-import pytest
-from datetime import datetime, timedelta
-from unittest.mock import Mock, patch, AsyncMock
 
-from src.monitoring.metrics import MetricsCollector, TimerContext
-from src.monitoring.health import HealthChecker, HealthCheck, HealthStatus
-from src.monitoring.alerts import AlertManager, Alert, AlertSeverity, AlertStatus
+import pytest
+
+from src.monitoring.alerts import Alert, AlertManager, AlertSeverity, AlertStatus
+from src.monitoring.health import HealthCheck, HealthChecker, HealthStatus
 
 
 class TestMetricsCollector:
@@ -115,13 +113,12 @@ class TestHealthChecker:
     @pytest.mark.asyncio
     async def test_health_check_success(self):
         """Test successful health check."""
+
         async def always_healthy():
             return True
 
         check = HealthCheck(
-            name="test_check",
-            check_function=always_healthy,
-            timeout_seconds=1.0
+            name="test_check", check_function=always_healthy, timeout_seconds=1.0
         )
 
         result = await check.execute_check()
@@ -133,13 +130,12 @@ class TestHealthChecker:
     @pytest.mark.asyncio
     async def test_health_check_failure(self):
         """Test failing health check."""
+
         async def always_failing():
             return False
 
         check = HealthCheck(
-            name="test_check",
-            check_function=always_failing,
-            failure_threshold=2
+            name="test_check", check_function=always_failing, failure_threshold=2
         )
 
         # First failure should mark as degraded
@@ -153,14 +149,13 @@ class TestHealthChecker:
     @pytest.mark.asyncio
     async def test_health_check_timeout(self):
         """Test health check timeout."""
+
         async def slow_check():
             await asyncio.sleep(2.0)
             return True
 
         check = HealthCheck(
-            name="test_check",
-            check_function=slow_check,
-            timeout_seconds=0.1
+            name="test_check", check_function=slow_check, timeout_seconds=0.1
         )
 
         result = await check.execute_check()
@@ -170,13 +165,11 @@ class TestHealthChecker:
     @pytest.mark.asyncio
     async def test_health_check_exception(self):
         """Test health check with exception."""
+
         async def failing_check():
             raise ValueError("Test error")
 
-        check = HealthCheck(
-            name="test_check",
-            check_function=failing_check
-        )
+        check = HealthCheck(name="test_check", check_function=failing_check)
 
         result = await check.execute_check()
         assert result is False
@@ -271,6 +264,7 @@ class TestAlertManager:
 
     def test_alert_creation(self):
         """Test alert creation and basic properties."""
+
         def condition(context):
             return context.get("error_rate", 0) > 5.0
 
@@ -279,7 +273,7 @@ class TestAlertManager:
             description="Error rate is too high",
             severity=AlertSeverity.CRITICAL,
             condition_func=condition,
-            cooldown_minutes=5
+            cooldown_minutes=5,
         )
 
         assert alert.name == "high_error_rate"
@@ -288,6 +282,7 @@ class TestAlertManager:
 
     def test_alert_evaluation(self):
         """Test alert condition evaluation."""
+
         def condition(context):
             return context.get("error_rate", 0) > 5.0
 
@@ -295,7 +290,7 @@ class TestAlertManager:
             name="test_alert",
             description="Test alert",
             severity=AlertSeverity.HIGH,
-            condition_func=condition
+            condition_func=condition,
         )
 
         # Test condition not met
@@ -312,6 +307,7 @@ class TestAlertManager:
 
     def test_alert_cooldown(self):
         """Test alert cooldown functionality."""
+
         def condition(context):
             return True
 
@@ -320,7 +316,7 @@ class TestAlertManager:
             description="Test alert",
             severity=AlertSeverity.MEDIUM,
             condition_func=condition,
-            cooldown_minutes=10
+            cooldown_minutes=10,
         )
 
         # First evaluation should allow notification
@@ -336,6 +332,7 @@ class TestAlertManager:
 
     def test_alert_auto_resolve(self):
         """Test alert auto-resolution."""
+
         def condition(context):
             return context.get("trigger", False)
 
@@ -344,7 +341,7 @@ class TestAlertManager:
             description="Test alert",
             severity=AlertSeverity.LOW,
             condition_func=condition,
-            auto_resolve=True
+            auto_resolve=True,
         )
 
         # Trigger alert
@@ -357,6 +354,7 @@ class TestAlertManager:
 
     def test_alert_suppression(self):
         """Test alert suppression."""
+
         def condition(context):
             return True
 
@@ -364,7 +362,7 @@ class TestAlertManager:
             name="test_alert",
             description="Test alert",
             severity=AlertSeverity.HIGH,
-            condition_func=condition
+            condition_func=condition,
         )
 
         # Suppress alert
@@ -471,6 +469,7 @@ class TestAlertManager:
 
     def test_alert_info_collection(self):
         """Test alert information collection."""
+
         def condition(context):
             return context.get("value", 0) > 10
 
@@ -479,7 +478,7 @@ class TestAlertManager:
             description="Test alert",
             severity=AlertSeverity.HIGH,
             condition_func=condition,
-            tags={"component": "test"}
+            tags={"component": "test"},
         )
 
         # Trigger alert

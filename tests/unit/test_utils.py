@@ -1,16 +1,26 @@
 """Unit tests for utility modules."""
 
 import os
-import tempfile
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import patch, mock_open
 
 from src.utils.config import (
-    Config, DatabaseConfig, RedisConfig, MLflowConfig, ConfigManager, get_config, validate_config
+    Config,
+    ConfigManager,
+    DatabaseConfig,
+    MLflowConfig,
+    RedisConfig,
+    validate_config,
 )
 from src.utils.logging import (
-    setup_logging, get_logger, log_function_call, log_performance, LogContext,
-    configure_ml_pipeline_logging, CustomJSONFormatter
+    CustomJSONFormatter,
+    LogContext,
+    configure_ml_pipeline_logging,
+    get_logger,
+    log_function_call,
+    log_performance,
+    setup_logging,
 )
 
 
@@ -34,7 +44,7 @@ class TestConfigManager:
             port=5432,
             database="test_db",
             username="test_user",
-            password="test_pass"
+            password="test_pass",
         )
 
         assert db_config.host == "localhost"
@@ -45,10 +55,7 @@ class TestConfigManager:
     def test_redis_config_creation(self):
         """Test Redis configuration."""
         redis_config = RedisConfig(
-            host="redis-server",
-            port=6380,
-            password="secret",
-            db=2
+            host="redis-server", port=6380, password="secret", db=2
         )
 
         assert redis_config.host == "redis-server"
@@ -61,7 +68,7 @@ class TestConfigManager:
         mlflow_config = MLflowConfig(
             tracking_uri="http://localhost:5000",
             experiment_name="test_experiment",
-            default_tags={"env": "test"}
+            default_tags={"env": "test"},
         )
 
         assert mlflow_config.tracking_uri == "http://localhost:5000"
@@ -80,7 +87,7 @@ class TestConfigManager:
             "DATABASE_PASSWORD": "prod_pass",
             "REDIS_HOST": "prod-redis",
             "REDIS_PORT": "6380",
-            "MLFLOW_TRACKING_URI": "http://prod-mlflow:5000"
+            "MLFLOW_TRACKING_URI": "http://prod-mlflow:5000",
         }
 
         with patch.dict(os.environ, env_vars):
@@ -118,9 +125,17 @@ mlflow:
 
         # Clear config-related env vars to prevent override
         config_env_vars = {
-            'DEBUG', 'DATABASE_HOST', 'DATABASE_PORT', 'DATABASE_NAME',
-            'DATABASE_USER', 'DATABASE_PASSWORD', 'REDIS_HOST', 'REDIS_PORT',
-            'MLFLOW_TRACKING_URI', 'MLFLOW_REGISTRY_URI', 'ENVIRONMENT'
+            "DEBUG",
+            "DATABASE_HOST",
+            "DATABASE_PORT",
+            "DATABASE_NAME",
+            "DATABASE_USER",
+            "DATABASE_PASSWORD",
+            "REDIS_HOST",
+            "REDIS_PORT",
+            "MLFLOW_TRACKING_URI",
+            "MLFLOW_REGISTRY_URI",
+            "ENVIRONMENT",
         }
         env_vars = {k: v for k, v in os.environ.items() if k not in config_env_vars}
         with patch.dict(os.environ, env_vars, clear=True):
@@ -138,7 +153,7 @@ mlflow:
         config = Config(
             environment="production",
             mlflow=MLflowConfig(tracking_uri="http://localhost:5000"),
-            redis=RedisConfig()
+            redis=RedisConfig(),
         )
 
         assert validate_config(config) is True
@@ -147,7 +162,9 @@ mlflow:
         """Test configuration validation with missing MLflow in production."""
         config = Config(environment="production")
 
-        with pytest.raises(ValueError, match="MLflow tracking URI is required in production"):
+        with pytest.raises(
+            ValueError, match="MLflow tracking URI is required in production"
+        ):
             validate_config(config)
 
     def test_config_validation_missing_redis(self):
@@ -155,17 +172,17 @@ mlflow:
         config = Config(
             environment="production",
             mlflow=MLflowConfig(tracking_uri="http://localhost:5000"),
-            redis=None
+            redis=None,
         )
 
-        with pytest.raises(ValueError, match="Redis configuration is required in production"):
+        with pytest.raises(
+            ValueError, match="Redis configuration is required in production"
+        ):
             validate_config(config)
 
     def test_config_validation_invalid_port(self):
         """Test configuration validation with invalid port."""
-        config = Config(
-            api=type('APIConfig', (), {'port': 70000})()  # Invalid port
-        )
+        config = Config(api=type("APIConfig", (), {"port": 70000})())  # Invalid port
 
         with pytest.raises(ValueError, match="API port must be between 1 and 65535"):
             validate_config(config)
@@ -182,23 +199,13 @@ mlflow:
         manager = ConfigManager()
 
         base = {
-            "level1": {
-                "level2": {
-                    "key1": "value1",
-                    "key2": "value2"
-                }
-            },
-            "simple_key": "simple_value"
+            "level1": {"level2": {"key1": "value1", "key2": "value2"}},
+            "simple_key": "simple_value",
         }
 
         override = {
-            "level1": {
-                "level2": {
-                    "key2": "new_value2",
-                    "key3": "value3"
-                }
-            },
-            "new_simple_key": "new_simple_value"
+            "level1": {"level2": {"key2": "new_value2", "key3": "value3"}},
+            "new_simple_key": "new_simple_value",
         }
 
         result = manager._deep_merge(base, override)
@@ -215,8 +222,8 @@ class TestLogging:
 
     def test_custom_json_formatter(self):
         """Test custom JSON formatter."""
-        import logging
         import json
+        import logging
 
         formatter = CustomJSONFormatter()
 
@@ -229,7 +236,7 @@ class TestLogging:
             lno=10,
             msg="Test message",
             args=(),
-            exc_info=None
+            exc_info=None,
         )
 
         # Format the record
@@ -244,8 +251,8 @@ class TestLogging:
 
     def test_custom_json_formatter_with_extra(self):
         """Test custom JSON formatter with extra fields."""
-        import logging
         import json
+        import logging
 
         formatter = CustomJSONFormatter()
 
@@ -257,7 +264,7 @@ class TestLogging:
             lno=10,
             msg="Error message",
             args=(),
-            exc_info=None
+            exc_info=None,
         )
 
         # Add extra fields
@@ -278,7 +285,7 @@ class TestLogging:
             level="DEBUG",
             format_type="simple",
             enable_console=True,
-            service_name="test_service"
+            service_name="test_service",
         )
 
         logger = logging.getLogger("test")
@@ -291,6 +298,7 @@ class TestLogging:
 
     def test_log_function_call_decorator(self):
         """Test log_function_call decorator."""
+
         @log_function_call
         def test_function(x, y, keyword_arg="default"):
             return x + y
@@ -300,6 +308,7 @@ class TestLogging:
 
     def test_log_function_call_decorator_with_exception(self):
         """Test log_function_call decorator with exception."""
+
         @log_function_call
         def failing_function():
             raise ValueError("Test error")
@@ -309,6 +318,7 @@ class TestLogging:
 
     def test_log_performance_decorator(self):
         """Test log_performance decorator."""
+
         @log_performance("test_operation")
         def test_operation():
             return "success"
@@ -318,6 +328,7 @@ class TestLogging:
 
     def test_log_performance_decorator_with_exception(self):
         """Test log_performance decorator with exception."""
+
         @log_performance("failing_operation")
         def failing_operation():
             raise RuntimeError("Operation failed")
@@ -341,10 +352,7 @@ class TestLogging:
 
     def test_configure_ml_pipeline_logging(self):
         """Test ML pipeline logging configuration."""
-        configure_ml_pipeline_logging(
-            environment="test",
-            service_name="test_pipeline"
-        )
+        configure_ml_pipeline_logging(environment="test", service_name="test_pipeline")
 
         # Should not raise any exceptions
         logger = get_logger("test")
@@ -356,16 +364,13 @@ class TestLogging:
         mock_structlog.configure.side_effect = AttributeError("No structlog")
 
         # Should fall back to standard logging
-        setup_logging(
-            level="INFO",
-            format_type="json",
-            enable_console=True
-        )
+        setup_logging(level="INFO", format_type="json", enable_console=True)
 
     def test_setup_request_logging_with_contextvars(self):
         """Test request logging setup with contextvars."""
         try:
             from src.utils.logging import setup_request_logging
+
             request_id_var = setup_request_logging()
             assert request_id_var is not None
         except ImportError:
@@ -376,6 +381,7 @@ class TestLogging:
         # This test is deprecated as ContextVar is available in Python 3.7+
         # and setup_request_logging doesn't use fallback anymore
         from src.utils.logging import setup_request_logging
+
         request_context = setup_request_logging()
         assert request_context is not None
 
@@ -386,10 +392,7 @@ class TestLogging:
         log_file = os.path.join(temp_dir, "test.log")
 
         setup_logging(
-            level="INFO",
-            format_type="simple",
-            log_file=log_file,
-            enable_console=False
+            level="INFO", format_type="simple", log_file=log_file, enable_console=False
         )
 
         # Log a message
@@ -401,17 +404,13 @@ class TestLogging:
 
         # Close all file handlers to release the file
         for handler in logging.root.handlers[:]:
-            if hasattr(handler, 'close'):
+            if hasattr(handler, "close"):
                 handler.close()
             logging.root.removeHandler(handler)
 
     def test_logging_with_service_context(self):
         """Test logging with service context."""
-        setup_logging(
-            level="DEBUG",
-            service_name="test_service",
-            environment="test"
-        )
+        setup_logging(level="DEBUG", service_name="test_service", environment="test")
 
         logger = get_logger("test")
         logger.info("Test message with context")

@@ -1,15 +1,15 @@
 """Database session management and connection utilities."""
 
-import os
 from contextlib import contextmanager
 from typing import Generator, Optional
+
+import structlog
 from sqlalchemy import create_engine, event, text
 from sqlalchemy.engine import Engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
-import structlog
 
-from ..utils.config import get_config, DatabaseConfig
+from ..utils.config import DatabaseConfig, get_config
 
 logger = structlog.get_logger()
 
@@ -46,7 +46,7 @@ class DatabaseManager:
                 engine_kwargs = {
                     "echo": False,  # Set to True for SQL debugging
                     "poolclass": StaticPool,
-                    "connect_args": {"check_same_thread": False}
+                    "connect_args": {"check_same_thread": False},
                 }
             else:
                 # Create engine with connection pooling for non-SQLite databases
@@ -59,7 +59,7 @@ class DatabaseManager:
                     "connect_args": {
                         "connect_timeout": self.config.connection_timeout,
                         "sslmode": self.config.ssl_mode,
-                    }
+                    },
                 }
 
             self.engine = create_engine(connection_url, **engine_kwargs)
@@ -72,14 +72,14 @@ class DatabaseManager:
                 bind=self.engine,
                 autocommit=False,
                 autoflush=False,
-                expire_on_commit=False
+                expire_on_commit=False,
             )
 
             self.logger.info(
                 "Database manager initialized",
                 host=self.config.host,
                 port=self.config.port,
-                database=self.config.database
+                database=self.config.database,
             )
 
         except Exception as e:
@@ -128,7 +128,7 @@ class DatabaseManager:
             """Handle connection invalidation."""
             self.logger.warning(
                 "Database connection invalidated",
-                error=str(exception) if exception else "Unknown"
+                error=str(exception) if exception else "Unknown",
             )
 
     @contextmanager
@@ -142,7 +142,9 @@ class DatabaseManager:
             RuntimeError: If database manager is not initialized
         """
         if self.session_factory is None:
-            raise RuntimeError("Database manager not initialized. Call initialize() first.")
+            raise RuntimeError(
+                "Database manager not initialized. Call initialize() first."
+            )
 
         session = self.session_factory()
         try:
@@ -161,6 +163,7 @@ class DatabaseManager:
 
         try:
             from .models import Base
+
             Base.metadata.create_all(bind=self.engine)
             self.logger.info("Database tables created successfully")
         except Exception as e:
@@ -174,6 +177,7 @@ class DatabaseManager:
 
         try:
             from .models import Base
+
             Base.metadata.drop_all(bind=self.engine)
             self.logger.info("Database tables dropped successfully")
         except Exception as e:
@@ -275,7 +279,9 @@ def get_database_manager() -> DatabaseManager:
         RuntimeError: If database manager is not initialized
     """
     if _db_manager is None:
-        raise RuntimeError("Database manager not initialized. Call initialize_database() first.")
+        raise RuntimeError(
+            "Database manager not initialized. Call initialize_database() first."
+        )
 
     return _db_manager
 
@@ -310,7 +316,7 @@ def create_test_database() -> DatabaseManager:
         database=":memory:",
         username="",
         password="",
-        ssl_mode="disable"
+        ssl_mode="disable",
     )
 
     db_manager = DatabaseManager(test_config)

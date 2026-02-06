@@ -5,11 +5,12 @@ for implementing streaming data ingestion from various sources like
 GCP Pub/Sub, AWS Kinesis, and Apache Kafka.
 """
 
+import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Dict, Generator, List, Optional
-import json
+
 import structlog
 
 logger = structlog.get_logger()
@@ -22,6 +23,7 @@ class StreamMessage:
     This class provides a unified interface for messages from different
     streaming platforms, normalizing the data structure across sources.
     """
+
     message_id: str
     data: Dict[str, Any]
     timestamp: datetime
@@ -43,7 +45,7 @@ class StreamMessage:
             "source": self.source,
             "attributes": self.attributes,
             "partition_key": self.partition_key,
-            "offset": self.offset
+            "offset": self.offset,
         }
 
     def to_json(self) -> str:
@@ -66,7 +68,7 @@ class StreamMessage:
         """
         timestamp = data.get("timestamp")
         if isinstance(timestamp, str):
-            timestamp = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+            timestamp = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
         elif timestamp is None:
             timestamp = datetime.now(timezone.utc)
 
@@ -77,22 +79,25 @@ class StreamMessage:
             source=data["source"],
             attributes=data.get("attributes", {}),
             partition_key=data.get("partition_key"),
-            offset=data.get("offset")
+            offset=data.get("offset"),
         )
 
 
 class StreamIngestionError(Exception):
     """Base exception for stream ingestion errors."""
+
     pass
 
 
 class ConnectionError(StreamIngestionError):
     """Raised when connection to stream source fails."""
+
     pass
 
 
 class MessageProcessingError(StreamIngestionError):
     """Raised when message processing fails."""
+
     pass
 
 
@@ -112,8 +117,7 @@ class StreamIngestion(ABC):
         """
         self.config = config
         self.logger = logger.bind(
-            source=self.__class__.__name__,
-            config_keys=list(config.keys())
+            source=self.__class__.__name__, config_keys=list(config.keys())
         )
         self._connected = False
         self._message_count = 0
@@ -175,7 +179,7 @@ class StreamIngestion(ABC):
             "message_count": self._message_count,
             "error_count": self._error_count,
             "connected": self._connected,
-            "source": self.__class__.__name__
+            "source": self.__class__.__name__,
         }
 
     def _increment_message_count(self) -> None:
@@ -215,9 +219,7 @@ class BatchProcessor:
         self.logger = logger.bind(component="BatchProcessor")
 
     def process_batch(
-        self,
-        messages: List[StreamMessage],
-        processor_func: callable
+        self, messages: List[StreamMessage], processor_func: callable
     ) -> Dict[str, List[StreamMessage]]:
         """Process a batch of messages.
 
@@ -239,7 +241,7 @@ class BatchProcessor:
                 self.logger.error(
                     "Message processing failed",
                     message_id=message.message_id,
-                    error=str(e)
+                    error=str(e),
                 )
                 failed.append(message)
 
@@ -247,10 +249,7 @@ class BatchProcessor:
             "Batch processing completed",
             total=len(messages),
             successful=len(successful),
-            failed=len(failed)
+            failed=len(failed),
         )
 
-        return {
-            "success": successful,
-            "failed": failed
-        }
+        return {"success": successful, "failed": failed}

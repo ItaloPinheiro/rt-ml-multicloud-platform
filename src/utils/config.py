@@ -4,13 +4,14 @@ This module provides utilities for loading and managing configuration
 from environment variables, files, and cloud services.
 """
 
-import os
 import json
-import yaml
-from typing import Dict, Any, Optional, Union
-from pathlib import Path
+import os
 from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, Dict, Optional
+
 import structlog
+import yaml
 
 logger = structlog.get_logger()
 
@@ -18,6 +19,7 @@ logger = structlog.get_logger()
 @dataclass
 class DatabaseConfig:
     """Database configuration."""
+
     host: str
     port: int
     database: str
@@ -31,6 +33,7 @@ class DatabaseConfig:
 @dataclass
 class RedisConfig:
     """Redis configuration."""
+
     host: str = "localhost"
     port: int = 6379
     password: Optional[str] = None
@@ -44,6 +47,7 @@ class RedisConfig:
 @dataclass
 class MLflowConfig:
     """MLflow configuration."""
+
     tracking_uri: str
     registry_uri: Optional[str] = None
     experiment_name: str = "default"
@@ -54,6 +58,7 @@ class MLflowConfig:
 @dataclass
 class KafkaConfig:
     """Kafka configuration."""
+
     bootstrap_servers: str
     security_protocol: str = "PLAINTEXT"
     sasl_mechanism: Optional[str] = None
@@ -67,6 +72,7 @@ class KafkaConfig:
 @dataclass
 class PubSubConfig:
     """Google Cloud Pub/Sub configuration."""
+
     project_id: str
     credentials_path: Optional[str] = None
     emulator_host: Optional[str] = None
@@ -75,6 +81,7 @@ class PubSubConfig:
 @dataclass
 class KinesisConfig:
     """AWS Kinesis configuration."""
+
     region: str = "us-east-1"
     access_key_id: Optional[str] = None
     secret_access_key: Optional[str] = None
@@ -85,6 +92,7 @@ class KinesisConfig:
 @dataclass
 class APIConfig:
     """API server configuration."""
+
     host: str = "0.0.0.0"
     port: int = 8000
     workers: int = 1
@@ -98,6 +106,7 @@ class APIConfig:
 @dataclass
 class MonitoringConfig:
     """Monitoring configuration."""
+
     prometheus_enabled: bool = True
     prometheus_port: int = 9090
     grafana_enabled: bool = True
@@ -109,6 +118,7 @@ class MonitoringConfig:
 @dataclass
 class Config:
     """Main application configuration."""
+
     environment: str = "development"
     debug: bool = False
 
@@ -181,7 +191,7 @@ class ConfigManager:
         self.logger.info(
             "Configuration loaded",
             environment=environment,
-            config_sources=self._get_config_sources()
+            config_sources=self._get_config_sources(),
         )
 
         return config
@@ -196,10 +206,10 @@ class ConfigManager:
             Configuration dictionary
         """
         try:
-            with open(file_path, 'r') as f:
-                if file_path.endswith('.yaml') or file_path.endswith('.yml'):
+            with open(file_path, "r") as f:
+                if file_path.endswith(".yaml") or file_path.endswith(".yml"):
                     return yaml.safe_load(f) or {}
-                elif file_path.endswith('.json'):
+                elif file_path.endswith(".json"):
                     return json.load(f)
                 else:
                     raise ValueError(f"Unsupported config file format: {file_path}")
@@ -305,9 +315,13 @@ class ConfigManager:
         if os.getenv("LOG_LEVEL"):
             monitoring_config["log_level"] = os.getenv("LOG_LEVEL")
         if os.getenv("PROMETHEUS_ENABLED"):
-            monitoring_config["prometheus_enabled"] = os.getenv("PROMETHEUS_ENABLED").lower() == "true"
+            monitoring_config["prometheus_enabled"] = (
+                os.getenv("PROMETHEUS_ENABLED").lower() == "true"
+            )
         if os.getenv("GRAFANA_ENABLED"):
-            monitoring_config["grafana_enabled"] = os.getenv("GRAFANA_ENABLED").lower() == "true"
+            monitoring_config["grafana_enabled"] = (
+                os.getenv("GRAFANA_ENABLED").lower() == "true"
+            )
 
         if monitoring_config:
             config["monitoring"] = monitoring_config
@@ -385,12 +399,14 @@ class ConfigManager:
             "model_cache_size": config_dict.get("model_cache_size", 10),
             "batch_size": config_dict.get("batch_size", 1000),
             "max_retries": config_dict.get("max_retries", 3),
-            "custom": config_dict.get("custom", {})
+            "custom": config_dict.get("custom", {}),
         }
 
         return Config(**main_config)
 
-    def _deep_merge(self, base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
+    def _deep_merge(
+        self, base: Dict[str, Any], override: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Deep merge two dictionaries.
 
         Args:
@@ -403,7 +419,11 @@ class ConfigManager:
         result = base.copy()
 
         for key, value in override.items():
-            if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            if (
+                key in result
+                and isinstance(result[key], dict)
+                and isinstance(value, dict)
+            ):
                 result[key] = self._deep_merge(result[key], value)
             else:
                 result[key] = value
@@ -424,7 +444,9 @@ class ConfigManager:
         return sources
 
 
-def get_config(config_path: Optional[str] = None, environment: Optional[str] = None) -> Config:
+def get_config(
+    config_path: Optional[str] = None, environment: Optional[str] = None
+) -> Config:
     """Get application configuration.
 
     Args:

@@ -1,15 +1,13 @@
 """Pytest configuration and shared fixtures."""
 
+import asyncio
 import os
 import tempfile
-import asyncio
 from datetime import datetime, timezone
-from typing import Generator, Dict, Any
+
 import pytest
 import pytest_asyncio
 import redis
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
 # Test configuration
 os.environ["ENVIRONMENT"] = "test"
@@ -25,7 +23,14 @@ def temp_dir():
 @pytest.fixture
 def test_config():
     """Test configuration fixture."""
-    from src.utils.config import Config, DatabaseConfig, RedisConfig, MLflowConfig, APIConfig, MonitoringConfig
+    from src.utils.config import (
+        APIConfig,
+        Config,
+        DatabaseConfig,
+        MLflowConfig,
+        MonitoringConfig,
+        RedisConfig,
+    )
 
     return Config(
         environment="test",
@@ -36,36 +41,29 @@ def test_config():
             database=":memory:",
             username="",
             password="",
-            ssl_mode="disable"
+            ssl_mode="disable",
         ),
         redis=RedisConfig(
             host="localhost",
             port=6379,
             password=None,
-            db=1  # Use different DB for tests
+            db=1,  # Use different DB for tests
         ),
         mlflow=MLflowConfig(
-            tracking_uri="sqlite:///test_mlflow.db",
-            experiment_name="test_experiment"
+            tracking_uri="sqlite:///test_mlflow.db", experiment_name="test_experiment"
         ),
-        api=APIConfig(
-            host="127.0.0.1",
-            port=8001,
-            debug=True
-        ),
+        api=APIConfig(host="127.0.0.1", port=8001, debug=True),
         monitoring=MonitoringConfig(
-            prometheus_enabled=False,
-            grafana_enabled=False,
-            log_level="DEBUG"
-        )
+            prometheus_enabled=False, grafana_enabled=False, log_level="DEBUG"
+        ),
     )
 
 
 @pytest.fixture
 def test_database(test_config):
     """Create test database with tables."""
-    from src.database.session import DatabaseManager
     from src.database.models import Base
+    from src.database.session import DatabaseManager
 
     db_manager = DatabaseManager(test_config.database)
     db_manager.initialize()
@@ -113,6 +111,7 @@ def mock_redis():
         # Use fakeredis if Redis is not available
         try:
             import fakeredis
+
             client = fakeredis.FakeRedis(decode_responses=False)
             yield client
         except ImportError:
@@ -129,7 +128,7 @@ def sample_features():
         "is_weekend": False,
         "risk_score": 0.3,
         "user_age": 35,
-        "transaction_count_24h": 3
+        "transaction_count_24h": 3,
     }
 
 
@@ -142,11 +141,11 @@ def sample_prediction_request():
             "merchant_category": "electronics",
             "hour_of_day": 14,
             "is_weekend": False,
-            "risk_score": 0.3
+            "risk_score": 0.3,
         },
         "model_name": "fraud_detector",
         "version": "latest",
-        "return_probabilities": True
+        "return_probabilities": True,
     }
 
 
@@ -160,19 +159,19 @@ def sample_batch_prediction_request():
                 "merchant_category": "electronics",
                 "hour_of_day": 14,
                 "is_weekend": False,
-                "risk_score": 0.3
+                "risk_score": 0.3,
             },
             {
                 "amount": 50.00,
                 "merchant_category": "grocery",
                 "hour_of_day": 10,
                 "is_weekend": True,
-                "risk_score": 0.1
-            }
+                "risk_score": 0.1,
+            },
         ],
         "model_name": "fraud_detector",
         "version": "latest",
-        "return_probabilities": True
+        "return_probabilities": True,
     }
 
 
@@ -183,17 +182,14 @@ def sample_stream_message():
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "user_id": "user_123",
         "transaction_id": "txn_456",
-        "data": {
-            "amount": 100.0,
-            "merchant": "Test Merchant",
-            "category": "retail"
-        }
+        "data": {"amount": 100.0, "merchant": "Test Merchant", "category": "retail"},
     }
 
 
 @pytest.fixture
 def mock_mlflow_client():
     """Mock MLflow client for tests."""
+
     class MockMLflowClient:
         def __init__(self):
             self.experiments = {}
@@ -206,7 +202,7 @@ def mock_mlflow_client():
                 "experiment_id": exp_id,
                 "name": name,
                 "artifact_location": artifact_location,
-                "lifecycle_stage": "active"
+                "lifecycle_stage": "active",
             }
             return exp_id
 
@@ -217,7 +213,11 @@ def mock_mlflow_client():
             return None
 
         def list_experiments(self, max_results=None):
-            return list(self.experiments.values())[:max_results] if max_results else list(self.experiments.values())
+            return (
+                list(self.experiments.values())[:max_results]
+                if max_results
+                else list(self.experiments.values())
+            )
 
         def create_run(self, experiment_id, start_time=None, tags=None):
             run_id = f"run_{len(self.runs) + 1}"
@@ -226,14 +226,11 @@ def mock_mlflow_client():
                     "run_id": run_id,
                     "experiment_id": experiment_id,
                     "status": "RUNNING",
-                    "start_time": start_time or datetime.now(timezone.utc).timestamp() * 1000,
-                    "artifact_uri": f"file:///tmp/mlruns/{experiment_id}/{run_id}/artifacts"
+                    "start_time": start_time
+                    or datetime.now(timezone.utc).timestamp() * 1000,
+                    "artifact_uri": f"file:///tmp/mlruns/{experiment_id}/{run_id}/artifacts",
                 },
-                "data": {
-                    "params": {},
-                    "metrics": {},
-                    "tags": tags or {}
-                }
+                "data": {"params": {}, "metrics": {}, "tags": tags or {}},
             }
             return self.runs[run_id]
 
@@ -248,7 +245,9 @@ def mock_mlflow_client():
         def end_run(self, run_id, status="FINISHED"):
             if run_id in self.runs:
                 self.runs[run_id]["info"]["status"] = status
-                self.runs[run_id]["info"]["end_time"] = datetime.now(timezone.utc).timestamp() * 1000
+                self.runs[run_id]["info"]["end_time"] = (
+                    datetime.now(timezone.utc).timestamp() * 1000
+                )
 
     return MockMLflowClient()
 
@@ -256,9 +255,9 @@ def mock_mlflow_client():
 @pytest.fixture
 def feature_store_client(test_config, mock_redis, test_database):
     """Feature store client for tests."""
-    from src.feature_store.store import FeatureStore
-    from src.feature_store.client import FeatureStoreClient
     import src.database.session as session_module
+    from src.feature_store.client import FeatureStoreClient
+    from src.feature_store.store import FeatureStore
 
     # Set the global database manager
     session_module._db_manager = test_database
@@ -314,8 +313,8 @@ def alert_manager():
 @pytest_asyncio.fixture
 async def async_feature_store_client(test_config, mock_redis):
     """Async feature store client for tests."""
-    from src.feature_store.store import FeatureStore
     from src.feature_store.client import FeatureStoreClient
+    from src.feature_store.store import FeatureStore
 
     feature_store = FeatureStore(redis_client=mock_redis)
     client = FeatureStoreClient(feature_store=feature_store)
@@ -355,18 +354,20 @@ async def async_alert_manager():
 # Utility functions for tests
 def assert_approximately_equal(actual, expected, tolerance=0.01):
     """Assert that two values are approximately equal within tolerance."""
-    assert abs(actual - expected) <= tolerance, f"Expected {expected}, got {actual} (tolerance: {tolerance})"
+    assert (
+        abs(actual - expected) <= tolerance
+    ), f"Expected {expected}, got {actual} (tolerance: {tolerance})"
 
 
 def create_test_model_artifact(temp_dir: str, model_name: str = "test_model"):
     """Create a test model artifact for testing."""
-    import pickle
     import os
+    import pickle
 
     # Create a simple sklearn model
     try:
-        from sklearn.linear_model import LogisticRegression
         import numpy as np
+        from sklearn.linear_model import LogisticRegression
 
         # Create and train a simple model
         X = np.random.random((100, 5))

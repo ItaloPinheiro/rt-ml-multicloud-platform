@@ -3,20 +3,23 @@
 Complete cleanup script for MLflow models, experiments, and MinIO/S3 artifacts.
 USE WITH CAUTION - This will delete all data!
 """
+import argparse
 import os
 import sys
-import mlflow
-from mlflow.tracking import MlflowClient
-import argparse
 import time
+
 import boto3
+import mlflow
 from botocore.client import Config
+from mlflow.tracking import MlflowClient
+
 
 def confirm_deletion(message):
     """Ask user for confirmation."""
     print(f"\n{message}")
     response = input("Type 'YES' to confirm, or anything else to cancel: ")
     return response == "YES"
+
 
 def cleanup_minio_artifacts(force=False):
     """Clean up all artifacts in MinIO/S3."""
@@ -35,56 +38,56 @@ def cleanup_minio_artifacts(force=False):
 
         # Create S3 client
         s3_client = boto3.client(
-            's3',
+            "s3",
             endpoint_url=endpoint_url,
             aws_access_key_id=access_key,
             aws_secret_access_key=secret_key,
-            config=Config(signature_version='s3v4'),
-            region_name='us-east-1'
+            config=Config(signature_version="s3v4"),
+            region_name="us-east-1",
         )
 
         # List all objects in the bucket
         try:
             response = s3_client.list_objects_v2(Bucket=bucket_name)
 
-            if 'Contents' in response:
-                objects = response['Contents']
-                total_size = sum(obj['Size'] for obj in objects)
+            if "Contents" in response:
+                objects = response["Contents"]
+                total_size = sum(obj["Size"] for obj in objects)
 
                 print(f"\nFound {len(objects)} objects in bucket")
                 print(f"Total size: {total_size / (1024*1024):.2f} MB")
 
-                if force or confirm_deletion(f"Delete all {len(objects)} objects from MinIO?"):
+                if force or confirm_deletion(
+                    f"Delete all {len(objects)} objects from MinIO?"
+                ):
                     # Delete objects in batches
                     batch_size = 1000
                     deleted_count = 0
 
                     while True:
                         response = s3_client.list_objects_v2(
-                            Bucket=bucket_name,
-                            MaxKeys=batch_size
+                            Bucket=bucket_name, MaxKeys=batch_size
                         )
 
-                        if 'Contents' not in response:
+                        if "Contents" not in response:
                             break
 
-                        objects = response['Contents']
+                        objects = response["Contents"]
                         if not objects:
                             break
 
                         # Prepare delete request
                         delete_objects = {
-                            'Objects': [{'Key': obj['Key']} for obj in objects]
+                            "Objects": [{"Key": obj["Key"]} for obj in objects]
                         }
 
                         print(f"  Deleting batch of {len(objects)} objects...")
                         s3_client.delete_objects(
-                            Bucket=bucket_name,
-                            Delete=delete_objects
+                            Bucket=bucket_name, Delete=delete_objects
                         )
                         deleted_count += len(objects)
 
-                        if not response.get('IsTruncated'):
+                        if not response.get("IsTruncated"):
                             break
 
                     print(f"Deleted {deleted_count} objects from MinIO")
@@ -94,7 +97,7 @@ def cleanup_minio_artifacts(force=False):
                 print("No objects found in MinIO bucket")
 
         except Exception as e:
-            if 'NoSuchBucket' in str(e):
+            if "NoSuchBucket" in str(e):
                 print(f"Bucket '{bucket_name}' does not exist")
             else:
                 print(f"Error accessing MinIO: {e}")
@@ -105,17 +108,20 @@ def cleanup_minio_artifacts(force=False):
         print("  docker exec ml-mlflow-minio mc rm -r --force local/mlflow/")
         print("  docker exec ml-mlflow-minio mc mb local/mlflow")
 
+
 def cleanup_database_directly(force=False):
     """Clean up MLflow database tables directly."""
+    import os
     import subprocess
     import tempfile
-    import os
 
     print("\n" + "=" * 80)
     print("DATABASE CLEANUP")
     print("=" * 80)
 
-    if force or confirm_deletion("Permanently delete ALL experiments from database (including deleted ones)?"):
+    if force or confirm_deletion(
+        "Permanently delete ALL experiments from database (including deleted ones)?"
+    ):
         try:
             # Create SQL script for comprehensive cleanup
             cleanup_sql = """
@@ -150,27 +156,33 @@ COMMIT;
 """
 
             # Write SQL to temp file
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.sql', delete=False) as f:
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".sql", delete=False
+            ) as f:
                 f.write(cleanup_sql)
                 temp_sql_file = f.name
 
             try:
                 # Execute SQL script via docker
-                if os.name == 'nt':  # Windows
+                if os.name == "nt":  # Windows
                     # Use type command on Windows
                     cmd = f'type "{temp_sql_file}" | docker exec -i ml-mlflow-db psql -U mlflow -d mlflow'
-                    result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+                    result = subprocess.run(
+                        cmd, shell=True, capture_output=True, text=True
+                    )
                 else:
                     # Use cat on Unix-like systems
                     cmd = f'cat "{temp_sql_file}" | docker exec -i ml-mlflow-db psql -U mlflow -d mlflow'
-                    result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+                    result = subprocess.run(
+                        cmd, shell=True, capture_output=True, text=True
+                    )
 
                 if result.returncode == 0:
                     print("Successfully cleaned deleted experiments from database")
                     # Parse output to show what was deleted
-                    output_lines = result.stdout.strip().split('\n')
+                    output_lines = result.stdout.strip().split("\n")
                     for line in output_lines:
-                        if line.startswith('DELETE'):
+                        if line.startswith("DELETE"):
                             print(f"  {line}")
                 else:
                     print(f"Error cleaning database: {result.stderr}")
@@ -185,12 +197,19 @@ COMMIT;
         except Exception as e:
             print(f"Error during database cleanup: {e}")
             print("\nManual cleanup commands:")
-            print("  docker exec ml-mlflow-db psql -U mlflow -d mlflow -c \"DELETE FROM experiments WHERE lifecycle_stage = 'deleted';\"")
+            print(
+                "  docker exec ml-mlflow-db psql -U mlflow -d mlflow -c \"DELETE FROM experiments WHERE lifecycle_stage = 'deleted';\""
+            )
             print("\nFor complete reset:")
-            print("  docker exec ml-mlflow-db psql -U mlflow -d mlflow -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;'")
-            print("  docker-compose -f ops/local/docker-compose.yml -f ops/local/docker-compose.override.yml restart mlflow-server")
+            print(
+                "  docker exec ml-mlflow-db psql -U mlflow -d mlflow -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;'"
+            )
+            print(
+                "  docker-compose -f ops/local/docker-compose.yml -f ops/local/docker-compose.override.yml restart mlflow-server"
+            )
     else:
         print("Database cleanup cancelled")
+
 
 def cleanup_mlflow(
     delete_models=True,
@@ -198,7 +217,7 @@ def cleanup_mlflow(
     delete_artifacts=False,
     keep_experiments=None,
     keep_models=None,
-    force=False
+    force=False,
 ):
     """
     Complete cleanup of MLflow models, experiments, and artifacts.
@@ -230,7 +249,9 @@ def cleanup_mlflow(
                     versions = client.search_model_versions(f"name='{model.name}'")
                     print(f"  - {model.name} ({len(versions)} versions)")
 
-                if force or confirm_deletion("Delete all these models and their versions?"):
+                if force or confirm_deletion(
+                    "Delete all these models and their versions?"
+                ):
                     for model in models_to_delete:
                         print(f"\nDeleting model: {model.name}")
 
@@ -242,15 +263,14 @@ def cleanup_mlflow(
                                 # No need to transition stages as they're deprecated
                                 # Just delete the version directly
                                 client.delete_model_version(
-                                    name=model.name,
-                                    version=version.version
+                                    name=model.name, version=version.version
                                 )
                             except Exception as e:
                                 print(f"    Warning: {e}")
                             time.sleep(0.1)
 
                         # Delete the registered model
-                        print(f"  Deleting model registry entry...")
+                        print("  Deleting model registry entry...")
                         client.delete_registered_model(model.name)
                         print(f"  Model {model.name} deleted successfully")
 
@@ -268,7 +288,8 @@ def cleanup_mlflow(
 
             experiments = client.search_experiments()
             experiments_to_delete = [
-                e for e in experiments
+                e
+                for e in experiments
                 if e.name not in keep_experiments
                 and e.name != "Default"
                 and e.experiment_id != "0"
@@ -279,9 +300,13 @@ def cleanup_mlflow(
                 print(f"Found {len(experiments_to_delete)} experiment(s) to delete:")
                 for exp in experiments_to_delete:
                     runs = client.search_runs(experiment_ids=[exp.experiment_id])
-                    print(f"  - {exp.name} (ID: {exp.experiment_id}, Runs: {len(runs)})")
+                    print(
+                        f"  - {exp.name} (ID: {exp.experiment_id}, Runs: {len(runs)})"
+                    )
 
-                if force or confirm_deletion("Delete all these experiments and their runs?"):
+                if force or confirm_deletion(
+                    "Delete all these experiments and their runs?"
+                ):
                     for exp in experiments_to_delete:
                         print(f"\nDeleting experiment: {exp.name}")
 
@@ -293,7 +318,7 @@ def cleanup_mlflow(
                             time.sleep(0.05)
 
                         # Delete the experiment
-                        print(f"  Deleting experiment...")
+                        print("  Deleting experiment...")
                         client.delete_experiment(exp.experiment_id)
                         print(f"  Experiment {exp.name} deleted successfully")
 
@@ -314,7 +339,9 @@ def cleanup_mlflow(
             print("PERMANENT DATABASE CLEANUP (Optional)")
             print("=" * 80)
             print("Experiments have been marked as deleted in MLflow.")
-            if force or confirm_deletion("Also permanently remove them from the database?"):
+            if force or confirm_deletion(
+                "Also permanently remove them from the database?"
+            ):
                 cleanup_database_directly(force=True)
 
         # Summary
@@ -323,7 +350,9 @@ def cleanup_mlflow(
         print("=" * 80)
 
         remaining_models = client.search_registered_models()
-        remaining_experiments = [e for e in client.search_experiments() if e.lifecycle_stage == "active"]
+        remaining_experiments = [
+            e for e in client.search_experiments() if e.lifecycle_stage == "active"
+        ]
 
         print(f"Remaining models: {len(remaining_models)}")
         for model in remaining_models:
@@ -340,6 +369,7 @@ def cleanup_mlflow(
         return 1
 
     return 0
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -367,52 +397,39 @@ Examples:
 
   # Complete cleanup with permanent database deletion
   python cleanup_all.py --all --artifacts --force
-        """
+        """,
     )
 
     parser.add_argument(
-        "--models",
-        action="store_true",
-        help="Delete all registered models"
+        "--models", action="store_true", help="Delete all registered models"
     )
     parser.add_argument(
         "--experiments",
         action="store_true",
-        help="Delete all experiments (except Default)"
+        help="Delete all experiments (except Default)",
     )
     parser.add_argument(
-        "--artifacts",
-        action="store_true",
-        help="Delete all artifacts from MinIO/S3"
+        "--artifacts", action="store_true", help="Delete all artifacts from MinIO/S3"
     )
     parser.add_argument(
         "--all",
         action="store_true",
-        help="Delete models and experiments (use with --artifacts for complete cleanup)"
+        help="Delete models and experiments (use with --artifacts for complete cleanup)",
     )
+    parser.add_argument("--keep-models", nargs="+", help="List of model names to keep")
     parser.add_argument(
-        "--keep-models",
-        nargs="+",
-        help="List of model names to keep"
-    )
-    parser.add_argument(
-        "--keep-experiments",
-        nargs="+",
-        help="List of experiment names to keep"
+        "--keep-experiments", nargs="+", help="List of experiment names to keep"
     )
     parser.add_argument(
         "--force",
         action="store_true",
-        help="Skip confirmation prompts (use with caution!)"
+        help="Skip confirmation prompts (use with caution!)",
     )
     parser.add_argument(
-        "--mlflow-uri",
-        help="MLflow tracking URI (default: http://localhost:5000)"
+        "--mlflow-uri", help="MLflow tracking URI (default: http://localhost:5000)"
     )
     parser.add_argument(
-        "--reset-db",
-        action="store_true",
-        help="Show database reset instructions"
+        "--reset-db", action="store_true", help="Show database reset instructions"
     )
 
     args = parser.parse_args()
@@ -438,8 +455,9 @@ Examples:
         delete_artifacts=args.artifacts,
         keep_experiments=args.keep_experiments,
         keep_models=args.keep_models,
-        force=args.force
+        force=args.force,
     )
+
 
 if __name__ == "__main__":
     sys.exit(main())

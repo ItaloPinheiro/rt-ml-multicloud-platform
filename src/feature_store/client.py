@@ -1,11 +1,12 @@
 """Feature store client for simplified feature access and management."""
 
 from datetime import datetime, timezone
-from typing import Dict, Any, List, Optional, Union
+from typing import Any, Dict, List, Optional
+
 import structlog
 
 from .store import FeatureStore
-from .transforms import FeatureTransform, NumericTransform, CategoricalTransform
+from .transforms import CategoricalTransform, FeatureTransform, NumericTransform
 
 logger = structlog.get_logger()
 
@@ -23,7 +24,9 @@ class FeatureStoreClient:
         self.transforms: Dict[str, FeatureTransform] = {}
         self.logger = logger.bind(component="FeatureStoreClient")
 
-    def register_transform(self, feature_name: str, transform: FeatureTransform) -> None:
+    def register_transform(
+        self, feature_name: str, transform: FeatureTransform
+    ) -> None:
         """Register a feature transformation.
 
         Args:
@@ -34,7 +37,7 @@ class FeatureStoreClient:
         self.logger.debug(
             "Feature transform registered",
             feature_name=feature_name,
-            transform_type=type(transform).__name__
+            transform_type=type(transform).__name__,
         )
 
     def put_features(
@@ -44,7 +47,7 @@ class FeatureStoreClient:
         features: Dict[str, Any],
         apply_transforms: bool = True,
         event_timestamp: Optional[datetime] = None,
-        ttl_seconds: Optional[int] = None
+        ttl_seconds: Optional[int] = None,
     ) -> None:
         """Store features with optional transformations.
 
@@ -67,7 +70,7 @@ class FeatureStoreClient:
                 feature_group=feature_group,
                 features=features,
                 event_timestamp=event_timestamp,
-                ttl_seconds=ttl_seconds
+                ttl_seconds=ttl_seconds,
             )
 
             self.logger.debug(
@@ -75,7 +78,7 @@ class FeatureStoreClient:
                 entity_id=entity_id,
                 feature_group=feature_group,
                 feature_count=len(features),
-                transforms_applied=apply_transforms
+                transforms_applied=apply_transforms,
             )
 
         except Exception as e:
@@ -83,7 +86,7 @@ class FeatureStoreClient:
                 "Failed to store features via client",
                 entity_id=entity_id,
                 feature_group=feature_group,
-                error=str(e)
+                error=str(e),
             )
             raise
 
@@ -92,7 +95,7 @@ class FeatureStoreClient:
         entity_id: str,
         feature_group: str,
         feature_names: Optional[List[str]] = None,
-        apply_transforms: bool = False
+        apply_transforms: bool = False,
     ) -> Dict[str, Any]:
         """Retrieve features with optional transformations.
 
@@ -110,7 +113,7 @@ class FeatureStoreClient:
             features = self.feature_store.get_features(
                 entity_id=entity_id,
                 feature_group=feature_group,
-                feature_names=feature_names
+                feature_names=feature_names,
             )
 
             # Apply transformations if requested
@@ -122,7 +125,7 @@ class FeatureStoreClient:
                 entity_id=entity_id,
                 feature_group=feature_group,
                 feature_count=len(features),
-                transforms_applied=apply_transforms
+                transforms_applied=apply_transforms,
             )
 
             return features
@@ -132,7 +135,7 @@ class FeatureStoreClient:
                 "Failed to retrieve features via client",
                 entity_id=entity_id,
                 feature_group=feature_group,
-                error=str(e)
+                error=str(e),
             )
             raise
 
@@ -141,7 +144,7 @@ class FeatureStoreClient:
         entity_ids: List[str],
         feature_group: str,
         feature_names: Optional[List[str]] = None,
-        apply_transforms: bool = False
+        apply_transforms: bool = False,
     ) -> Dict[str, Dict[str, Any]]:
         """Retrieve features for multiple entities with optional transformations.
 
@@ -159,7 +162,7 @@ class FeatureStoreClient:
             batch_features = self.feature_store.get_batch_features(
                 entity_ids=entity_ids,
                 feature_group=feature_group,
-                feature_names=feature_names
+                feature_names=feature_names,
             )
 
             # Apply transformations if requested
@@ -171,7 +174,7 @@ class FeatureStoreClient:
                 "Batch features retrieved via client",
                 feature_group=feature_group,
                 entity_count=len(entity_ids),
-                transforms_applied=apply_transforms
+                transforms_applied=apply_transforms,
             )
 
             return batch_features
@@ -181,7 +184,7 @@ class FeatureStoreClient:
                 "Failed to retrieve batch features via client",
                 feature_group=feature_group,
                 entity_count=len(entity_ids),
-                error=str(e)
+                error=str(e),
             )
             raise
 
@@ -192,7 +195,7 @@ class FeatureStoreClient:
         feature_schema: Dict[str, List[str]],
         apply_transforms: bool = True,
         fill_missing: bool = True,
-        default_value: Any = 0.0
+        default_value: Any = 0.0,
     ) -> Dict[str, Any]:
         """Create a complete feature vector from multiple feature groups.
 
@@ -218,7 +221,7 @@ class FeatureStoreClient:
                     entity_id=entity_id,
                     feature_group=feature_group,
                     feature_names=expected_features,
-                    apply_transforms=apply_transforms
+                    apply_transforms=apply_transforms,
                 )
 
                 # Fill missing features if requested
@@ -236,7 +239,7 @@ class FeatureStoreClient:
                 "Feature vector created",
                 entity_id=entity_id,
                 feature_groups=feature_groups,
-                total_features=len(feature_vector)
+                total_features=len(feature_vector),
             )
 
             return feature_vector
@@ -246,7 +249,7 @@ class FeatureStoreClient:
                 "Failed to create feature vector",
                 entity_id=entity_id,
                 feature_groups=feature_groups,
-                error=str(e)
+                error=str(e),
             )
             raise
 
@@ -257,7 +260,7 @@ class FeatureStoreClient:
         feature_schema: Dict[str, List[str]],
         apply_transforms: bool = True,
         fill_missing: bool = True,
-        default_value: Any = 0.0
+        default_value: Any = 0.0,
     ) -> Dict[str, Dict[str, Any]]:
         """Create feature vectors for multiple entities efficiently.
 
@@ -283,7 +286,7 @@ class FeatureStoreClient:
                     entity_ids=entity_ids,
                     feature_group=feature_group,
                     feature_names=expected_features,
-                    apply_transforms=apply_transforms
+                    apply_transforms=apply_transforms,
                 )
 
                 # Process each entity
@@ -305,7 +308,10 @@ class FeatureStoreClient:
                 "Batch feature vectors created",
                 entity_count=len(entity_ids),
                 feature_groups=feature_groups,
-                avg_features_per_entity=sum(len(fv) for fv in entity_feature_vectors.values()) / len(entity_ids)
+                avg_features_per_entity=sum(
+                    len(fv) for fv in entity_feature_vectors.values()
+                )
+                / len(entity_ids),
             )
 
             return entity_feature_vectors
@@ -315,39 +321,52 @@ class FeatureStoreClient:
                 "Failed to create batch feature vectors",
                 entity_count=len(entity_ids),
                 feature_groups=feature_groups,
-                error=str(e)
+                error=str(e),
             )
             raise
 
     def setup_common_transforms(self) -> None:
         """Setup commonly used feature transformations."""
         # Numeric transformations
-        self.register_transform("amount", NumericTransform(
-            min_value=0,
-            max_value=10000,
-            fill_missing=True,
-            default_value=0.0
-        ))
+        self.register_transform(
+            "amount",
+            NumericTransform(
+                min_value=0, max_value=10000, fill_missing=True, default_value=0.0
+            ),
+        )
 
-        self.register_transform("age", NumericTransform(
-            min_value=0,
-            max_value=120,
-            fill_missing=True,
-            default_value=30.0
-        ))
+        self.register_transform(
+            "age",
+            NumericTransform(
+                min_value=0, max_value=120, fill_missing=True, default_value=30.0
+            ),
+        )
 
         # Categorical transformations
-        self.register_transform("merchant_category", CategoricalTransform(
-            valid_categories=["electronics", "grocery", "gas", "restaurant", "retail", "other"],
-            fill_missing=True,
-            default_value="other"
-        ))
+        self.register_transform(
+            "merchant_category",
+            CategoricalTransform(
+                valid_categories=[
+                    "electronics",
+                    "grocery",
+                    "gas",
+                    "restaurant",
+                    "retail",
+                    "other",
+                ],
+                fill_missing=True,
+                default_value="other",
+            ),
+        )
 
-        self.register_transform("payment_method", CategoricalTransform(
-            valid_categories=["credit", "debit", "cash", "mobile"],
-            fill_missing=True,
-            default_value="credit"
-        ))
+        self.register_transform(
+            "payment_method",
+            CategoricalTransform(
+                valid_categories=["credit", "debit", "cash", "mobile"],
+                fill_missing=True,
+                default_value="credit",
+            ),
+        )
 
         self.logger.info("Common feature transforms registered")
 
@@ -361,51 +380,68 @@ class FeatureStoreClient:
             Dictionary with feature statistics
         """
         try:
+            from sqlalchemy import func
+
             from ..database.models import FeatureStore as FeatureStoreModel
             from ..database.session import get_session
-            from sqlalchemy import func
 
             with get_session() as session:
                 # Get feature count by name
-                feature_counts = session.query(
-                    FeatureStoreModel.feature_name,
-                    func.count(FeatureStoreModel.id).label('count')
-                ).filter(
-                    FeatureStoreModel.feature_group == feature_group,
-                    FeatureStoreModel.is_active == True
-                ).group_by(FeatureStoreModel.feature_name).all()
+                feature_counts = (
+                    session.query(
+                        FeatureStoreModel.feature_name,
+                        func.count(FeatureStoreModel.id).label("count"),
+                    )
+                    .filter(
+                        FeatureStoreModel.feature_group == feature_group,
+                        FeatureStoreModel.is_active == True,
+                    )
+                    .group_by(FeatureStoreModel.feature_name)
+                    .all()
+                )
 
                 # Get unique entity count
-                entity_count = session.query(
-                    func.count(func.distinct(FeatureStoreModel.entity_id))
-                ).filter(
-                    FeatureStoreModel.feature_group == feature_group,
-                    FeatureStoreModel.is_active == True
-                ).scalar()
+                entity_count = (
+                    session.query(
+                        func.count(func.distinct(FeatureStoreModel.entity_id))
+                    )
+                    .filter(
+                        FeatureStoreModel.feature_group == feature_group,
+                        FeatureStoreModel.is_active == True,
+                    )
+                    .scalar()
+                )
 
                 # Get data type distribution
-                data_type_counts = session.query(
-                    FeatureStoreModel.data_type,
-                    func.count(FeatureStoreModel.id).label('count')
-                ).filter(
-                    FeatureStoreModel.feature_group == feature_group,
-                    FeatureStoreModel.is_active == True
-                ).group_by(FeatureStoreModel.data_type).all()
+                data_type_counts = (
+                    session.query(
+                        FeatureStoreModel.data_type,
+                        func.count(FeatureStoreModel.id).label("count"),
+                    )
+                    .filter(
+                        FeatureStoreModel.feature_group == feature_group,
+                        FeatureStoreModel.is_active == True,
+                    )
+                    .group_by(FeatureStoreModel.data_type)
+                    .all()
+                )
 
                 statistics = {
                     "feature_group": feature_group,
                     "unique_entities": entity_count,
                     "feature_counts": {name: count for name, count in feature_counts},
-                    "data_type_distribution": {dtype: count for dtype, count in data_type_counts},
+                    "data_type_distribution": {
+                        dtype: count for dtype, count in data_type_counts
+                    },
                     "total_features": sum(count for _, count in feature_counts),
-                    "timestamp": datetime.now(timezone.utc).isoformat()
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
                 }
 
                 self.logger.debug(
                     "Feature statistics retrieved",
                     feature_group=feature_group,
                     total_features=statistics["total_features"],
-                    unique_entities=statistics["unique_entities"]
+                    unique_entities=statistics["unique_entities"],
                 )
 
                 return statistics
@@ -414,7 +450,7 @@ class FeatureStoreClient:
             self.logger.error(
                 "Failed to get feature statistics",
                 feature_group=feature_group,
-                error=str(e)
+                error=str(e),
             )
             raise
 
@@ -439,7 +475,7 @@ class FeatureStoreClient:
                         "Feature transform failed, using original value",
                         feature_name=feature_name,
                         original_value=value,
-                        error=str(e)
+                        error=str(e),
                     )
                     transformed_features[feature_name] = value
             else:

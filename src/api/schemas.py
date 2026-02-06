@@ -1,9 +1,9 @@
 """Pydantic schemas for API request/response models."""
 
 from datetime import datetime
-from typing import Dict, Any, List, Optional, Union
-from pydantic import BaseModel, Field, field_validator, field_serializer
-import json
+from typing import Any, Dict, List, Optional, Union
+
+from pydantic import BaseModel, Field, field_serializer, field_validator
 
 
 class PredictionRequest(BaseModel):
@@ -18,29 +18,28 @@ class PredictionRequest(BaseModel):
                 "merchant_category": "electronics",
                 "hour_of_day": 14,
                 "is_weekend": False,
-                "risk_score": 0.3
+                "risk_score": 0.3,
             }
-        }
+        },
     )
 
     model_name: str = Field(
         default="fraud_detector",
         description="Name of the model to use for prediction",
-        json_schema_extra={"example": "fraud_detector"}
+        json_schema_extra={"example": "fraud_detector"},
     )
 
     version: Optional[str] = Field(
         default="latest",
         description="Model version (latest, specific version, or stage)",
-        json_schema_extra={"example": "latest"}
+        json_schema_extra={"example": "latest"},
     )
 
     return_probabilities: bool = Field(
-        default=True,
-        description="Whether to return prediction probabilities"
+        default=True, description="Whether to return prediction probabilities"
     )
 
-    @field_validator('features')
+    @field_validator("features")
     @classmethod
     def validate_features(cls, v):
         """Validate that features is a non-empty dictionary."""
@@ -53,41 +52,26 @@ class PredictionResponse(BaseModel):
     """Schema for prediction responses."""
 
     prediction: Union[float, int, str] = Field(
-        ...,
-        description="Model prediction result"
+        ..., description="Model prediction result"
     )
 
     probabilities: Optional[List[float]] = Field(
-        None,
-        description="Prediction probabilities (for classification)"
+        None, description="Prediction probabilities (for classification)"
     )
 
-    model_name: str = Field(
-        ...,
-        description="Name of the model used"
-    )
+    model_name: str = Field(..., description="Name of the model used")
 
-    model_version: str = Field(
-        ...,
-        description="Version of the model used"
-    )
+    model_version: str = Field(..., description="Version of the model used")
 
-    timestamp: datetime = Field(
-        ...,
-        description="Timestamp of the prediction"
-    )
+    timestamp: datetime = Field(..., description="Timestamp of the prediction")
 
-    latency_ms: float = Field(
-        ...,
-        description="Prediction latency in milliseconds"
-    )
+    latency_ms: float = Field(..., description="Prediction latency in milliseconds")
 
     features_used: Optional[Dict[str, Any]] = Field(
-        None,
-        description="Features actually used for prediction (after preprocessing)"
+        None, description="Features actually used for prediction (after preprocessing)"
     )
 
-    @field_serializer('timestamp')
+    @field_serializer("timestamp")
     def serialize_timestamp(self, timestamp: datetime, _info):
         return timestamp.isoformat()
 
@@ -99,25 +83,20 @@ class BatchPredictionRequest(BaseModel):
         ...,
         description="List of feature dictionaries for batch prediction",
         min_length=1,
-        max_length=1000
+        max_length=1000,
     )
 
     model_name: str = Field(
-        default="fraud_detector",
-        description="Name of the model to use for prediction"
+        default="fraud_detector", description="Name of the model to use for prediction"
     )
 
-    version: Optional[str] = Field(
-        default="latest",
-        description="Model version"
-    )
+    version: Optional[str] = Field(default="latest", description="Model version")
 
     return_probabilities: bool = Field(
-        default=True,
-        description="Whether to return prediction probabilities"
+        default=True, description="Whether to return prediction probabilities"
     )
 
-    @field_validator('instances')
+    @field_validator("instances")
     @classmethod
     def validate_instances(cls, v):
         """Validate instances list."""
@@ -134,46 +113,30 @@ class BatchPredictionResponse(BaseModel):
     """Schema for batch prediction responses."""
 
     predictions: List[Union[float, int, str]] = Field(
-        ...,
-        description="List of predictions"
+        ..., description="List of predictions"
     )
 
     probabilities: Optional[List[List[float]]] = Field(
-        None,
-        description="List of prediction probabilities"
+        None, description="List of prediction probabilities"
     )
 
-    model_name: str = Field(
-        ...,
-        description="Name of the model used"
-    )
+    model_name: str = Field(..., description="Name of the model used")
 
-    model_version: str = Field(
-        ...,
-        description="Version of the model used"
-    )
+    model_version: str = Field(..., description="Version of the model used")
 
-    timestamp: datetime = Field(
-        ...,
-        description="Timestamp of the batch prediction"
-    )
+    timestamp: datetime = Field(..., description="Timestamp of the batch prediction")
 
-    batch_size: int = Field(
-        ...,
-        description="Number of instances in the batch"
-    )
+    batch_size: int = Field(..., description="Number of instances in the batch")
 
     total_latency_ms: float = Field(
-        ...,
-        description="Total batch processing latency in milliseconds"
+        ..., description="Total batch processing latency in milliseconds"
     )
 
     avg_latency_ms: float = Field(
-        ...,
-        description="Average latency per instance in milliseconds"
+        ..., description="Average latency per instance in milliseconds"
     )
 
-    @field_serializer('timestamp')
+    @field_serializer("timestamp")
     def serialize_timestamp(self, timestamp: datetime, _info):
         return timestamp.isoformat()
 
@@ -187,7 +150,9 @@ class ModelInfo(BaseModel):
     description: Optional[str] = Field(None, description="Model description")
     created_at: Optional[datetime] = Field(None, description="Model creation timestamp")
     updated_at: Optional[datetime] = Field(None, description="Last update timestamp")
-    metrics: Optional[Dict[str, float]] = Field(None, description="Model performance metrics")
+    metrics: Optional[Dict[str, float]] = Field(
+        None, description="Model performance metrics"
+    )
     tags: Optional[Dict[str, str]] = Field(None, description="Model tags")
 
 
@@ -206,17 +171,14 @@ class HealthCheck(BaseModel):
                 "api": "healthy",
                 "mlflow": "healthy",
                 "redis": "healthy",
-                "database": "healthy"
+                "database": "healthy",
             }
-        }
+        },
     )
 
-    uptime_seconds: Optional[float] = Field(
-        None,
-        description="API uptime in seconds"
-    )
+    uptime_seconds: Optional[float] = Field(None, description="API uptime in seconds")
 
-    @field_serializer('timestamp')
+    @field_serializer("timestamp")
     def serialize_timestamp(self, timestamp: datetime, _info):
         return timestamp.isoformat()
 
@@ -230,7 +192,7 @@ class ErrorResponse(BaseModel):
     timestamp: datetime = Field(..., description="Error timestamp")
     request_id: Optional[str] = Field(None, description="Request ID for tracking")
 
-    @field_serializer('timestamp')
+    @field_serializer("timestamp")
     def serialize_timestamp(self, timestamp: datetime, _info):
         return timestamp.isoformat()
 
@@ -239,19 +201,20 @@ class MetricsResponse(BaseModel):
     """Schema for metrics responses."""
 
     total_predictions: int = Field(..., description="Total number of predictions made")
-    predictions_per_minute: float = Field(..., description="Predictions per minute rate")
+    predictions_per_minute: float = Field(
+        ..., description="Predictions per minute rate"
+    )
     avg_latency_ms: float = Field(..., description="Average prediction latency")
     error_rate: float = Field(..., description="Error rate percentage")
     active_models: int = Field(..., description="Number of active models")
 
     model_metrics: Dict[str, Dict[str, Any]] = Field(
-        ...,
-        description="Per-model metrics"
+        ..., description="Per-model metrics"
     )
 
     timestamp: datetime = Field(..., description="Metrics timestamp")
 
-    @field_serializer('timestamp')
+    @field_serializer("timestamp")
     def serialize_timestamp(self, timestamp: datetime, _info):
         return timestamp.isoformat()
 
@@ -263,19 +226,18 @@ class FeatureImportance(BaseModel):
     model_version: str = Field(..., description="Model version")
 
     importance_scores: Dict[str, float] = Field(
-        ...,
-        description="Feature importance scores"
+        ..., description="Feature importance scores"
     )
 
     importance_type: str = Field(
         ...,
         description="Type of importance calculation",
-        json_schema_extra={"example": "gain"}
+        json_schema_extra={"example": "gain"},
     )
 
     timestamp: datetime = Field(..., description="Calculation timestamp")
 
-    @field_serializer('timestamp')
+    @field_serializer("timestamp")
     def serialize_timestamp(self, timestamp: datetime, _info):
         return timestamp.isoformat()
 
@@ -284,7 +246,9 @@ class ModelUpdateRequest(BaseModel):
     """Schema for model update requests."""
 
     model_name: str = Field(..., description="Model name to update")
-    target_version: Optional[str] = Field(None, description="Target version to update to")
+    target_version: Optional[str] = Field(
+        None, description="Target version to update to"
+    )
     target_stage: Optional[str] = Field(None, description="Target stage to promote to")
     force_update: bool = Field(False, description="Force update even if model is busy")
 
@@ -299,7 +263,7 @@ class ModelUpdateResponse(BaseModel):
     timestamp: datetime = Field(..., description="Update timestamp")
     message: Optional[str] = Field(None, description="Update message")
 
-    @field_serializer('timestamp')
+    @field_serializer("timestamp")
     def serialize_timestamp(self, timestamp: datetime, _info):
         return timestamp.isoformat()
 
@@ -310,10 +274,16 @@ class ModelConfig(BaseModel):
 
     name: str = Field(..., description="Model name")
     version: str = Field(default="latest", description="Model version")
-    preprocessing: Optional[Dict[str, Any]] = Field(None, description="Preprocessing configuration")
-    postprocessing: Optional[Dict[str, Any]] = Field(None, description="Postprocessing configuration")
+    preprocessing: Optional[Dict[str, Any]] = Field(
+        None, description="Preprocessing configuration"
+    )
+    postprocessing: Optional[Dict[str, Any]] = Field(
+        None, description="Postprocessing configuration"
+    )
     cache_ttl: int = Field(default=300, description="Cache TTL in seconds")
-    timeout_ms: int = Field(default=5000, description="Prediction timeout in milliseconds")
+    timeout_ms: int = Field(
+        default=5000, description="Prediction timeout in milliseconds"
+    )
 
 
 class APIConfig(BaseModel):

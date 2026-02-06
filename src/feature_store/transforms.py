@@ -1,8 +1,10 @@
 """Feature transformation utilities for data preprocessing and validation."""
 
 from abc import ABC, abstractmethod
-from datetime import datetime, timezone as tz
+from datetime import datetime
+from datetime import timezone as tz
 from typing import Any, List, Optional, Union
+
 import structlog
 
 logger = structlog.get_logger()
@@ -61,7 +63,7 @@ class NumericTransform(FeatureTransform):
         normalize: bool = False,
         clip_outliers: bool = True,
         fill_missing: bool = True,
-        default_value: float = 0.0
+        default_value: float = 0.0,
     ):
         """Initialize numeric transform.
 
@@ -105,17 +107,21 @@ class NumericTransform(FeatureTransform):
                     numeric_value = min(numeric_value, self.max_value)
 
             # Apply normalization
-            if self.normalize and self.min_value is not None and self.max_value is not None:
+            if (
+                self.normalize
+                and self.min_value is not None
+                and self.max_value is not None
+            ):
                 if self.max_value > self.min_value:
-                    numeric_value = (numeric_value - self.min_value) / (self.max_value - self.min_value)
+                    numeric_value = (numeric_value - self.min_value) / (
+                        self.max_value - self.min_value
+                    )
 
             return numeric_value
 
         except (ValueError, TypeError) as e:
             self.logger.warning(
-                "Failed to transform numeric value",
-                value=value,
-                error=str(e)
+                "Failed to transform numeric value", value=value, error=str(e)
             )
             return self.default_value if self.fill_missing else None
 
@@ -129,7 +135,7 @@ class CategoricalTransform(FeatureTransform):
         case_sensitive: bool = False,
         encode_as_numeric: bool = False,
         fill_missing: bool = True,
-        default_value: str = "unknown"
+        default_value: str = "unknown",
     ):
         """Initialize categorical transform.
 
@@ -147,7 +153,9 @@ class CategoricalTransform(FeatureTransform):
 
         # Create category mapping for numeric encoding
         if self.encode_as_numeric and self.valid_categories:
-            self.category_map = {cat: idx for idx, cat in enumerate(self.valid_categories)}
+            self.category_map = {
+                cat: idx for idx, cat in enumerate(self.valid_categories)
+            }
             if self.default_value not in self.category_map:
                 self.category_map[self.default_value] = len(self.valid_categories)
 
@@ -186,18 +194,22 @@ class CategoricalTransform(FeatureTransform):
 
             # Apply numeric encoding if requested
             if self.encode_as_numeric:
-                return self.category_map.get(str_value, self.category_map.get(self.default_value, 0))
+                return self.category_map.get(
+                    str_value, self.category_map.get(self.default_value, 0)
+                )
 
             return str_value
 
         except Exception as e:
             self.logger.warning(
-                "Failed to transform categorical value",
-                value=value,
-                error=str(e)
+                "Failed to transform categorical value", value=value, error=str(e)
             )
             if self.encode_as_numeric:
-                return self.category_map.get(self.default_value, 0) if self.fill_missing else None
+                return (
+                    self.category_map.get(self.default_value, 0)
+                    if self.fill_missing
+                    else None
+                )
             else:
                 return self.default_value if self.fill_missing else None
 
@@ -211,7 +223,7 @@ class DateTimeTransform(FeatureTransform):
         output_format: str = "timestamp",
         timezone: Optional[str] = None,
         fill_missing: bool = True,
-        default_value: Optional[datetime] = None
+        default_value: Optional[datetime] = None,
     ):
         """Initialize datetime transform.
 
@@ -255,7 +267,7 @@ class DateTimeTransform(FeatureTransform):
                     "%Y-%m-%dT%H:%M:%S",
                     "%Y-%m-%d",
                     "%m/%d/%Y",
-                    "%d/%m/%Y"
+                    "%d/%m/%Y",
                 ]
                 dt_value = None
                 for fmt in formats:
@@ -285,16 +297,14 @@ class DateTimeTransform(FeatureTransform):
                     "minute": dt_value.minute,
                     "second": dt_value.second,
                     "weekday": dt_value.weekday(),
-                    "day_of_year": dt_value.timetuple().tm_yday
+                    "day_of_year": dt_value.timetuple().tm_yday,
                 }
             else:
                 return dt_value.timestamp()
 
         except Exception as e:
             self.logger.warning(
-                "Failed to transform datetime value",
-                value=value,
-                error=str(e)
+                "Failed to transform datetime value", value=value, error=str(e)
             )
             if self.fill_missing:
                 return self.transform(self.default_value)
@@ -311,7 +321,7 @@ class BooleanTransform(FeatureTransform):
         false_values: Optional[List[str]] = None,
         output_as_numeric: bool = False,
         fill_missing: bool = True,
-        default_value: bool = False
+        default_value: bool = False,
     ):
         """Initialize boolean transform.
 
@@ -368,9 +378,7 @@ class BooleanTransform(FeatureTransform):
 
         except Exception as e:
             self.logger.warning(
-                "Failed to transform boolean value",
-                value=value,
-                error=str(e)
+                "Failed to transform boolean value", value=value, error=str(e)
             )
             default_output = self.default_value if self.fill_missing else None
             if default_output is not None and self.output_as_numeric:
@@ -388,7 +396,7 @@ class TextTransform(FeatureTransform):
         strip_whitespace: bool = True,
         remove_special_chars: bool = False,
         fill_missing: bool = True,
-        default_value: str = ""
+        default_value: str = "",
     ):
         """Initialize text transform.
 
@@ -433,17 +441,16 @@ class TextTransform(FeatureTransform):
 
             if self.remove_special_chars:
                 import re
-                text_value = re.sub(r'[^a-zA-Z0-9\s]', '', text_value)
+
+                text_value = re.sub(r"[^a-zA-Z0-9\s]", "", text_value)
 
             if self.max_length is not None:
-                text_value = text_value[:self.max_length]
+                text_value = text_value[: self.max_length]
 
             return text_value
 
         except Exception as e:
             self.logger.warning(
-                "Failed to transform text value",
-                value=value,
-                error=str(e)
+                "Failed to transform text value", value=value, error=str(e)
             )
             return self.default_value if self.fill_missing else None

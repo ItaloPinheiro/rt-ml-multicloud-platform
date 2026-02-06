@@ -2,21 +2,28 @@
 """
 Compare models across experiments and find the best one for production.
 """
-import mlflow
-import pandas as pd
 import os
 from typing import Optional
 
+import mlflow
+import pandas as pd
+
 # Set environment variables for MLflow
-os.environ["MLFLOW_TRACKING_URI"] = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
+os.environ["MLFLOW_TRACKING_URI"] = os.getenv(
+    "MLFLOW_TRACKING_URI", "http://localhost:5000"
+)
 os.environ["AWS_ACCESS_KEY_ID"] = "minioadmin"
 os.environ["AWS_SECRET_ACCESS_KEY"] = "minioadmin123"
-os.environ["MLFLOW_S3_ENDPOINT_URL"] = os.getenv("MLFLOW_S3_ENDPOINT_URL", "http://localhost:9000")
+os.environ["MLFLOW_S3_ENDPOINT_URL"] = os.getenv(
+    "MLFLOW_S3_ENDPOINT_URL", "http://localhost:9000"
+)
 
 mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI"))
 
 
-def get_experiment_runs(experiment_name: str, metric_key: str = "accuracy") -> pd.DataFrame:
+def get_experiment_runs(
+    experiment_name: str, metric_key: str = "accuracy"
+) -> pd.DataFrame:
     """Get all runs from an experiment sorted by metric."""
     client = mlflow.MlflowClient()
 
@@ -29,7 +36,7 @@ def get_experiment_runs(experiment_name: str, metric_key: str = "accuracy") -> p
     # Search runs
     runs = client.search_runs(
         experiment_ids=[experiment.experiment_id],
-        order_by=[f"metrics.{metric_key} DESC"]
+        order_by=[f"metrics.{metric_key} DESC"],
     )
 
     # Convert to DataFrame
@@ -52,7 +59,9 @@ def get_experiment_runs(experiment_name: str, metric_key: str = "accuracy") -> p
     return pd.DataFrame(runs_data)
 
 
-def find_best_model_across_experiments(experiment_names: list, metric_key: str = "accuracy") -> Optional[dict]:
+def find_best_model_across_experiments(
+    experiment_names: list, metric_key: str = "accuracy"
+) -> Optional[dict]:
     """Find the best model across multiple experiments."""
     all_runs = []
 
@@ -90,12 +99,17 @@ def find_best_model_across_experiments(experiment_names: list, metric_key: str =
         "run_id": best_run["run_id"],
         "experiment_name": best_run["experiment_name"],
         metric_key: best_run[metric_col],
-        "all_metrics": {col.replace("metric_", ""): best_run[col]
-                       for col in combined_df.columns if col.startswith("metric_")}
+        "all_metrics": {
+            col.replace("metric_", ""): best_run[col]
+            for col in combined_df.columns
+            if col.startswith("metric_")
+        },
     }
 
 
-def promote_best_model(model_name: str, experiment_names: list, metric_key: str = "accuracy"):
+def promote_best_model(
+    model_name: str, experiment_names: list, metric_key: str = "accuracy"
+):
     """Find and promote the best model to production."""
     client = mlflow.MlflowClient()
 
@@ -106,7 +120,7 @@ def promote_best_model(model_name: str, experiment_names: list, metric_key: str 
         print("No suitable model found")
         return
 
-    print(f"\nBest model found:")
+    print("\nBest model found:")
     print(f"  Run ID: {best_model['run_id']}")
     print(f"  Experiment: {best_model['experiment_name']}")
     print(f"  {metric_key}: {best_model[metric_key]:.4f}")
@@ -125,27 +139,27 @@ def promote_best_model(model_name: str, experiment_names: list, metric_key: str 
         model_version = client.create_model_version(
             name=model_name,
             source=f"runs:/{best_model['run_id']}/model",
-            run_id=best_model['run_id']
+            run_id=best_model["run_id"],
         )
         print(f"Created model version: {model_version.version}")
 
-        # Archive current production models
-        production_versions = client.get_latest_versions(model_name, stages=["Production"])
-        for prod_version in production_versions:
-            client.transition_model_version_stage(
-                name=model_name,
-                version=prod_version.version,
-                stage="Archived"
-            )
-            print(f"Archived previous production model v{prod_version.version}")
+        # Archive previous production models by updating their tags
+        all_versions = client.search_model_versions(f"name='{model_name}'")
+        for v in all_versions:
+            if v.tags.get("deployment_status") == "production":
+                client.set_model_version_tag(
+                    model_name, v.version, "deployment_status", "archived"
+                )
+                print(f"Archived previous production model v{v.version}")
 
-        # Promote to production
-        client.transition_model_version_stage(
-            name=model_name,
-            version=model_version.version,
-            stage="Production"
+        # Promote to production using Alias + Tag (MLflow 2.9+)
+        client.set_registered_model_alias(
+            model_name, "production", model_version.version
         )
-        print(f"Promoted model v{model_version.version} to Production")
+        client.set_model_version_tag(
+            model_name, model_version.version, "deployment_status", "production"
+        )
+        print(f"Promoted model v{model_version.version} to production (alias + tag)")
 
     except Exception as e:
         print(f"Error promoting model: {e}")
@@ -170,7 +184,9 @@ def main():
 
     # Compare models across experiments
     if experiment_names:
-        print(f"\nSearching for best model across {len(experiment_names)} experiments...")
+        print(
+            f"\nSearching for best model across {len(experiment_names)} experiments..."
+        )
 
         # Find and show best models for each experiment
         for exp_name in experiment_names:
@@ -179,22 +195,26 @@ def main():
             if not runs_df.empty and "metric_accuracy" in runs_df.columns:
                 best_in_exp = runs_df.iloc[0] if len(runs_df) > 0 else None
                 if best_in_exp is not None:
-                    print(f"  Best accuracy: {best_in_exp.get('metric_accuracy', 0):.4f}")
+                    print(
+                        f"  Best accuracy: {best_in_exp.get('metric_accuracy', 0):.4f}"
+                    )
                     print(f"  Run ID: {best_in_exp['run_id']}")
 
         # Find global best
         best_model = find_best_model_across_experiments(experiment_names)
         if best_model:
             print(f"\n{'=' * 40}")
-            print(f"BEST MODEL OVERALL:")
+            print("BEST MODEL OVERALL:")
             print(f"  Experiment: {best_model['experiment_name']}")
             print(f"  Accuracy: {best_model['accuracy']:.4f}")
             print(f"  Run ID: {best_model['run_id']}")
 
             # Ask to promote
             response = input("\nPromote this model to production? (y/n): ")
-            if response.lower() == 'y':
-                model_name = input("Enter model name (default: fraud_detector): ").strip()
+            if response.lower() == "y":
+                model_name = input(
+                    "Enter model name (default: fraud_detector): "
+                ).strip()
                 if not model_name:
                     model_name = "fraud_detector"
                 promote_best_model(model_name, experiment_names)

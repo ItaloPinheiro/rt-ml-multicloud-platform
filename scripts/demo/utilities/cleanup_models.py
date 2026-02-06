@@ -3,12 +3,14 @@
 Script to clean up all models and experiments in MLflow.
 USE WITH CAUTION - This will delete all models and optionally all experiments!
 """
+import argparse
 import os
 import sys
+import time
+
 import mlflow
 from mlflow.tracking import MlflowClient
-import argparse
-import time
+
 
 def confirm_deletion(message):
     """Ask user for confirmation."""
@@ -16,12 +18,13 @@ def confirm_deletion(message):
     response = input("Type 'YES' to confirm, or anything else to cancel: ")
     return response == "YES"
 
+
 def cleanup_models(
     delete_models=True,
     delete_experiments=False,
     keep_experiments=None,
     keep_models=None,
-    force=False
+    force=False,
 ):
     """
     Clean up MLflow models and optionally experiments.
@@ -56,7 +59,9 @@ def cleanup_models(
                     versions = client.search_model_versions(f"name='{model.name}'")
                     print(f"  - {model.name} ({len(versions)} versions)")
 
-                if force or confirm_deletion("Delete all these models and their versions?"):
+                if force or confirm_deletion(
+                    "Delete all these models and their versions?"
+                ):
                     for model in models_to_delete:
                         print(f"\nDeleting model: {model.name}")
 
@@ -65,13 +70,14 @@ def cleanup_models(
                         for version in versions:
                             print(f"  Deleting version {version.version}...")
                             client.delete_model_version(
-                                name=model.name,
-                                version=version.version
+                                name=model.name, version=version.version
                             )
-                            time.sleep(0.1)  # Small delay to avoid overwhelming the server
+                            time.sleep(
+                                0.1
+                            )  # Small delay to avoid overwhelming the server
 
                         # Then delete the registered model
-                        print(f"  Deleting model registry entry...")
+                        print("  Deleting model registry entry...")
                         client.delete_registered_model(model.name)
                         print(f"  Model {model.name} deleted successfully")
 
@@ -86,7 +92,8 @@ def cleanup_models(
             experiments = client.search_experiments()
             # Never delete the Default experiment (ID: 0)
             experiments_to_delete = [
-                e for e in experiments
+                e
+                for e in experiments
                 if e.name not in keep_experiments
                 and e.name != "Default"
                 and e.experiment_id != "0"
@@ -98,11 +105,17 @@ def cleanup_models(
                 for exp in experiments_to_delete:
                     # Count runs in this experiment
                     runs = client.search_runs(experiment_ids=[exp.experiment_id])
-                    print(f"  - {exp.name} (ID: {exp.experiment_id}, Runs: {len(runs)})")
+                    print(
+                        f"  - {exp.name} (ID: {exp.experiment_id}, Runs: {len(runs)})"
+                    )
 
-                if force or confirm_deletion("Delete all these experiments and their runs?"):
+                if force or confirm_deletion(
+                    "Delete all these experiments and their runs?"
+                ):
                     for exp in experiments_to_delete:
-                        print(f"\nDeleting experiment: {exp.name} (ID: {exp.experiment_id})")
+                        print(
+                            f"\nDeleting experiment: {exp.name} (ID: {exp.experiment_id})"
+                        )
 
                         # Delete all runs in the experiment
                         runs = client.search_runs(experiment_ids=[exp.experiment_id])
@@ -112,7 +125,7 @@ def cleanup_models(
                             time.sleep(0.05)
 
                         # Delete the experiment
-                        print(f"  Deleting experiment...")
+                        print("  Deleting experiment...")
                         client.delete_experiment(exp.experiment_id)
                         print(f"  Experiment {exp.name} deleted successfully")
 
@@ -138,7 +151,9 @@ def cleanup_models(
 
         # Show remaining items
         remaining_models = client.search_registered_models()
-        remaining_experiments = [e for e in client.search_experiments() if e.lifecycle_stage == "active"]
+        remaining_experiments = [
+            e for e in client.search_experiments() if e.lifecycle_stage == "active"
+        ]
 
         print(f"Remaining models: {len(remaining_models)}")
         print(f"Remaining experiments: {len(remaining_experiments)}")
@@ -149,41 +164,33 @@ def cleanup_models(
 
     return 0
 
+
 def main():
-    parser = argparse.ArgumentParser(description="Clean up MLflow models and experiments")
+    parser = argparse.ArgumentParser(
+        description="Clean up MLflow models and experiments"
+    )
     parser.add_argument(
-        "--models",
-        action="store_true",
-        help="Delete all registered models"
+        "--models", action="store_true", help="Delete all registered models"
     )
     parser.add_argument(
         "--experiments",
         action="store_true",
-        help="Delete all experiments (except Default)"
+        help="Delete all experiments (except Default)",
     )
     parser.add_argument(
-        "--all",
-        action="store_true",
-        help="Delete both models and experiments"
+        "--all", action="store_true", help="Delete both models and experiments"
     )
+    parser.add_argument("--keep-models", nargs="+", help="List of model names to keep")
     parser.add_argument(
-        "--keep-models",
-        nargs="+",
-        help="List of model names to keep"
-    )
-    parser.add_argument(
-        "--keep-experiments",
-        nargs="+",
-        help="List of experiment names to keep"
+        "--keep-experiments", nargs="+", help="List of experiment names to keep"
     )
     parser.add_argument(
         "--force",
         action="store_true",
-        help="Skip confirmation prompts (use with caution!)"
+        help="Skip confirmation prompts (use with caution!)",
     )
     parser.add_argument(
-        "--mlflow-uri",
-        help="MLflow tracking URI (default: http://localhost:5000)"
+        "--mlflow-uri", help="MLflow tracking URI (default: http://localhost:5000)"
     )
 
     args = parser.parse_args()
@@ -204,8 +211,9 @@ def main():
         delete_experiments=delete_experiments,
         keep_experiments=args.keep_experiments,
         keep_models=args.keep_models,
-        force=args.force
+        force=args.force,
     )
+
 
 if __name__ == "__main__":
     sys.exit(main())
