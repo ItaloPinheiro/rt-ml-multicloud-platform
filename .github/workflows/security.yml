@@ -71,6 +71,7 @@ jobs:
     permissions:
       security-events: write
       contents: read
+      actions: read
 
     steps:
     - name: Checkout code
@@ -202,6 +203,7 @@ jobs:
     permissions:
       security-events: write
       contents: read
+      actions: read
 
 
     steps:
