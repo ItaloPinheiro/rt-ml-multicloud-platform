@@ -31,7 +31,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install poetry
+        pip install poetry==1.8.5
         poetry install --with dev
         # Generate requirements.txt for tools that need it
         poetry export -f requirements.txt --output requirements.txt
@@ -82,7 +82,7 @@ jobs:
     - name: Install SAST tools
       run: |
         python -m pip install --upgrade pip
-        pip install poetry
+        pip install poetry==1.8.5
         poetry install --with dev
         pip install bandit[toml] semgrep
 
@@ -285,7 +285,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install poetry
+        pip install poetry==1.8.5
         poetry install --with dev
         # Generate requirements for license check
         poetry export -f requirements.txt --output requirements.txt
