@@ -394,7 +394,7 @@ class FeatureStoreClient:
                     )
                     .filter(
                         FeatureStoreModel.feature_group == feature_group,
-                        FeatureStoreModel.is_active is True,
+                        FeatureStoreModel.is_active.is_(True),
                     )
                     .group_by(FeatureStoreModel.feature_name)
                     .all()
@@ -407,7 +407,7 @@ class FeatureStoreClient:
                     )
                     .filter(
                         FeatureStoreModel.feature_group == feature_group,
-                        FeatureStoreModel.is_active is True,
+                        FeatureStoreModel.is_active.is_(True),
                     )
                     .scalar()
                 )
@@ -420,7 +420,7 @@ class FeatureStoreClient:
                     )
                     .filter(
                         FeatureStoreModel.feature_group == feature_group,
-                        FeatureStoreModel.is_active is True,
+                        FeatureStoreModel.is_active.is_(True),
                     )
                     .group_by(FeatureStoreModel.data_type)
                     .all()
