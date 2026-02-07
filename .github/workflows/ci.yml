@@ -278,8 +278,10 @@ jobs:
 
     - name: Validate Kubernetes manifests
       run: |
-        kubectl apply --dry-run=client -k ops/k8s/base/
-        kubectl apply --dry-run=client -k ops/k8s/overlays/production/
+        # Use kustomize build for offline validation (no cluster required)
+        kubectl kustomize ops/k8s/base/ > /dev/null
+        kubectl kustomize ops/k8s/overlays/production/ > /dev/null
+        echo "✅ Kubernetes manifests validated successfully"
 
     - name: Run kubeval for manifest validation
       run: |
