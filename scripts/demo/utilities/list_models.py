@@ -4,21 +4,25 @@ Script to list all models in MLflow registry with detailed information.
 """
 import os
 import sys
+from datetime import datetime
+
 import mlflow
 from mlflow.tracking import MlflowClient
-from datetime import datetime
 
 try:
     from tabulate import tabulate
+
     HAS_TABULATE = True
 except ImportError:
     HAS_TABULATE = False
 
+
 def format_timestamp(timestamp_ms):
     """Convert timestamp to readable format."""
     if timestamp_ms:
-        return datetime.fromtimestamp(timestamp_ms / 1000).strftime('%Y-%m-%d %H:%M:%S')
+        return datetime.fromtimestamp(timestamp_ms / 1000).strftime("%Y-%m-%d %H:%M:%S")
     return "N/A"
+
 
 def list_models():
     """List all registered models with their versions and details."""
@@ -54,14 +58,16 @@ def list_models():
                 # Prepare version data for table
                 version_data = []
                 for v in sorted(versions, key=lambda x: int(x.version), reverse=True):
-                    version_data.append([
-                        v.version,
-                        v.current_stage,
-                        v.status,
-                        format_timestamp(v.creation_timestamp),
-                        v.run_id[:8] if v.run_id else "N/A",
-                        v.source[:50] + "..." if len(v.source) > 50 else v.source
-                    ])
+                    version_data.append(
+                        [
+                            v.version,
+                            v.current_stage,
+                            v.status,
+                            format_timestamp(v.creation_timestamp),
+                            v.run_id[:8] if v.run_id else "N/A",
+                            v.source[:50] + "..." if len(v.source) > 50 else v.source,
+                        ]
+                    )
 
                 print(f"\nVersions ({len(versions)} total):")
                 headers = ["Version", "Stage", "Status", "Created", "Run ID", "Source"]
@@ -69,10 +75,14 @@ def list_models():
                     print(tabulate(version_data, headers=headers, tablefmt="grid"))
                 else:
                     # Simple table without tabulate
-                    print(f"{'Version':<8} {'Stage':<12} {'Status':<8} {'Created':<20} {'Run ID':<10} {'Source':<30}")
+                    print(
+                        f"{'Version':<8} {'Stage':<12} {'Status':<8} {'Created':<20} {'Run ID':<10} {'Source':<30}"
+                    )
                     print("-" * 90)
                     for row in version_data:
-                        print(f"{row[0]:<8} {row[1]:<12} {row[2]:<8} {row[3]:<20} {row[4]:<10} {row[5]:<30}")
+                        print(
+                            f"{row[0]:<8} {row[1]:<12} {row[2]:<8} {row[3]:<20} {row[4]:<10} {row[5]:<30}"
+                        )
             else:
                 print("No versions found for this model.")
 
@@ -84,7 +94,9 @@ def list_models():
         print("=" * 80)
 
         total_models = len(models)
-        total_versions = sum(len(client.search_model_versions(f"name='{m.name}'")) for m in models)
+        total_versions = sum(
+            len(client.search_model_versions(f"name='{m.name}'")) for m in models
+        )
 
         # Count versions by stage
         stage_counts = {"Production": 0, "Staging": 0, "Archived": 0, "None": 0}
@@ -109,11 +121,17 @@ def list_models():
         exp_data = []
         for exp in experiments:
             if exp.lifecycle_stage == "active":
-                exp_data.append([
-                    exp.experiment_id,
-                    exp.name,
-                    exp.artifact_location[:50] + "..." if len(exp.artifact_location) > 50 else exp.artifact_location
-                ])
+                exp_data.append(
+                    [
+                        exp.experiment_id,
+                        exp.name,
+                        (
+                            exp.artifact_location[:50] + "..."
+                            if len(exp.artifact_location) > 50
+                            else exp.artifact_location
+                        ),
+                    ]
+                )
 
         if exp_data:
             headers = ["ID", "Name", "Artifact Location"]
@@ -130,6 +148,7 @@ def list_models():
         return 1
 
     return 0
+
 
 if __name__ == "__main__":
     sys.exit(list_models())

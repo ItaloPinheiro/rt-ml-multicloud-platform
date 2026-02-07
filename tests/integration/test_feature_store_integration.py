@@ -1,13 +1,13 @@
 """Integration tests for feature store with Redis and database."""
 
-import pytest
-import asyncio
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
-from src.feature_store.store import FeatureStore
-from src.feature_store.client import FeatureStoreClient
+import pytest
+
 from src.database.models import FeatureStore as FeatureStoreModel
+from src.feature_store.client import FeatureStoreClient
+from src.feature_store.store import FeatureStore
 
 
 class TestFeatureStoreIntegration:
@@ -21,6 +21,7 @@ class TestFeatureStoreIntegration:
 
         # Set the global database manager
         import src.database.session as session_module
+
         session_module._db_manager = test_database
 
         store = FeatureStore(redis_client=mock_redis)
@@ -37,11 +38,7 @@ class TestFeatureStoreIntegration:
         """Test complete feature persistence flow."""
         entity_id = "user_123"
         feature_group = "demographics"
-        features = {
-            "age": 25,
-            "income": 50000,
-            "city": "New York"
-        }
+        features = {"age": 25, "income": 50000, "city": "New York"}
 
         # Store features
         feature_store.put_features(entity_id, feature_group, features)
@@ -51,16 +48,19 @@ class TestFeatureStoreIntegration:
         assert retrieved_from_cache == features
 
         # Verify in database
-        db_features = db_session.query(FeatureStoreModel).filter_by(
-            entity_id=entity_id,
-            feature_group=feature_group
-        ).all()
+        db_features = (
+            db_session.query(FeatureStoreModel)
+            .filter_by(entity_id=entity_id, feature_group=feature_group)
+            .all()
+        )
 
         assert len(db_features) == 3
         feature_dict = {f.feature_name: f.feature_value for f in db_features}
         assert feature_dict == features
 
-    def test_cache_miss_fallback_to_database(self, feature_store, mock_redis, db_session):
+    def test_cache_miss_fallback_to_database(
+        self, feature_store, mock_redis, db_session
+    ):
         """Test fallback to database when cache miss occurs."""
         entity_id = "user_456"
         feature_group = "behavior"
@@ -86,11 +86,7 @@ class TestFeatureStoreIntegration:
         batch_data = {}
         for i in range(entity_count):
             entity_id = f"user_{i}"
-            features = {
-                "score": i * 10,
-                "level": i % 5,
-                "active": i % 2 == 0
-            }
+            features = {"score": i * 10, "level": i % 5, "active": i % 2 == 0}
             batch_data[entity_id] = features
 
         # Store features individually (simulating real-time ingestion)
@@ -154,7 +150,7 @@ class TestFeatureStoreIntegration:
             "age": 30,
             "email": "alice@example.com",
             "phone": "123-456-7890",
-            "address": "123 Main St"
+            "address": "123 Main St",
         }
 
         feature_store.put_features(entity_id, feature_group, all_features)
@@ -178,7 +174,9 @@ class TestFeatureStoreIntegration:
         feature_store.put_features(entity_id, feature_group, features)
 
         # Simulate Redis connection error
-        with patch.object(mock_redis, 'get', side_effect=Exception("Redis connection failed")):
+        with patch.object(
+            mock_redis, "get", side_effect=Exception("Redis connection failed")
+        ):
             # Should still work via database fallback
             retrieved = feature_store.get_features(entity_id, feature_group)
             assert retrieved == features
@@ -193,7 +191,7 @@ class TestFeatureStoreIntegration:
             "string_feature": "hello",
             "boolean_feature": True,
             "list_feature": [1, 2, 3],
-            "dict_feature": {"nested": "value"}
+            "dict_feature": {"nested": "value"},
         }
 
         feature_store.put_features(entity_id, feature_group, mixed_features)
@@ -213,8 +211,7 @@ class TestFeatureStoreIntegration:
 
         # Manually update TTL timestamp to past for testing
         db_session.query(FeatureStoreModel).filter_by(
-            entity_id=entity_id,
-            feature_group=feature_group
+            entity_id=entity_id, feature_group=feature_group
         ).update({FeatureStoreModel.ttl_timestamp: past_time})
         db_session.commit()
 
@@ -223,11 +220,13 @@ class TestFeatureStoreIntegration:
         assert cleaned_count > 0
 
         # Verify features are marked as inactive
-        inactive_features = db_session.query(FeatureStoreModel).filter_by(
-            entity_id=entity_id,
-            feature_group=feature_group,
-            is_active=False
-        ).all()
+        inactive_features = (
+            db_session.query(FeatureStoreModel)
+            .filter_by(
+                entity_id=entity_id, feature_group=feature_group, is_active=False
+            )
+            .all()
+        )
         assert len(inactive_features) > 0
 
 
@@ -239,31 +238,34 @@ class TestFeatureStoreClientIntegration:
         entity_id = "user_pipeline"
 
         # Store features in different groups
-        demographics = {
-            "age": sample_features["user_age"],
-            "income": 50000
-        }
+        demographics = {"age": sample_features["user_age"], "income": 50000}
 
         behavior = {
             "clicks": sample_features.get("transaction_count_24h", 5),
-            "purchases": 2
+            "purchases": 2,
         }
 
         transaction = {
             "amount": sample_features["amount"],
-            "merchant_category": sample_features["merchant_category"]
+            "merchant_category": sample_features["merchant_category"],
         }
 
         # Store features with transformations
-        feature_store_client.put_features(entity_id, "demographics", demographics, apply_transforms=True)
-        feature_store_client.put_features(entity_id, "behavior", behavior, apply_transforms=True)
-        feature_store_client.put_features(entity_id, "transaction", transaction, apply_transforms=True)
+        feature_store_client.put_features(
+            entity_id, "demographics", demographics, apply_transforms=True
+        )
+        feature_store_client.put_features(
+            entity_id, "behavior", behavior, apply_transforms=True
+        )
+        feature_store_client.put_features(
+            entity_id, "transaction", transaction, apply_transforms=True
+        )
 
         # Create feature vector
         feature_schema = {
             "demographics": ["age", "income"],
             "behavior": ["clicks", "purchases"],
-            "transaction": ["amount", "merchant_category"]
+            "transaction": ["amount", "merchant_category"],
         }
 
         feature_vector = feature_store_client.create_feature_vector(
@@ -271,14 +273,17 @@ class TestFeatureStoreClientIntegration:
             ["demographics", "behavior", "transaction"],
             feature_schema,
             apply_transforms=True,
-            fill_missing=True
+            fill_missing=True,
         )
 
         # Verify feature vector structure
         expected_keys = {
-            "demographics_age", "demographics_income",
-            "behavior_clicks", "behavior_purchases",
-            "transaction_amount", "transaction_merchant_category"
+            "demographics_age",
+            "demographics_income",
+            "behavior_clicks",
+            "behavior_purchases",
+            "transaction_amount",
+            "transaction_merchant_category",
         }
         assert set(feature_vector.keys()) == expected_keys
 
@@ -296,17 +301,14 @@ class TestFeatureStoreClientIntegration:
             features = {
                 "score": i * 10,
                 "category": f"cat_{i % 3}",
-                "active": i % 2 == 0
+                "active": i % 2 == 0,
             }
             feature_store_client.put_features(entity_id, feature_group, features)
 
         # Create batch feature vectors
         feature_schema = {feature_group: ["score", "category", "active"]}
         batch_vectors = feature_store_client.create_batch_feature_vectors(
-            entity_ids,
-            [feature_group],
-            feature_schema,
-            fill_missing=True
+            entity_ids, [feature_group], feature_schema, fill_missing=True
         )
 
         # Verify all entities have feature vectors
@@ -354,22 +356,17 @@ class TestFeatureStoreClientIntegration:
         problematic_features = {
             "amount": "not_a_number",  # Should be numeric
             "merchant_category": "unknown_category",  # Invalid category
-            "malformed_data": {"nested": "object"}  # Unexpected format
+            "malformed_data": {"nested": "object"},  # Unexpected format
         }
 
         # Should handle errors gracefully
         feature_store_client.put_features(
-            entity_id,
-            feature_group,
-            problematic_features,
-            apply_transforms=True
+            entity_id, feature_group, problematic_features, apply_transforms=True
         )
 
         # Retrieve and verify error handling
         retrieved = feature_store_client.get_features(
-            entity_id,
-            feature_group,
-            apply_transforms=True
+            entity_id, feature_group, apply_transforms=True
         )
 
         # Transformations should have applied defaults for invalid data

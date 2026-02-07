@@ -1,14 +1,14 @@
 {
   "features": {
-    "hour_of_day": 3,
-    "day_of_week": 4,
+    "hour_of_day": 21.0,
+    "day_of_week": 0.0,
     "is_weekend": false,
-    "transaction_count_24h": 9,
-    "avg_amount_30d": 260.61,
-    "risk_score": 0.639,
-    "amount": 150.08,
-    "merchant_category_encoded": 20,
-    "payment_method_encoded": 3
+    "transaction_count_24h": 4.0,
+    "avg_amount_30d": 170.75,
+    "risk_score": 0.283,
+    "amount": 395.67,
+    "merchant_category_encoded": 0.0,
+    "payment_method_encoded": 1.0
   },
   "model_name": "fraud_detector",
   "return_probabilities": true

@@ -1,17 +1,22 @@
 """Logging utilities for structured logging across the application."""
 
-import os
-import sys
 import json
 import logging
+import os
+import sys
 from datetime import datetime, timezone
-from typing import Dict, Any, Optional
 from pathlib import Path
+from typing import Any, Optional
 
 try:
     import structlog
-    from structlog.stdlib import LoggerFactory, add_log_level, filter_by_level
-    from structlog.processors import JSONRenderer, TimeStamper, add_log_level, CallsiteParameterAdder
+    from structlog.processors import (
+        CallsiteParameterAdder,
+        JSONRenderer,
+        TimeStamper,
+        add_log_level,
+    )
+    from structlog.stdlib import LoggerFactory, filter_by_level
 except ImportError:
     structlog = None
 
@@ -34,26 +39,45 @@ class CustomJSONFormatter(logging.Formatter):
             JSON formatted log string
         """
         log_data = {
-            'timestamp': datetime.now(timezone.utc).isoformat() + 'Z',
-            'level': record.levelname,
-            'logger': record.name,
-            'message': record.getMessage(),
-            'module': record.module,
-            'function': record.funcName,
-            'line': record.lineno,
+            "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage(),
+            "module": record.module,
+            "function": record.funcName,
+            "line": record.lineno,
         }
 
         # Add exception info if present
         if record.exc_info:
-            log_data['exception'] = self.formatException(record.exc_info)
+            log_data["exception"] = self.formatException(record.exc_info)
 
         # Add extra fields
         for key, value in record.__dict__.items():
-            if key not in log_data and not key.startswith('_'):
-                if key in ['args', 'asctime', 'created', 'filename', 'levelno',
-                          'lineno', 'module', 'msecs', 'msg', 'name', 'pathname',
-                          'process', 'processName', 'relativeCreated', 'thread',
-                          'threadName', 'funcName', 'getMessage', 'exc_info', 'exc_text', 'stack_info']:
+            if key not in log_data and not key.startswith("_"):
+                if key in [
+                    "args",
+                    "asctime",
+                    "created",
+                    "filename",
+                    "levelno",
+                    "lineno",
+                    "module",
+                    "msecs",
+                    "msg",
+                    "name",
+                    "pathname",
+                    "process",
+                    "processName",
+                    "relativeCreated",
+                    "thread",
+                    "threadName",
+                    "funcName",
+                    "getMessage",
+                    "exc_info",
+                    "exc_text",
+                    "stack_info",
+                ]:
                     continue
                 try:
                     json.dumps(value)  # Test if value is JSON serializable
@@ -70,7 +94,7 @@ def setup_logging(
     log_file: Optional[str] = None,
     enable_console: bool = True,
     service_name: str = "ml-pipeline",
-    environment: str = "development"
+    environment: str = "development",
 ) -> None:
     """Setup application logging.
 
@@ -94,7 +118,9 @@ def setup_logging(
     if structlog is not None and format_type == "structured":
         configure_structlog(level, log_file, enable_console, service_name, environment)
     else:
-        configure_standard_logging(level, format_type, log_file, enable_console, service_name, environment)
+        configure_standard_logging(
+            level, format_type, log_file, enable_console, service_name, environment
+        )
 
 
 def configure_structlog(
@@ -102,7 +128,7 @@ def configure_structlog(
     log_file: Optional[str],
     enable_console: bool,
     service_name: str,
-    environment: str
+    environment: str,
 ) -> None:
     """Configure structlog for structured logging.
 
@@ -152,6 +178,9 @@ def configure_structlog(
         logging.getLogger().addHandler(console_handler)
 
     if log_file:
+        # Create log directory if it doesn't exist
+        Path(log_file).parent.mkdir(parents=True, exist_ok=True)
+
         file_handler = logging.FileHandler(log_file)
         if formatter:
             file_handler.setFormatter(formatter)
@@ -163,7 +192,7 @@ def configure_structlog(
     structlog.contextvars.bind_contextvars(
         service=service_name,
         environment=environment,
-        version=os.getenv("VERSION", "unknown")
+        version=os.getenv("VERSION", "unknown"),
     )
 
 
@@ -173,7 +202,7 @@ def configure_standard_logging(
     log_file: Optional[str],
     enable_console: bool,
     service_name: str,
-    environment: str
+    environment: str,
 ) -> None:
     """Configure standard library logging.
 
@@ -188,16 +217,16 @@ def configure_standard_logging(
     # Choose formatter based on format type
     if format_type == "json" and jsonlogger is not None:
         formatter = jsonlogger.JsonFormatter(
-            '%(asctime)s %(name)s %(levelname)s %(message)s',
-            datefmt='%Y-%m-%dT%H:%M:%S'
+            "%(asctime)s %(name)s %(levelname)s %(message)s",
+            datefmt="%Y-%m-%dT%H:%M:%S",
         )
     elif format_type == "json":
         formatter = CustomJSONFormatter()
     else:
         # Simple format
         formatter = logging.Formatter(
-            f'%(asctime)s - {service_name} - %(name)s - %(levelname)s - %(message)s',
-            datefmt='%Y-%m-%d %H:%M:%S'
+            f"%(asctime)s - {service_name} - %(name)s - %(levelname)s - %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
         )
 
     # Console handler
@@ -243,6 +272,7 @@ def log_function_call(func):
     Returns:
         Decorated function
     """
+
     def wrapper(*args, **kwargs):
         logger = get_logger(func.__module__)
 
@@ -252,7 +282,7 @@ def log_function_call(func):
             function=func.__name__,
             module=func.__module__,
             args_count=len(args),
-            kwargs_keys=list(kwargs.keys())
+            kwargs_keys=list(kwargs.keys()),
         )
 
         start_time = datetime.now(timezone.utc)
@@ -267,7 +297,7 @@ def log_function_call(func):
             logger.debug(
                 "Function completed successfully",
                 function=func.__name__,
-                duration_seconds=duration
+                duration_seconds=duration,
             )
 
             return result
@@ -282,7 +312,7 @@ def log_function_call(func):
                 function=func.__name__,
                 duration_seconds=duration,
                 error=str(e),
-                exception_type=type(e).__name__
+                exception_type=type(e).__name__,
             )
 
             raise
@@ -299,6 +329,7 @@ def log_performance(operation: str):
     Returns:
         Decorator function
     """
+
     def decorator(func):
         def wrapper(*args, **kwargs):
             logger = get_logger(func.__module__)
@@ -316,7 +347,7 @@ def log_performance(operation: str):
                     operation=operation,
                     function=func.__name__,
                     duration_seconds=duration,
-                    status="success"
+                    status="success",
                 )
 
                 return result
@@ -331,12 +362,13 @@ def log_performance(operation: str):
                     function=func.__name__,
                     duration_seconds=duration,
                     status="error",
-                    error=str(e)
+                    error=str(e),
                 )
 
                 raise
 
         return wrapper
+
     return decorator
 
 
@@ -378,17 +410,17 @@ class LogContext:
 def setup_request_logging():
     """Setup request-specific logging for web applications."""
     try:
-        import uuid
+        pass
         from contextvars import ContextVar
 
         # Create context variable for request ID
-        request_id_var: ContextVar[str] = ContextVar('request_id', default='')
+        request_id_var: ContextVar[str] = ContextVar("request_id", default="")
 
         def add_request_id(logger, method_name, event_dict):
             """Add request ID to log events."""
-            request_id = request_id_var.get('')
+            request_id = request_id_var.get("")
             if request_id:
-                event_dict['request_id'] = request_id
+                event_dict["request_id"] = request_id
             return event_dict
 
         # Add processor if using structlog
@@ -407,9 +439,9 @@ def setup_request_logging():
 
         def add_request_id(logger, method_name, event_dict):
             """Add request ID to log events."""
-            request_id = getattr(request_context, 'request_id', '')
+            request_id = getattr(request_context, "request_id", "")
             if request_id:
-                event_dict['request_id'] = request_id
+                event_dict["request_id"] = request_id
             return event_dict
 
         if structlog is not None:
@@ -421,8 +453,7 @@ def setup_request_logging():
 
 
 def configure_ml_pipeline_logging(
-    environment: str = "development",
-    service_name: str = "ml-pipeline"
+    environment: str = "development", service_name: str = "ml-pipeline"
 ) -> None:
     """Configure logging specifically for ML pipeline services.
 
@@ -440,7 +471,7 @@ def configure_ml_pipeline_logging(
         log_file=f"logs/{service_name}.log" if environment != "development" else None,
         enable_console=True,
         service_name=service_name,
-        environment=environment
+        environment=environment,
     )
 
     # Configure specific loggers
@@ -459,5 +490,5 @@ def configure_ml_pipeline_logging(
         "Logging configured",
         environment=environment,
         service=service_name,
-        level=log_level
+        level=log_level,
     )

@@ -1,15 +1,14 @@
 """Fast model loader that bypasses MLflow artifact proxy."""
 
-import os
-import pickle
-import tempfile
 import hashlib
+import logging
+import pickle
 from pathlib import Path
 from typing import Any, Optional
-import mlflow
+
 import boto3
+import mlflow
 from mlflow.tracking import MlflowClient
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +22,7 @@ class FastModelLoader:
         s3_endpoint_url: str = "http://mlflow-minio:9000",
         aws_access_key_id: str = "minioadmin",
         aws_secret_access_key: str = "minioadmin123",
-        cache_dir: str = "/model_cache"
+        cache_dir: str = "/model_cache",
     ):
         self.mlflow_tracking_uri = mlflow_tracking_uri
         self.cache_dir = Path(cache_dir)
@@ -35,20 +34,22 @@ class FastModelLoader:
 
         # S3 client for direct downloads
         self.s3_client = boto3.client(
-            's3',
+            "s3",
             endpoint_url=s3_endpoint_url,
             aws_access_key_id=aws_access_key_id,
             aws_secret_access_key=aws_secret_access_key,
             config=boto3.session.Config(
-                signature_version='s3v4',
-                s3={'addressing_style': 'path'},
-                retries={'max_attempts': 2}
-            )
+                signature_version="s3v4",
+                s3={"addressing_style": "path"},
+                retries={"max_attempts": 2},
+            ),
         )
 
     def get_cache_key(self, model_name: str, version: str) -> str:
         """Generate cache key for model."""
-        return hashlib.md5(f"{model_name}:{version}".encode()).hexdigest()
+        return hashlib.md5(
+            f"{model_name}:{version}".encode(), usedforsecurity=False
+        ).hexdigest()
 
     def get_cached_model_path(self, model_name: str, version: str) -> Optional[Path]:
         """Check if model exists in cache."""
@@ -61,6 +62,7 @@ class FastModelLoader:
     def load_model(self, model_name: str, version: str = "latest") -> Any:
         """Load model with caching and direct S3 access."""
         import time
+
         start = time.time()
 
         # Resolve version
@@ -77,7 +79,7 @@ class FastModelLoader:
         cached_path = self.get_cached_model_path(model_name, version)
         if cached_path:
             logger.info(f"Loading from cache: {cached_path}")
-            with open(cached_path, 'rb') as f:
+            with open(cached_path, "rb") as f:
                 model = pickle.load(f)
             logger.info(f"Loaded from cache in {time.time()-start:.2f}s")
             return model
@@ -110,21 +112,21 @@ class FastModelLoader:
             for prefix in possible_prefixes:
                 try:
                     response = self.s3_client.list_objects_v2(
-                        Bucket=bucket,
-                        Prefix=prefix,
-                        MaxKeys=1
+                        Bucket=bucket, Prefix=prefix, MaxKeys=1
                     )
-                    if response.get('KeyCount', 0) > 0:
+                    if response.get("KeyCount", 0) > 0:
                         # Found the model
                         model_key = f"{prefix}model.pkl"
                         logger.info(f"Found model at s3://{bucket}/{model_key}")
                         break
-                except:
+                except Exception:
                     continue
 
             if not model_key:
                 # Fallback to MLflow download (slow but works)
-                logger.warning("Could not find model in S3, falling back to MLflow download")
+                logger.warning(
+                    "Could not find model in S3, falling back to MLflow download"
+                )
                 return self._fallback_mlflow_download(model_name, version)
 
             # Download directly from S3
@@ -140,7 +142,7 @@ class FastModelLoader:
             logger.info(f"Downloaded in {time.time()-download_start:.2f}s")
 
             # Load the model
-            with open(model_file, 'rb') as f:
+            with open(model_file, "rb") as f:
                 model = pickle.load(f)
 
             logger.info(f"Total load time: {time.time()-start:.2f}s")
@@ -164,10 +166,10 @@ class FastModelLoader:
         # Save to cache (if it's a sklearn model)
         try:
             model_file = cache_path / "model.pkl"
-            with open(model_file, 'wb') as f:
+            with open(model_file, "wb") as f:
                 pickle.dump(model._model_impl, f)
             logger.info(f"Cached model to {model_file}")
-        except:
+        except Exception:
             pass  # Not all models can be pickled
 
         return model

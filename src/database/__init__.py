@@ -1,6 +1,6 @@
 """Database package for ML pipeline data persistence."""
 
-from .models import Base, Experiment, ModelRun, FeatureStore, PredictionLog
+from .models import Base, Experiment, FeatureStore, ModelRun, PredictionLog
 from .session import DatabaseManager, get_session
 
 __all__ = [
@@ -10,5 +10,5 @@ __all__ = [
     "FeatureStore",
     "PredictionLog",
     "DatabaseManager",
-    "get_session"
+    "get_session",
 ]

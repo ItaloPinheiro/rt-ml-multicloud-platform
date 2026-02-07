@@ -5,9 +5,8 @@ that integrates with the base stream ingestion framework.
 """
 
 import json
-import time
 from datetime import datetime
-from typing import Dict, Any, Generator, List, Optional
+from typing import Any, Dict, Generator, List
 
 try:
     from confluent_kafka import Consumer, KafkaError, KafkaException
@@ -19,8 +18,14 @@ except ImportError:
     AdminClient = None
     ConfigResource = None
 
-from src.ingestion.base import StreamIngestion, StreamMessage, ConnectionError, MessageProcessingError
 import structlog
+
+from src.ingestion.base import (
+    ConnectionError,
+    MessageProcessingError,
+    StreamIngestion,
+    StreamMessage,
+)
 
 logger = structlog.get_logger()
 
@@ -75,7 +80,7 @@ class KafkaConsumer(StreamIngestion):
         self.logger = self.logger.bind(
             bootstrap_servers=self.bootstrap_servers,
             topic=self.topic,
-            group_id=self.group_id
+            group_id=self.group_id,
         )
 
     def connect(self) -> None:
@@ -87,16 +92,16 @@ class KafkaConsumer(StreamIngestion):
         try:
             # Configure consumer
             consumer_config = {
-                'bootstrap.servers': self.bootstrap_servers,
-                'group.id': self.group_id,
-                'auto.offset.reset': self.auto_offset_reset,
-                'enable.auto.commit': self.enable_auto_commit,
-                'session.timeout.ms': self.session_timeout_ms,
-                'heartbeat.interval.ms': self.heartbeat_interval_ms,
-                'max.poll.interval.ms': 300000,  # 5 minutes
-                'api.version.request': True,
-                'api.version.fallback.ms': 0,
-                'client.id': f'ml-pipeline-{self.group_id}'
+                "bootstrap.servers": self.bootstrap_servers,
+                "group.id": self.group_id,
+                "auto.offset.reset": self.auto_offset_reset,
+                "enable.auto.commit": self.enable_auto_commit,
+                "session.timeout.ms": self.session_timeout_ms,
+                "heartbeat.interval.ms": self.heartbeat_interval_ms,
+                "max.poll.interval.ms": 300000,  # 5 minutes
+                "api.version.request": True,
+                "api.version.fallback.ms": 0,
+                "client.id": f"ml-pipeline-{self.group_id}",
             }
 
             # Add any additional consumer configuration
@@ -111,8 +116,8 @@ class KafkaConsumer(StreamIngestion):
 
             # Create admin client for metadata operations
             admin_config = {
-                'bootstrap.servers': self.bootstrap_servers,
-                'client.id': f'ml-pipeline-admin-{self.group_id}'
+                "bootstrap.servers": self.bootstrap_servers,
+                "client.id": f"ml-pipeline-admin-{self.group_id}",
             }
             self._admin_client = AdminClient(admin_config)
 
@@ -126,7 +131,7 @@ class KafkaConsumer(StreamIngestion):
                 "Connected to Kafka cluster",
                 cluster_id=metadata.cluster_id,
                 broker_count=len(metadata.brokers),
-                topic_partitions=len(metadata.topics[self.topic].partitions)
+                topic_partitions=len(metadata.topics[self.topic].partitions),
             )
 
         except (KafkaException, Exception) as e:
@@ -169,7 +174,7 @@ class KafkaConsumer(StreamIngestion):
                             "Reached end of partition",
                             topic=message.topic(),
                             partition=message.partition(),
-                            offset=message.offset()
+                            offset=message.offset(),
                         )
                         continue
                     else:
@@ -179,7 +184,7 @@ class KafkaConsumer(StreamIngestion):
                             "Kafka message error",
                             error=message.error().str(),
                             topic=message.topic(),
-                            partition=message.partition()
+                            partition=message.partition(),
                         )
                         continue
 
@@ -197,11 +202,15 @@ class KafkaConsumer(StreamIngestion):
                             "topic": message.topic(),
                             "partition": str(message.partition()),
                             "offset": str(message.offset()),
-                            "key": message.key().decode('utf-8') if message.key() else None,
-                            "timestamp_type": message.timestamp()[0].name
+                            "key": (
+                                message.key().decode("utf-8") if message.key() else None
+                            ),
+                            "timestamp_type": message.timestamp()[0].name,
                         },
-                        partition_key=message.key().decode('utf-8') if message.key() else None,
-                        offset=message.offset()
+                        partition_key=(
+                            message.key().decode("utf-8") if message.key() else None
+                        ),
+                        offset=message.offset(),
                     )
 
                     # Store for manual commit if auto-commit is disabled
@@ -219,7 +228,7 @@ class KafkaConsumer(StreamIngestion):
                         topic=message.topic(),
                         partition=message.partition(),
                         offset=message.offset(),
-                        error=str(e)
+                        error=str(e),
                     )
 
         except (KafkaException, Exception) as e:
@@ -250,8 +259,7 @@ class KafkaConsumer(StreamIngestion):
             self.consumer.commit(asynchronous=False)
 
             self.logger.info(
-                "Committed Kafka offsets",
-                count=len(self._pending_messages)
+                "Committed Kafka offsets", count=len(self._pending_messages)
             )
 
             # Clear pending messages
@@ -261,7 +269,7 @@ class KafkaConsumer(StreamIngestion):
             self.logger.error(
                 "Failed to commit Kafka offsets",
                 count=len(self._pending_messages),
-                error=str(e)
+                error=str(e),
             )
             raise MessageProcessingError(f"Failed to commit offsets: {str(e)}") from e
 
@@ -301,7 +309,7 @@ class KafkaConsumer(StreamIngestion):
 
             # Try to decode as UTF-8 string first
             try:
-                data_str = message.value().decode('utf-8')
+                data_str = message.value().decode("utf-8")
 
                 # Try to parse as JSON
                 try:
@@ -313,12 +321,15 @@ class KafkaConsumer(StreamIngestion):
             except UnicodeDecodeError:
                 # If not UTF-8, return as base64
                 import base64
+
                 return {
-                    "raw_data_b64": base64.b64encode(message.value()).decode('ascii')
+                    "raw_data_b64": base64.b64encode(message.value()).decode("ascii")
                 }
 
         except Exception as e:
-            raise MessageProcessingError(f"Failed to parse Kafka message data: {str(e)}") from e
+            raise MessageProcessingError(
+                f"Failed to parse Kafka message data: {str(e)}"
+            ) from e
 
     def get_topic_info(self) -> Dict[str, Any]:
         """Get information about the current topic.
@@ -343,14 +354,18 @@ class KafkaConsumer(StreamIngestion):
                     "leader": partition_metadata.leader,
                     "replicas": partition_metadata.replicas,
                     "isrs": partition_metadata.isrs,
-                    "error": partition_metadata.error.str() if partition_metadata.error else None
+                    "error": (
+                        partition_metadata.error.str()
+                        if partition_metadata.error
+                        else None
+                    ),
                 }
 
             return {
                 "topic": self.topic,
                 "partition_count": len(topic_metadata.partitions),
                 "partitions": partitions,
-                "error": topic_metadata.error.str() if topic_metadata.error else None
+                "error": topic_metadata.error.str() if topic_metadata.error else None,
             }
 
         except (KafkaException, Exception) as e:
@@ -376,22 +391,38 @@ class KafkaConsumer(StreamIngestion):
             committed = self.consumer.committed(assignment, timeout=10)
 
             # Get high water marks
-            high_watermarks = self.consumer.get_watermark_offsets(assignment[0]) if assignment else (0, 0)
+            high_watermarks = (
+                self.consumer.get_watermark_offsets(assignment[0])
+                if assignment
+                else (0, 0)
+            )
 
             assignment_info = []
             for tp in assignment:
-                committed_offset = committed[tp] if tp in committed and committed[tp] else None
-                assignment_info.append({
-                    "topic": tp.topic,
-                    "partition": tp.partition,
-                    "committed_offset": committed_offset.offset if committed_offset else None,
-                    "high_watermark": high_watermarks[1] if tp == assignment[0] else None
-                })
+                committed_offset = (
+                    committed[tp] if tp in committed and committed[tp] else None
+                )
+                assignment_info.append(
+                    {
+                        "topic": tp.topic,
+                        "partition": tp.partition,
+                        "committed_offset": (
+                            committed_offset.offset if committed_offset else None
+                        ),
+                        "high_watermark": (
+                            high_watermarks[1] if tp == assignment[0] else None
+                        ),
+                    }
+                )
 
             return {
                 "group_id": self.group_id,
                 "assignment": assignment_info,
-                "member_id": self.consumer.memberid() if hasattr(self.consumer, 'memberid') else None
+                "member_id": (
+                    self.consumer.memberid()
+                    if hasattr(self.consumer, "memberid")
+                    else None
+                ),
             }
 
         except (KafkaException, Exception) as e:

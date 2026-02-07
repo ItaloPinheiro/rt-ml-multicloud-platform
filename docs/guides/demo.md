@@ -7,7 +7,7 @@ This guide walks you through a complete end-to-end demo of the platform, from da
 The easiest way to run the demo is using the provided script:
 
 ```bash
-./scripts/demo/demo.sh
+./scripts/demo/local-demo/demo.sh
 ```
 
 This script will:
@@ -24,7 +24,7 @@ If you prefer to run steps manually:
 ### 1. Generate Data
 
 ```bash
-python scripts/demo/generate_data.py
+python scripts/demo/local-demo/generate_data.py
 ```
 This creates training data in `sample_data/demo/datasets/` and test requests in `sample_data/demo/requests/`.
 

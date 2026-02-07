@@ -1,14 +1,22 @@
 """Metrics collection and monitoring for ML pipeline components."""
 
-import time
-from datetime import datetime, timedelta, timezone
-from typing import Dict, Any, List, Optional, Callable
-from collections import defaultdict, deque
 import threading
+import time
+from collections import defaultdict, deque
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
+
 import structlog
 
 try:
-    from prometheus_client import Counter, Histogram, Gauge, start_http_server, CONTENT_TYPE_LATEST, generate_latest
+    from prometheus_client import (
+        Counter,
+        Gauge,
+        Histogram,
+        generate_latest,
+        start_http_server,
+    )
+
     PROMETHEUS_AVAILABLE = True
 except ImportError:
     PROMETHEUS_AVAILABLE = False
@@ -33,7 +41,9 @@ class MetricsCollector:
         self.lock = threading.Lock()
         self.logger = logger.bind(component="MetricsCollector")
 
-    def increment_counter(self, name: str, value: int = 1, labels: Optional[Dict[str, str]] = None) -> None:
+    def increment_counter(
+        self, name: str, value: int = 1, labels: Optional[Dict[str, str]] = None
+    ) -> None:
         """Increment a counter metric.
 
         Args:
@@ -46,15 +56,19 @@ class MetricsCollector:
             self.counters[metric_key] += value
 
             # Store historical data
-            self.metrics[metric_key].append({
-                'timestamp': datetime.now(timezone.utc),
-                'value': self.counters[metric_key],
-                'delta': value,
-                'type': 'counter',
-                'labels': labels or {}
-            })
+            self.metrics[metric_key].append(
+                {
+                    "timestamp": datetime.now(timezone.utc),
+                    "value": self.counters[metric_key],
+                    "delta": value,
+                    "type": "counter",
+                    "labels": labels or {},
+                }
+            )
 
-    def set_gauge(self, name: str, value: float, labels: Optional[Dict[str, str]] = None) -> None:
+    def set_gauge(
+        self, name: str, value: float, labels: Optional[Dict[str, str]] = None
+    ) -> None:
         """Set a gauge metric value.
 
         Args:
@@ -67,14 +81,18 @@ class MetricsCollector:
             self.gauges[metric_key] = value
 
             # Store historical data
-            self.metrics[metric_key].append({
-                'timestamp': datetime.now(timezone.utc),
-                'value': value,
-                'type': 'gauge',
-                'labels': labels or {}
-            })
+            self.metrics[metric_key].append(
+                {
+                    "timestamp": datetime.now(timezone.utc),
+                    "value": value,
+                    "type": "gauge",
+                    "labels": labels or {},
+                }
+            )
 
-    def record_histogram(self, name: str, value: float, labels: Optional[Dict[str, str]] = None) -> None:
+    def record_histogram(
+        self, name: str, value: float, labels: Optional[Dict[str, str]] = None
+    ) -> None:
         """Record a value in a histogram metric.
 
         Args:
@@ -87,12 +105,14 @@ class MetricsCollector:
             self.histograms[metric_key].append(value)
 
             # Store historical data
-            self.metrics[metric_key].append({
-                'timestamp': datetime.now(timezone.utc),
-                'value': value,
-                'type': 'histogram',
-                'labels': labels or {}
-            })
+            self.metrics[metric_key].append(
+                {
+                    "timestamp": datetime.now(timezone.utc),
+                    "value": value,
+                    "type": "histogram",
+                    "labels": labels or {},
+                }
+            )
 
     def time_operation(self, name: str, labels: Optional[Dict[str, str]] = None):
         """Context manager for timing operations.
@@ -106,7 +126,9 @@ class MetricsCollector:
         """
         return TimerContext(self, name, labels)
 
-    def get_counter_value(self, name: str, labels: Optional[Dict[str, str]] = None) -> int:
+    def get_counter_value(
+        self, name: str, labels: Optional[Dict[str, str]] = None
+    ) -> int:
         """Get current counter value.
 
         Args:
@@ -119,7 +141,9 @@ class MetricsCollector:
         metric_key = self._build_metric_key(name, labels)
         return self.counters.get(metric_key, 0)
 
-    def get_gauge_value(self, name: str, labels: Optional[Dict[str, str]] = None) -> float:
+    def get_gauge_value(
+        self, name: str, labels: Optional[Dict[str, str]] = None
+    ) -> float:
         """Get current gauge value.
 
         Args:
@@ -132,7 +156,9 @@ class MetricsCollector:
         metric_key = self._build_metric_key(name, labels)
         return self.gauges.get(metric_key, 0.0)
 
-    def get_histogram_stats(self, name: str, labels: Optional[Dict[str, str]] = None) -> Dict[str, float]:
+    def get_histogram_stats(
+        self, name: str, labels: Optional[Dict[str, str]] = None
+    ) -> Dict[str, float]:
         """Get histogram statistics.
 
         Args:
@@ -152,15 +178,15 @@ class MetricsCollector:
         count = len(values)
 
         return {
-            'count': count,
-            'sum': sum(values),
-            'min': sorted_values[0],
-            'max': sorted_values[-1],
-            'mean': sum(values) / count,
-            'p50': sorted_values[int(count * 0.5)],
-            'p90': sorted_values[int(count * 0.9)],
-            'p95': sorted_values[int(count * 0.95)],
-            'p99': sorted_values[int(count * 0.99)]
+            "count": count,
+            "sum": sum(values),
+            "min": sorted_values[0],
+            "max": sorted_values[-1],
+            "mean": sum(values) / count,
+            "p50": sorted_values[int(count * 0.5)],
+            "p90": sorted_values[int(count * 0.9)],
+            "p95": sorted_values[int(count * 0.95)],
+            "p99": sorted_values[int(count * 0.99)],
         }
 
     def get_metrics_summary(self) -> Dict[str, Any]:
@@ -171,14 +197,15 @@ class MetricsCollector:
         """
         with self.lock:
             summary = {
-                'timestamp': datetime.now(timezone.utc).isoformat(),
-                'counters': dict(self.counters),
-                'gauges': dict(self.gauges),
-                'histograms': {
-                    name: self.get_histogram_stats(name.split('|')[0],
-                                                  self._parse_labels_from_key(name))
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "counters": dict(self.counters),
+                "gauges": dict(self.gauges),
+                "histograms": {
+                    name: self.get_histogram_stats(
+                        name.split("|")[0], self._parse_labels_from_key(name)
+                    )
                     for name in self.histograms.keys()
-                }
+                },
             }
 
         return summary
@@ -193,7 +220,9 @@ class MetricsCollector:
 
         self.logger.info("All metrics cleared")
 
-    def _build_metric_key(self, name: str, labels: Optional[Dict[str, str]] = None) -> str:
+    def _build_metric_key(
+        self, name: str, labels: Optional[Dict[str, str]] = None
+    ) -> str:
         """Build metric key with labels.
 
         Args:
@@ -206,7 +235,7 @@ class MetricsCollector:
         if not labels:
             return name
 
-        label_str = ','.join(f'{k}={v}' for k, v in sorted(labels.items()))
+        label_str = ",".join(f"{k}={v}" for k, v in sorted(labels.items()))
         return f"{name}|{label_str}"
 
     def _parse_labels_from_key(self, key: str) -> Optional[Dict[str, str]]:
@@ -218,15 +247,15 @@ class MetricsCollector:
         Returns:
             Labels dictionary or None
         """
-        if '|' not in key:
+        if "|" not in key:
             return None
 
-        _, label_str = key.split('|', 1)
+        _, label_str = key.split("|", 1)
         labels = {}
 
-        for pair in label_str.split(','):
-            if '=' in pair:
-                k, v = pair.split('=', 1)
+        for pair in label_str.split(","):
+            if "=" in pair:
+                k, v = pair.split("=", 1)
                 labels[k] = v
 
         return labels
@@ -235,7 +264,12 @@ class MetricsCollector:
 class TimerContext:
     """Context manager for timing operations."""
 
-    def __init__(self, collector: MetricsCollector, name: str, labels: Optional[Dict[str, str]] = None):
+    def __init__(
+        self,
+        collector: MetricsCollector,
+        name: str,
+        labels: Optional[Dict[str, str]] = None,
+    ):
         """Initialize timer context.
 
         Args:
@@ -271,7 +305,9 @@ class PrometheusMetrics:
             prefix: Metric name prefix
         """
         if not PROMETHEUS_AVAILABLE:
-            raise ImportError("prometheus_client is not available. Install with: pip install prometheus-client")
+            raise ImportError(
+                "prometheus_client is not available. Install with: pip install prometheus-client"
+            )
 
         self.port = port
         self.prefix = prefix
@@ -285,78 +321,88 @@ class PrometheusMetrics:
         """Initialize Prometheus metrics."""
         # Prediction metrics
         self.prediction_requests_total = Counter(
-            f'{self.prefix}_prediction_requests_total',
-            'Total number of prediction requests',
-            ['model_name', 'model_version', 'status']
+            f"{self.prefix}_prediction_requests_total",
+            "Total number of prediction requests",
+            ["model_name", "model_version", "status"],
         )
 
         self.prediction_duration_seconds = Histogram(
-            f'{self.prefix}_prediction_duration_seconds',
-            'Prediction request duration in seconds',
-            ['model_name', 'model_version'],
-            buckets=[0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0]
+            f"{self.prefix}_prediction_duration_seconds",
+            "Prediction request duration in seconds",
+            ["model_name", "model_version"],
+            buckets=[
+                0.001,
+                0.005,
+                0.01,
+                0.025,
+                0.05,
+                0.1,
+                0.25,
+                0.5,
+                1.0,
+                2.5,
+                5.0,
+                10.0,
+            ],
         )
 
         # Model metrics
         self.models_loaded_total = Gauge(
-            f'{self.prefix}_models_loaded_total',
-            'Number of models currently loaded'
+            f"{self.prefix}_models_loaded_total", "Number of models currently loaded"
         )
 
         self.model_load_duration_seconds = Histogram(
-            f'{self.prefix}_model_load_duration_seconds',
-            'Model loading duration in seconds',
-            ['model_name', 'model_version']
+            f"{self.prefix}_model_load_duration_seconds",
+            "Model loading duration in seconds",
+            ["model_name", "model_version"],
         )
 
         # Feature store metrics
         self.feature_requests_total = Counter(
-            f'{self.prefix}_feature_requests_total',
-            'Total number of feature requests',
-            ['feature_group', 'operation', 'status']
+            f"{self.prefix}_feature_requests_total",
+            "Total number of feature requests",
+            ["feature_group", "operation", "status"],
         )
 
         self.feature_cache_hits_total = Counter(
-            f'{self.prefix}_feature_cache_hits_total',
-            'Total number of feature cache hits',
-            ['feature_group']
+            f"{self.prefix}_feature_cache_hits_total",
+            "Total number of feature cache hits",
+            ["feature_group"],
         )
 
         self.feature_cache_misses_total = Counter(
-            f'{self.prefix}_feature_cache_misses_total',
-            'Total number of feature cache misses',
-            ['feature_group']
+            f"{self.prefix}_feature_cache_misses_total",
+            "Total number of feature cache misses",
+            ["feature_group"],
         )
 
         # Data ingestion metrics
         self.ingestion_messages_total = Counter(
-            f'{self.prefix}_ingestion_messages_total',
-            'Total number of ingested messages',
-            ['source', 'status']
+            f"{self.prefix}_ingestion_messages_total",
+            "Total number of ingested messages",
+            ["source", "status"],
         )
 
         self.ingestion_lag_seconds = Gauge(
-            f'{self.prefix}_ingestion_lag_seconds',
-            'Current ingestion lag in seconds',
-            ['source']
+            f"{self.prefix}_ingestion_lag_seconds",
+            "Current ingestion lag in seconds",
+            ["source"],
         )
 
         # System metrics
         self.memory_usage_bytes = Gauge(
-            f'{self.prefix}_memory_usage_bytes',
-            'Memory usage in bytes'
+            f"{self.prefix}_memory_usage_bytes", "Memory usage in bytes"
         )
 
         self.cpu_usage_percent = Gauge(
-            f'{self.prefix}_cpu_usage_percent',
-            'CPU usage percentage'
+            f"{self.prefix}_cpu_usage_percent", "CPU usage percentage"
         )
 
         # Error metrics
         self.errors_total = Counter(
-            f'{self.prefix}_errors_total',
-            'Total number of errors',
-            ['component', 'error_type']
+            f"{self.prefix}_errors_total",
+            "Total number of errors",
+            ["component", "error_type"],
         )
 
     def start_metrics_server(self) -> None:
@@ -378,7 +424,7 @@ class PrometheusMetrics:
         model_name: str,
         model_version: str,
         duration: float,
-        status: str = "success"
+        status: str = "success",
     ) -> None:
         """Record a prediction request.
 
@@ -389,17 +435,16 @@ class PrometheusMetrics:
             status: Request status (success/error)
         """
         self.prediction_requests_total.labels(
-            model_name=model_name,
-            model_version=model_version,
-            status=status
+            model_name=model_name, model_version=model_version, status=status
         ).inc()
 
         self.prediction_duration_seconds.labels(
-            model_name=model_name,
-            model_version=model_version
+            model_name=model_name, model_version=model_version
         ).observe(duration)
 
-    def record_model_load(self, model_name: str, model_version: str, duration: float) -> None:
+    def record_model_load(
+        self, model_name: str, model_version: str, duration: float
+    ) -> None:
         """Record a model loading operation.
 
         Args:
@@ -408,8 +453,7 @@ class PrometheusMetrics:
             duration: Load duration in seconds
         """
         self.model_load_duration_seconds.labels(
-            model_name=model_name,
-            model_version=model_version
+            model_name=model_name, model_version=model_version
         ).observe(duration)
 
     def set_models_loaded(self, count: int) -> None:
@@ -421,10 +465,7 @@ class PrometheusMetrics:
         self.models_loaded_total.set(count)
 
     def record_feature_request(
-        self,
-        feature_group: str,
-        operation: str,
-        status: str = "success"
+        self, feature_group: str, operation: str, status: str = "success"
     ) -> None:
         """Record a feature store request.
 
@@ -434,9 +475,7 @@ class PrometheusMetrics:
             status: Request status
         """
         self.feature_requests_total.labels(
-            feature_group=feature_group,
-            operation=operation,
-            status=status
+            feature_group=feature_group, operation=operation, status=status
         ).inc()
 
     def record_feature_cache_hit(self, feature_group: str) -> None:
@@ -504,4 +543,4 @@ class PrometheusMetrics:
         Returns:
             Metrics in Prometheus exposition format
         """
-        return generate_latest().decode('utf-8')
+        return generate_latest().decode("utf-8")

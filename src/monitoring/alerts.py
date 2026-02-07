@@ -3,10 +3,11 @@
 import asyncio
 import smtplib
 from datetime import datetime, timedelta, timezone
-from typing import Dict, Any, List, Optional, Callable, Set
-from enum import Enum
-from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from enum import Enum
+from typing import Any, Callable, Dict, List, Optional, Set
+
 import structlog
 
 logger = structlog.get_logger()
@@ -14,6 +15,7 @@ logger = structlog.get_logger()
 
 class AlertSeverity(Enum):
     """Alert severity levels."""
+
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -22,6 +24,7 @@ class AlertSeverity(Enum):
 
 class AlertStatus(Enum):
     """Alert status."""
+
     ACTIVE = "active"
     RESOLVED = "resolved"
     SUPPRESSED = "suppressed"
@@ -38,7 +41,7 @@ class Alert:
         condition_func: Callable[[Dict[str, Any]], bool],
         cooldown_minutes: int = 15,
         auto_resolve: bool = True,
-        tags: Optional[Dict[str, str]] = None
+        tags: Optional[Dict[str, str]] = None,
     ):
         """Initialize alert.
 
@@ -123,7 +126,9 @@ class Alert:
             return True
 
         # Check cooldown period
-        cooldown_deadline = self.last_notified_time + timedelta(minutes=self.cooldown_minutes)
+        cooldown_deadline = self.last_notified_time + timedelta(
+            minutes=self.cooldown_minutes
+        )
         return datetime.now(timezone.utc) >= cooldown_deadline
 
     def mark_notified(self) -> None:
@@ -150,15 +155,27 @@ class Alert:
             "description": self.description,
             "severity": self.severity.value,
             "status": self.status.value,
-            "first_triggered_time": self.first_triggered_time.isoformat() if self.first_triggered_time else None,
-            "last_triggered_time": self.last_triggered_time.isoformat() if self.last_triggered_time else None,
-            "last_notified_time": self.last_notified_time.isoformat() if self.last_notified_time else None,
-            "resolved_time": self.resolved_time.isoformat() if self.resolved_time else None,
+            "first_triggered_time": (
+                self.first_triggered_time.isoformat()
+                if self.first_triggered_time
+                else None
+            ),
+            "last_triggered_time": (
+                self.last_triggered_time.isoformat()
+                if self.last_triggered_time
+                else None
+            ),
+            "last_notified_time": (
+                self.last_notified_time.isoformat() if self.last_notified_time else None
+            ),
+            "resolved_time": (
+                self.resolved_time.isoformat() if self.resolved_time else None
+            ),
             "trigger_count": self.trigger_count,
             "cooldown_minutes": self.cooldown_minutes,
             "auto_resolve": self.auto_resolve,
             "tags": self.tags,
-            "current_context": self.current_context
+            "current_context": self.current_context,
         }
 
 
@@ -189,7 +206,7 @@ class EmailNotificationChannel(NotificationChannel):
         password: str,
         from_email: str,
         to_emails: List[str],
-        use_tls: bool = True
+        use_tls: bool = True,
     ):
         """Initialize email notification channel.
 
@@ -223,16 +240,16 @@ class EmailNotificationChannel(NotificationChannel):
         try:
             # Create message
             msg = MIMEMultipart()
-            msg['From'] = self.from_email
-            msg['To'] = ', '.join(self.to_emails)
-            msg['Subject'] = f"[{alert.severity.value.upper()}] {alert.name}"
+            msg["From"] = self.from_email
+            msg["To"] = ", ".join(self.to_emails)
+            msg["Subject"] = f"[{alert.severity.value.upper()}] {alert.name}"
 
             # Create HTML and text versions
             html_message = self._create_html_message(alert, message)
             text_message = self._create_text_message(alert, message)
 
-            msg.attach(MIMEText(text_message, 'plain'))
-            msg.attach(MIMEText(html_message, 'html'))
+            msg.attach(MIMEText(text_message, "plain"))
+            msg.attach(MIMEText(html_message, "html"))
 
             # Send email
             server = smtplib.SMTP(self.smtp_host, self.smtp_port)
@@ -262,7 +279,7 @@ class EmailNotificationChannel(NotificationChannel):
             AlertSeverity.LOW: "#28a745",
             AlertSeverity.MEDIUM: "#ffc107",
             AlertSeverity.HIGH: "#fd7e14",
-            AlertSeverity.CRITICAL: "#dc3545"
+            AlertSeverity.CRITICAL: "#dc3545",
         }
 
         color = severity_colors.get(alert.severity, "#6c757d")
@@ -371,7 +388,7 @@ class LogNotificationChannel(NotificationChannel):
             AlertSeverity.LOW: "info",
             AlertSeverity.MEDIUM: "warning",
             AlertSeverity.HIGH: "error",
-            AlertSeverity.CRITICAL: "critical"
+            AlertSeverity.CRITICAL: "critical",
         }.get(alert.severity, "info")
 
         getattr(self.logger, log_level)(
@@ -380,7 +397,7 @@ class LogNotificationChannel(NotificationChannel):
             alert_severity=alert.severity.value,
             alert_status=alert.status.value,
             trigger_count=alert.trigger_count,
-            context=alert.current_context
+            context=alert.current_context,
         )
 
         return True
@@ -524,15 +541,23 @@ class AlertManager:
         Returns:
             Dictionary with alert status information
         """
-        active_alerts = [alert for alert in self.alerts.values() if alert.status == AlertStatus.ACTIVE]
-        suppressed_alerts = [alert for alert in self.alerts.values() if alert.status == AlertStatus.SUPPRESSED]
+        active_alerts = [
+            alert
+            for alert in self.alerts.values()
+            if alert.status == AlertStatus.ACTIVE
+        ]
+        suppressed_alerts = [
+            alert
+            for alert in self.alerts.values()
+            if alert.status == AlertStatus.SUPPRESSED
+        ]
 
         return {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "total_alerts": len(self.alerts),
             "active_alerts": len(active_alerts),
             "suppressed_alerts": len(suppressed_alerts),
-            "alerts": {name: alert.get_info() for name, alert in self.alerts.items()}
+            "alerts": {name: alert.get_info() for name, alert in self.alerts.items()},
         }
 
     async def _evaluation_loop(self) -> None:
@@ -562,7 +587,7 @@ class AlertManager:
             "timestamp": datetime.now(timezone.utc),
             "system_metrics": {},
             "application_metrics": {},
-            "health_status": {}
+            "health_status": {},
         }
 
     async def _send_notifications(self, alert: Alert) -> None:
@@ -587,7 +612,7 @@ class AlertManager:
             self.logger.info(
                 f"Sent notifications for alert {alert.name}",
                 channels_attempted=len(notification_tasks),
-                channels_successful=success_count
+                channels_successful=success_count,
             )
 
     def create_prediction_latency_alert(self, threshold_seconds: float) -> Alert:
@@ -599,6 +624,7 @@ class AlertManager:
         Returns:
             Prediction latency alert
         """
+
         def condition(context: Dict[str, Any]) -> bool:
             metrics = context.get("application_metrics", {})
             avg_latency = metrics.get("avg_prediction_latency_seconds", 0)
@@ -610,7 +636,7 @@ class AlertManager:
             severity=AlertSeverity.HIGH,
             condition_func=condition,
             cooldown_minutes=10,
-            tags={"component": "prediction", "type": "performance"}
+            tags={"component": "prediction", "type": "performance"},
         )
 
     def create_error_rate_alert(self, threshold_percent: float) -> Alert:
@@ -622,6 +648,7 @@ class AlertManager:
         Returns:
             Error rate alert
         """
+
         def condition(context: Dict[str, Any]) -> bool:
             metrics = context.get("application_metrics", {})
             error_rate = metrics.get("error_rate_percent", 0)
@@ -633,5 +660,5 @@ class AlertManager:
             severity=AlertSeverity.CRITICAL,
             condition_func=condition,
             cooldown_minutes=5,
-            tags={"component": "api", "type": "reliability"}
+            tags={"component": "api", "type": "reliability"},
         )

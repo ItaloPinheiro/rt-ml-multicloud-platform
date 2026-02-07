@@ -1,14 +1,23 @@
 """SQLAlchemy models for ML pipeline data persistence."""
 
-from datetime import datetime, timezone
-from typing import Dict, Any, Optional
-from sqlalchemy import (
-    Column, Integer, String, DateTime, Float, Text, Boolean,
-    JSON, ForeignKey, Index, UniqueConstraint
-)
-from sqlalchemy.orm import declarative_base, relationship, validates
-from sqlalchemy.dialects.postgresql import UUID
 import uuid
+from datetime import datetime, timezone
+
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    Column,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import declarative_base, relationship, validates
 
 Base = declarative_base()
 
@@ -21,8 +30,14 @@ class Experiment(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String(255), nullable=False, unique=True)
     description = Column(Text)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
-    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    created_at = Column(
+        DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
+    )
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
     is_active = Column(Boolean, default=True, nullable=False)
 
     # Metadata
@@ -30,13 +45,15 @@ class Experiment(Base):
     artifact_location = Column(String(512))
 
     # Relationships
-    model_runs = relationship("ModelRun", back_populates="experiment", cascade="all, delete-orphan")
+    model_runs = relationship(
+        "ModelRun", back_populates="experiment", cascade="all, delete-orphan"
+    )
 
     # Indexes
     __table_args__ = (
-        Index('idx_experiments_name', 'name'),
-        Index('idx_experiments_created_at', 'created_at'),
-        Index('idx_experiments_is_active', 'is_active'),
+        Index("idx_experiments_name", "name"),
+        Index("idx_experiments_created_at", "created_at"),
+        Index("idx_experiments_is_active", "is_active"),
     )
 
     def __repr__(self):
@@ -49,16 +66,22 @@ class ModelRun(Base):
     __tablename__ = "model_runs"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    experiment_id = Column(UUID(as_uuid=True), ForeignKey("experiments.id"), nullable=False)
+    experiment_id = Column(
+        UUID(as_uuid=True), ForeignKey("experiments.id"), nullable=False
+    )
 
     # Run metadata
     run_name = Column(String(255))
     model_name = Column(String(255), nullable=False)
     model_version = Column(String(100))
-    status = Column(String(50), default="RUNNING", nullable=False)  # RUNNING, FINISHED, FAILED, KILLED
+    status = Column(
+        String(50), default="RUNNING", nullable=False
+    )  # RUNNING, FINISHED, FAILED, KILLED
 
     # Timing
-    start_time = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    start_time = Column(
+        DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
+    )
     end_time = Column(DateTime)
     duration_seconds = Column(Float)
 
@@ -75,7 +98,7 @@ class ModelRun(Base):
 
     # Model metadata
     model_type = Column(String(100))  # classification, regression, clustering, etc.
-    framework = Column(String(100))   # sklearn, xgboost, pytorch, etc.
+    framework = Column(String(100))  # sklearn, xgboost, pytorch, etc.
 
     # Feature information
     feature_names = Column(JSON, default=list)
@@ -92,17 +115,17 @@ class ModelRun(Base):
 
     # Indexes
     __table_args__ = (
-        Index('idx_model_runs_experiment_id', 'experiment_id'),
-        Index('idx_model_runs_model_name', 'model_name'),
-        Index('idx_model_runs_status', 'status'),
-        Index('idx_model_runs_start_time', 'start_time'),
-        Index('idx_model_runs_model_name_version', 'model_name', 'model_version'),
+        Index("idx_model_runs_experiment_id", "experiment_id"),
+        Index("idx_model_runs_model_name", "model_name"),
+        Index("idx_model_runs_status", "status"),
+        Index("idx_model_runs_start_time", "start_time"),
+        Index("idx_model_runs_model_name_version", "model_name", "model_version"),
     )
 
-    @validates('status')
+    @validates("status")
     def validate_status(self, key, status):
         """Validate status values."""
-        valid_statuses = ['RUNNING', 'FINISHED', 'FAILED', 'KILLED']
+        valid_statuses = ["RUNNING", "FINISHED", "FAILED", "KILLED"]
         if status not in valid_statuses:
             raise ValueError(f"Status must be one of {valid_statuses}")
         return status
@@ -125,11 +148,15 @@ class FeatureStore(Base):
 
     # Feature data
     feature_value = Column(JSON, nullable=False)
-    data_type = Column(String(50), nullable=False)  # numeric, categorical, text, datetime
+    data_type = Column(
+        String(50), nullable=False
+    )  # numeric, categorical, text, datetime
 
     # Timing and versioning
     event_timestamp = Column(DateTime, nullable=False)
-    ingestion_timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    ingestion_timestamp = Column(
+        DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
+    )
     feature_version = Column(String(100), default="1.0")
 
     # Metadata
@@ -142,21 +169,31 @@ class FeatureStore(Base):
 
     # Indexes
     __table_args__ = (
-        Index('idx_feature_store_entity_id', 'entity_id'),
-        Index('idx_feature_store_feature_group', 'feature_group'),
-        Index('idx_feature_store_feature_name', 'feature_name'),
-        Index('idx_feature_store_event_timestamp', 'event_timestamp'),
-        Index('idx_feature_store_ingestion_timestamp', 'ingestion_timestamp'),
-        Index('idx_feature_store_ttl_timestamp', 'ttl_timestamp'),
-        Index('idx_feature_store_entity_feature', 'entity_id', 'feature_group', 'feature_name'),
-        UniqueConstraint('entity_id', 'feature_group', 'feature_name', 'event_timestamp',
-                        name='uq_feature_store_entity_feature_time'),
+        Index("idx_feature_store_entity_id", "entity_id"),
+        Index("idx_feature_store_feature_group", "feature_group"),
+        Index("idx_feature_store_feature_name", "feature_name"),
+        Index("idx_feature_store_event_timestamp", "event_timestamp"),
+        Index("idx_feature_store_ingestion_timestamp", "ingestion_timestamp"),
+        Index("idx_feature_store_ttl_timestamp", "ttl_timestamp"),
+        Index(
+            "idx_feature_store_entity_feature",
+            "entity_id",
+            "feature_group",
+            "feature_name",
+        ),
+        UniqueConstraint(
+            "entity_id",
+            "feature_group",
+            "feature_name",
+            "event_timestamp",
+            name="uq_feature_store_entity_feature_time",
+        ),
     )
 
-    @validates('data_type')
+    @validates("data_type")
     def validate_data_type(self, key, data_type):
         """Validate data type values."""
-        valid_types = ['numeric', 'categorical', 'text', 'datetime', 'boolean']
+        valid_types = ["numeric", "categorical", "text", "datetime", "boolean"]
         if data_type not in valid_types:
             raise ValueError(f"Data type must be one of {valid_types}")
         return data_type
@@ -179,7 +216,9 @@ class PredictionLog(Base):
     model_version = Column(String(100), nullable=False)
 
     # Timing
-    request_timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    request_timestamp = Column(
+        DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
+    )
     response_timestamp = Column(DateTime)
     latency_ms = Column(Float)
 
@@ -203,7 +242,7 @@ class PredictionLog(Base):
 
     # Feedback and monitoring
     feedback_score = Column(Float)  # User feedback on prediction quality
-    actual_outcome = Column(JSON)   # Actual outcome for model monitoring
+    actual_outcome = Column(JSON)  # Actual outcome for model monitoring
     is_flagged = Column(Boolean, default=False)  # Flagged for review
 
     # Relationships
@@ -211,17 +250,17 @@ class PredictionLog(Base):
 
     # Indexes
     __table_args__ = (
-        Index('idx_prediction_logs_model_name', 'model_name'),
-        Index('idx_prediction_logs_model_version', 'model_version'),
-        Index('idx_prediction_logs_request_timestamp', 'request_timestamp'),
-        Index('idx_prediction_logs_latency_ms', 'latency_ms'),
-        Index('idx_prediction_logs_status_code', 'status_code'),
-        Index('idx_prediction_logs_user_id', 'user_id'),
-        Index('idx_prediction_logs_model_run_id', 'model_run_id'),
-        Index('idx_prediction_logs_is_flagged', 'is_flagged'),
+        Index("idx_prediction_logs_model_name", "model_name"),
+        Index("idx_prediction_logs_model_version", "model_version"),
+        Index("idx_prediction_logs_request_timestamp", "request_timestamp"),
+        Index("idx_prediction_logs_latency_ms", "latency_ms"),
+        Index("idx_prediction_logs_status_code", "status_code"),
+        Index("idx_prediction_logs_user_id", "user_id"),
+        Index("idx_prediction_logs_model_run_id", "model_run_id"),
+        Index("idx_prediction_logs_is_flagged", "is_flagged"),
     )
 
-    @validates('status_code')
+    @validates("status_code")
     def validate_status_code(self, key, status_code):
         """Validate HTTP status codes."""
         if status_code and (status_code < 100 or status_code > 599):
@@ -266,15 +305,17 @@ class DataDriftMonitoring(Base):
     current_data_size = Column(Integer)
 
     # Metadata
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    created_at = Column(
+        DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
+    )
     detection_method = Column(String(100))  # psi, ks_test, chi2_test, etc.
 
     # Indexes
     __table_args__ = (
-        Index('idx_drift_monitoring_model_name', 'model_name'),
-        Index('idx_drift_monitoring_window_start', 'window_start'),
-        Index('idx_drift_monitoring_is_drift_detected', 'is_drift_detected'),
-        Index('idx_drift_monitoring_model_time', 'model_name', 'window_start'),
+        Index("idx_drift_monitoring_model_name", "model_name"),
+        Index("idx_drift_monitoring_window_start", "window_start"),
+        Index("idx_drift_monitoring_is_drift_detected", "is_drift_detected"),
+        Index("idx_drift_monitoring_model_time", "model_name", "window_start"),
     )
 
     def __repr__(self):

@@ -5,12 +5,12 @@ This script creates transaction data and user features for demo purposes.
 """
 
 import json
-import random
 import os
+import random
 from datetime import datetime, timedelta
-from typing import List, Dict, Any
+from typing import Any, Dict, List
+
 import pandas as pd
-import numpy as np
 
 # Configuration
 DATA_ROOT = os.getenv("DATA_ROOT", "data/sample")
@@ -33,7 +33,7 @@ MERCHANT_CATEGORIES = {
     "online_retail": 0.06,
     "pharmacy": 0.01,
     "clothing": 0.04,
-    "travel": 0.10
+    "travel": 0.10,
 }
 
 CITIES = [
@@ -46,8 +46,9 @@ CITIES = [
     ("San Antonio", "TX", "78201"),
     ("San Diego", "CA", "92101"),
     ("Dallas", "TX", "75201"),
-    ("San Jose", "CA", "95101")
+    ("San Jose", "CA", "95101"),
 ]
+
 
 def generate_user_features() -> List[Dict[str, Any]]:
     """Generate user feature data."""
@@ -60,35 +61,37 @@ def generate_user_features() -> List[Dict[str, Any]]:
                 "age": random.randint(18, 80),
                 "income": random.randint(25000, 150000),
                 "credit_score": random.randint(300, 850),
-                "account_age_months": random.randint(1, 120)
+                "account_age_months": random.randint(1, 120),
             },
             "location": {
                 "city": random.choice(CITIES)[0],
                 "state": random.choice(CITIES)[1],
                 "country": "US",
-                "zip_code": random.choice(CITIES)[2]
+                "zip_code": random.choice(CITIES)[2],
             },
             "behavior": {
                 "avg_monthly_transactions": random.randint(5, 50),
-                "preferred_categories": random.sample(list(MERCHANT_CATEGORIES.keys()), 3),
+                "preferred_categories": random.sample(
+                    list(MERCHANT_CATEGORIES.keys()), 3
+                ),
                 "typical_amount_range": [
                     round(random.uniform(10, 100), 2),
-                    round(random.uniform(100, 1000), 2)
+                    round(random.uniform(100, 1000), 2),
                 ],
-                "active_hours": list(range(
-                    random.randint(6, 9),
-                    random.randint(18, 23)
-                ))
+                "active_hours": list(
+                    range(random.randint(6, 9), random.randint(18, 23))
+                ),
             },
             "risk_profile": {
                 "historical_fraud_reports": random.randint(0, 2),
                 "suspicious_activity_flags": random.randint(0, 3),
-                "risk_score": round(random.uniform(0.0, 1.0), 3)
-            }
+                "risk_score": round(random.uniform(0.0, 1.0), 3),
+            },
         }
         users.append(user)
 
     return users
+
 
 def generate_transactions(users: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """Generate transaction data based on user profiles."""
@@ -103,7 +106,7 @@ def generate_transactions(users: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         timestamp = base_time + timedelta(
             days=random.randint(0, 30),
             hours=random.randint(0, 23),
-            minutes=random.randint(0, 59)
+            minutes=random.randint(0, 59),
         )
 
         # Generate amount based on category and user profile
@@ -151,18 +154,20 @@ def generate_transactions(users: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
                 "city": city,
                 "state": state,
                 "country": "US",
-                "zip_code": zip_code
+                "zip_code": zip_code,
             },
             "device_info": {
                 "device_id": f"device_{random.randint(100, 999)}",
                 "ip_address": f"{random.randint(1, 255)}.{random.randint(1, 255)}.{random.randint(1, 255)}.{random.randint(1, 255)}",
-                "user_agent": random.choice([
-                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
-                    "Mobile App v2.1",
-                    "Chrome/91.0",
-                    "Safari/537.36"
-                ])
+                "user_agent": random.choice(
+                    [
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+                        "Mobile App v2.1",
+                        "Chrome/91.0",
+                        "Safari/537.36",
+                    ]
+                ),
             },
             "features": {
                 "hour_of_day": hour_of_day,
@@ -170,14 +175,15 @@ def generate_transactions(users: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
                 "is_weekend": is_weekend,
                 "transaction_count_24h": random.randint(1, 10),
                 "avg_amount_30d": round(random.uniform(50, 300), 2),
-                "risk_score": round(risk_score, 3)
+                "risk_score": round(risk_score, 3),
             },
-            "label": 1 if is_fraud else 0
+            "label": 1 if is_fraud else 0,
         }
 
         transactions.append(transaction)
 
     return transactions
+
 
 def create_sample_request_file(transactions: List[Dict[str, Any]]) -> None:
     """Create a sample request file for API testing."""
@@ -185,14 +191,16 @@ def create_sample_request_file(transactions: List[Dict[str, Any]]) -> None:
 
     # Prepare features matching training data
     features = sample_transaction["features"].copy()
-    features['amount'] = sample_transaction['amount']
-    features['merchant_category_encoded'] = hash(sample_transaction['merchant_category']) % 100
-    features['payment_method_encoded'] = hash(sample_transaction['payment_method']) % 10
+    features["amount"] = sample_transaction["amount"]
+    features["merchant_category_encoded"] = (
+        hash(sample_transaction["merchant_category"]) % 100
+    )
+    features["payment_method_encoded"] = hash(sample_transaction["payment_method"]) % 10
 
     sample_request = {
         "features": features,
         "model_name": "fraud_detector",
-        "return_probabilities": True
+        "return_probabilities": True,
     }
 
     # Ensure directories exist
@@ -201,6 +209,7 @@ def create_sample_request_file(transactions: List[Dict[str, Any]]) -> None:
     # Save baseline request
     with open(os.path.join(DEMO_REQUESTS_DIR, "baseline.json"), "w") as f:
         json.dump(sample_request, f, indent=2)
+
 
 def main():
     """Generate all sample data files."""
@@ -235,25 +244,30 @@ def main():
     # Flatten features for training
     feature_columns = []
     for _, row in df_transactions.iterrows():
-        features = row['features'].copy()
-        features['amount'] = row['amount']
-        features['merchant_category_encoded'] = hash(row['merchant_category']) % 100
-        features['payment_method_encoded'] = hash(row['payment_method']) % 10
-        features['label'] = row['label']
+        features = row["features"].copy()
+        features["amount"] = row["amount"]
+        features["merchant_category_encoded"] = hash(row["merchant_category"]) % 100
+        features["payment_method_encoded"] = hash(row["payment_method"]) % 10
+        features["label"] = row["label"]
         feature_columns.append(features)
 
     df_features = pd.DataFrame(feature_columns)
-    df_features.to_csv(os.path.join(DEMO_DATASETS_DIR, "fraud_detection.csv"), index=False)
+    df_features.to_csv(
+        os.path.join(DEMO_DATASETS_DIR, "fraud_detection.csv"), index=False
+    )
 
     # Print statistics
-    fraud_count = sum(1 for t in transactions if t['label'] == 1)
-    print(f"Sample data generation complete!")
+    fraud_count = sum(1 for t in transactions if t["label"] == 1)
+    print("Sample data generation complete!")
     print(f"   Total transactions: {len(transactions)}")
     print(f"   Total users: {len(users)}")
-    print(f"   Fraudulent transactions: {fraud_count} ({fraud_count/len(transactions)*100:.1f}%)")
+    print(
+        f"   Fraudulent transactions: {fraud_count} ({fraud_count/len(transactions)*100:.1f}%)"
+    )
     print(f"   Generated files saved to: {GENERATED_DIR}/")
     print(f"   Training data: {DEMO_DATASETS_DIR}/fraud_detection.csv")
     print(f"   API requests: {DEMO_REQUESTS_DIR}/")
+
 
 if __name__ == "__main__":
     main()

@@ -4,23 +4,28 @@ This module provides a production-ready consumer for AWS Kinesis Data Streams
 that integrates with the base stream ingestion framework.
 """
 
+import base64
 import json
 import time
-from datetime import datetime
-from typing import Dict, Any, Generator, List, Optional
-import base64
+from typing import Any, Dict, Generator, List
 
 try:
     import boto3
-    from botocore.exceptions import ClientError, BotoCoreError, NoCredentialsError
+    from botocore.exceptions import BotoCoreError, ClientError, NoCredentialsError
 except ImportError:
     boto3 = None
     ClientError = Exception
     BotoCoreError = Exception
     NoCredentialsError = Exception
 
-from src.ingestion.base import StreamIngestion, StreamMessage, ConnectionError, MessageProcessingError
 import structlog
+
+from src.ingestion.base import (
+    ConnectionError,
+    MessageProcessingError,
+    StreamIngestion,
+    StreamMessage,
+)
 
 logger = structlog.get_logger()
 
@@ -77,7 +82,7 @@ class KinesisConsumer(StreamIngestion):
         self.logger = self.logger.bind(
             stream_name=self.stream_name,
             region=self.region,
-            iterator_type=self.shard_iterator_type
+            iterator_type=self.shard_iterator_type,
         )
 
     def connect(self) -> None:
@@ -89,26 +94,26 @@ class KinesisConsumer(StreamIngestion):
         try:
             # Create Kinesis client
             self.client = boto3.client(
-                'kinesis',
-                region_name=self.region,
-                **self.aws_credentials
+                "kinesis", region_name=self.region, **self.aws_credentials
             )
 
             # Test connection and get stream description
             stream_info = self.client.describe_stream(StreamName=self.stream_name)
-            stream_status = stream_info['StreamDescription']['StreamStatus']
+            stream_status = stream_info["StreamDescription"]["StreamStatus"]
 
-            if stream_status != 'ACTIVE':
-                raise ConnectionError(f"Stream {self.stream_name} is not active: {stream_status}")
+            if stream_status != "ACTIVE":
+                raise ConnectionError(
+                    f"Stream {self.stream_name} is not active: {stream_status}"
+                )
 
             # Initialize shard iterators
-            self._initialize_shard_iterators(stream_info['StreamDescription']['Shards'])
+            self._initialize_shard_iterators(stream_info["StreamDescription"]["Shards"])
 
             self._connected = True
             self.logger.info(
                 "Connected to Kinesis stream",
                 stream_status=stream_status,
-                shard_count=len(self.shard_iterators)
+                shard_count=len(self.shard_iterators),
             )
 
         except (ClientError, BotoCoreError, NoCredentialsError) as e:
@@ -146,18 +151,17 @@ class KinesisConsumer(StreamIngestion):
 
             try:
                 response = self.client.get_records(
-                    ShardIterator=iterator,
-                    Limit=min(batch_size, self.max_records)
+                    ShardIterator=iterator, Limit=min(batch_size, self.max_records)
                 )
 
                 # Update iterator for next batch
-                self.shard_iterators[shard_id] = response.get('NextShardIterator')
+                self.shard_iterators[shard_id] = response.get("NextShardIterator")
 
-                records = response.get('Records', [])
+                records = response.get("Records", [])
                 self.logger.debug(
                     "Retrieved records from Kinesis shard",
                     shard_id=shard_id,
-                    count=len(records)
+                    count=len(records),
                 )
 
                 for record in records:
@@ -167,17 +171,17 @@ class KinesisConsumer(StreamIngestion):
 
                         # Create standardized message
                         stream_message = StreamMessage(
-                            message_id=record['SequenceNumber'],
+                            message_id=record["SequenceNumber"],
                             data=message_data,
-                            timestamp=record['ApproximateArrivalTimestamp'],
+                            timestamp=record["ApproximateArrivalTimestamp"],
                             source="kinesis",
                             attributes={
-                                "partition_key": record.get('PartitionKey', ''),
+                                "partition_key": record.get("PartitionKey", ""),
                                 "shard_id": shard_id,
-                                "sequence_number": record['SequenceNumber']
+                                "sequence_number": record["SequenceNumber"],
                             },
-                            partition_key=record.get('PartitionKey'),
-                            offset=int(record['SequenceNumber'])
+                            partition_key=record.get("PartitionKey"),
+                            offset=int(record["SequenceNumber"]),
                         )
 
                         self._increment_message_count()
@@ -187,9 +191,9 @@ class KinesisConsumer(StreamIngestion):
                         self._increment_error_count()
                         self.logger.error(
                             "Failed to process Kinesis record",
-                            sequence_number=record['SequenceNumber'],
+                            sequence_number=record["SequenceNumber"],
                             shard_id=shard_id,
-                            error=str(e)
+                            error=str(e),
                         )
 
             except (ClientError, BotoCoreError) as e:
@@ -197,14 +201,13 @@ class KinesisConsumer(StreamIngestion):
                 self.logger.error(
                     "Failed to get records from Kinesis shard",
                     shard_id=shard_id,
-                    error=str(e)
+                    error=str(e),
                 )
 
                 # Handle iterator expiration
                 if "ExpiredIteratorException" in str(e):
                     self.logger.warning(
-                        "Shard iterator expired, reinitializing",
-                        shard_id=shard_id
+                        "Shard iterator expired, reinitializing", shard_id=shard_id
                     )
                     self._reinitialize_shard_iterator(shard_id)
 
@@ -222,7 +225,7 @@ class KinesisConsumer(StreamIngestion):
             self.logger.debug(
                 "Kinesis acknowledgment handled automatically",
                 count=len(message_ids),
-                sequence_numbers=message_ids[:10]  # Log first 10 for debugging
+                sequence_numbers=message_ids[:10],  # Log first 10 for debugging
             )
 
     def close(self) -> None:
@@ -242,26 +245,26 @@ class KinesisConsumer(StreamIngestion):
             shards: List of shard information from describe_stream
         """
         for shard in shards:
-            shard_id = shard['ShardId']
+            shard_id = shard["ShardId"]
             try:
                 response = self.client.get_shard_iterator(
                     StreamName=self.stream_name,
                     ShardId=shard_id,
-                    ShardIteratorType=self.shard_iterator_type
+                    ShardIteratorType=self.shard_iterator_type,
                 )
-                self.shard_iterators[shard_id] = response['ShardIterator']
+                self.shard_iterators[shard_id] = response["ShardIterator"]
 
                 self.logger.debug(
                     "Initialized shard iterator",
                     shard_id=shard_id,
-                    iterator_type=self.shard_iterator_type
+                    iterator_type=self.shard_iterator_type,
                 )
 
             except (ClientError, BotoCoreError) as e:
                 self.logger.error(
                     "Failed to initialize shard iterator",
                     shard_id=shard_id,
-                    error=str(e)
+                    error=str(e),
                 )
                 self.shard_iterators[shard_id] = None
 
@@ -275,20 +278,15 @@ class KinesisConsumer(StreamIngestion):
             response = self.client.get_shard_iterator(
                 StreamName=self.stream_name,
                 ShardId=shard_id,
-                ShardIteratorType="LATEST"  # Use LATEST for reinitialization
+                ShardIteratorType="LATEST",  # Use LATEST for reinitialization
             )
-            self.shard_iterators[shard_id] = response['ShardIterator']
+            self.shard_iterators[shard_id] = response["ShardIterator"]
 
-            self.logger.info(
-                "Reinitialized shard iterator",
-                shard_id=shard_id
-            )
+            self.logger.info("Reinitialized shard iterator", shard_id=shard_id)
 
         except (ClientError, BotoCoreError) as e:
             self.logger.error(
-                "Failed to reinitialize shard iterator",
-                shard_id=shard_id,
-                error=str(e)
+                "Failed to reinitialize shard iterator", shard_id=shard_id, error=str(e)
             )
             self.shard_iterators[shard_id] = None
 
@@ -306,11 +304,11 @@ class KinesisConsumer(StreamIngestion):
         """
         try:
             # Kinesis data is base64 encoded
-            data_bytes = record['Data']
+            data_bytes = record["Data"]
 
             # Try to decode as UTF-8 string first
             try:
-                data_str = data_bytes.decode('utf-8')
+                data_str = data_bytes.decode("utf-8")
 
                 # Try to parse as JSON
                 try:
@@ -321,12 +319,12 @@ class KinesisConsumer(StreamIngestion):
 
             except UnicodeDecodeError:
                 # If not UTF-8, return as base64
-                return {
-                    "raw_data_b64": base64.b64encode(data_bytes).decode('ascii')
-                }
+                return {"raw_data_b64": base64.b64encode(data_bytes).decode("ascii")}
 
         except Exception as e:
-            raise MessageProcessingError(f"Failed to parse Kinesis record data: {str(e)}") from e
+            raise MessageProcessingError(
+                f"Failed to parse Kinesis record data: {str(e)}"
+            ) from e
 
     def get_stream_info(self) -> Dict[str, Any]:
         """Get information about the current stream.
@@ -342,17 +340,19 @@ class KinesisConsumer(StreamIngestion):
 
         try:
             response = self.client.describe_stream(StreamName=self.stream_name)
-            stream_desc = response['StreamDescription']
+            stream_desc = response["StreamDescription"]
 
             return {
-                "stream_name": stream_desc['StreamName'],
-                "stream_status": stream_desc['StreamStatus'],
-                "stream_arn": stream_desc['StreamARN'],
-                "shard_count": len(stream_desc['Shards']),
-                "retention_period": stream_desc['RetentionPeriodHours'],
-                "stream_creation_timestamp": stream_desc['StreamCreationTimestamp'].isoformat(),
-                "encryption_type": stream_desc.get('EncryptionType', 'NONE'),
-                "key_id": stream_desc.get('KeyId', '')
+                "stream_name": stream_desc["StreamName"],
+                "stream_status": stream_desc["StreamStatus"],
+                "stream_arn": stream_desc["StreamARN"],
+                "shard_count": len(stream_desc["Shards"]),
+                "retention_period": stream_desc["RetentionPeriodHours"],
+                "stream_creation_timestamp": stream_desc[
+                    "StreamCreationTimestamp"
+                ].isoformat(),
+                "encryption_type": stream_desc.get("EncryptionType", "NONE"),
+                "key_id": stream_desc.get("KeyId", ""),
             }
 
         except (ClientError, BotoCoreError) as e:
@@ -372,15 +372,15 @@ class KinesisConsumer(StreamIngestion):
 
         try:
             response = self.client.describe_stream(StreamName=self.stream_name)
-            shards = response['StreamDescription']['Shards']
+            shards = response["StreamDescription"]["Shards"]
 
             return [
                 {
-                    "shard_id": shard['ShardId'],
-                    "parent_shard_id": shard.get('ParentShardId'),
-                    "adjacent_parent_shard_id": shard.get('AdjacentParentShardId'),
-                    "hash_key_range": shard['HashKeyRange'],
-                    "sequence_number_range": shard['SequenceNumberRange']
+                    "shard_id": shard["ShardId"],
+                    "parent_shard_id": shard.get("ParentShardId"),
+                    "adjacent_parent_shard_id": shard.get("AdjacentParentShardId"),
+                    "hash_key_range": shard["HashKeyRange"],
+                    "sequence_number_range": shard["SequenceNumberRange"],
                 }
                 for shard in shards
             ]

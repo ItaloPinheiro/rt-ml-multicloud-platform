@@ -1,12 +1,11 @@
 """Feature store implementation for real-time feature serving."""
 
-import json
 import pickle
 from datetime import datetime, timedelta, timezone
-from typing import Dict, Any, List, Optional, Union
+from typing import Any, Dict, List, Optional
+
 import redis
 import structlog
-from sqlalchemy.orm import Session
 
 from ..database.models import FeatureStore as FeatureStoreModel
 from ..database.session import get_session
@@ -37,7 +36,7 @@ class FeatureStore:
                 socket_connect_timeout=redis_config.socket_connect_timeout,
                 max_connections=redis_config.max_connections,
                 retry_on_timeout=redis_config.retry_on_timeout,
-                decode_responses=False  # We'll handle encoding/decoding manually
+                decode_responses=False,  # We'll handle encoding/decoding manually
             )
         else:
             self.redis_client = redis_client
@@ -51,7 +50,7 @@ class FeatureStore:
         feature_group: str,
         features: Dict[str, Any],
         event_timestamp: Optional[datetime] = None,
-        ttl_seconds: Optional[int] = None
+        ttl_seconds: Optional[int] = None,
     ) -> None:
         """Store features for an entity.
 
@@ -72,10 +71,10 @@ class FeatureStore:
             # Store in Redis for fast access
             cache_key = self._build_cache_key(entity_id, feature_group)
             cached_data = {
-                'features': features,
-                'event_timestamp': event_timestamp.isoformat(),
-                'feature_group': feature_group,
-                'entity_id': entity_id
+                "features": features,
+                "event_timestamp": event_timestamp.isoformat(),
+                "feature_group": feature_group,
+                "entity_id": entity_id,
             }
 
             # Use pickle for efficient serialization
@@ -83,14 +82,16 @@ class FeatureStore:
             self.redis_client.setex(cache_key, ttl_seconds, serialized_data)
 
             # Store in database for persistence
-            self._persist_features(entity_id, feature_group, features, event_timestamp, ttl_seconds)
+            self._persist_features(
+                entity_id, feature_group, features, event_timestamp, ttl_seconds
+            )
 
             self.logger.debug(
                 "Features stored",
                 entity_id=entity_id,
                 feature_group=feature_group,
                 feature_count=len(features),
-                ttl_seconds=ttl_seconds
+                ttl_seconds=ttl_seconds,
             )
 
         except Exception as e:
@@ -98,7 +99,7 @@ class FeatureStore:
                 "Failed to store features",
                 entity_id=entity_id,
                 feature_group=feature_group,
-                error=str(e)
+                error=str(e),
             )
             raise
 
@@ -106,7 +107,7 @@ class FeatureStore:
         self,
         entity_id: str,
         feature_group: str,
-        feature_names: Optional[List[str]] = None
+        feature_names: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
         """Retrieve features for an entity.
 
@@ -128,17 +129,21 @@ class FeatureStore:
                 if cached_data:
                     try:
                         data = pickle.loads(cached_data)
-                        features = data['features']
+                        features = data["features"]
 
                         # Filter specific feature names if requested
                         if feature_names:
-                            features = {name: features[name] for name in feature_names if name in features}
+                            features = {
+                                name: features[name]
+                                for name in feature_names
+                                if name in features
+                            }
 
                         self.logger.debug(
                             "Features retrieved from cache",
                             entity_id=entity_id,
                             feature_group=feature_group,
-                            feature_count=len(features)
+                            feature_count=len(features),
                         )
 
                         return features
@@ -148,7 +153,7 @@ class FeatureStore:
                             "Failed to deserialize cached features, falling back to database",
                             entity_id=entity_id,
                             feature_group=feature_group,
-                            error=str(e)
+                            error=str(e),
                         )
 
             except Exception as e:
@@ -156,7 +161,7 @@ class FeatureStore:
                     "Redis cache unavailable, falling back to database",
                     entity_id=entity_id,
                     feature_group=feature_group,
-                    error=str(e)
+                    error=str(e),
                 )
 
             # Fallback to database
@@ -167,7 +172,7 @@ class FeatureStore:
                 "Failed to retrieve features",
                 entity_id=entity_id,
                 feature_group=feature_group,
-                error=str(e)
+                error=str(e),
             )
             raise
 
@@ -175,7 +180,7 @@ class FeatureStore:
         self,
         entity_ids: List[str],
         feature_group: str,
-        feature_names: Optional[List[str]] = None
+        feature_names: Optional[List[str]] = None,
     ) -> Dict[str, Dict[str, Any]]:
         """Retrieve features for multiple entities efficiently.
 
@@ -191,19 +196,28 @@ class FeatureStore:
             result = {}
 
             # Batch Redis operations
-            cache_keys = [self._build_cache_key(entity_id, feature_group) for entity_id in entity_ids]
+            cache_keys = [
+                self._build_cache_key(entity_id, feature_group)
+                for entity_id in entity_ids
+            ]
             cached_values = self.redis_client.mget(cache_keys)
 
             # Process cached results and identify missing entities
             missing_entities = []
-            for i, (entity_id, cached_data) in enumerate(zip(entity_ids, cached_values)):
+            for i, (entity_id, cached_data) in enumerate(
+                zip(entity_ids, cached_values)
+            ):
                 if cached_data:
                     try:
                         data = pickle.loads(cached_data)
-                        features = data['features']
+                        features = data["features"]
 
                         if feature_names:
-                            features = {name: features[name] for name in feature_names if name in features}
+                            features = {
+                                name: features[name]
+                                for name in feature_names
+                                if name in features
+                            }
 
                         result[entity_id] = features
                     except (pickle.PickleError, KeyError):
@@ -213,27 +227,31 @@ class FeatureStore:
 
             # Fetch missing entities from database
             if missing_entities:
-                db_features = self._get_batch_features_from_db(missing_entities, feature_group, feature_names)
+                db_features = self._get_batch_features_from_db(
+                    missing_entities, feature_group, feature_names
+                )
                 result.update(db_features)
 
                 # Cache the database results
                 for entity_id, features in db_features.items():
                     cache_key = self._build_cache_key(entity_id, feature_group)
                     cached_data = {
-                        'features': features,
-                        'event_timestamp': datetime.now(timezone.utc).isoformat(),
-                        'feature_group': feature_group,
-                        'entity_id': entity_id
+                        "features": features,
+                        "event_timestamp": datetime.now(timezone.utc).isoformat(),
+                        "feature_group": feature_group,
+                        "entity_id": entity_id,
                     }
                     serialized_data = pickle.dumps(cached_data)
-                    self.redis_client.setex(cache_key, self.default_ttl, serialized_data)
+                    self.redis_client.setex(
+                        cache_key, self.default_ttl, serialized_data
+                    )
 
             self.logger.debug(
                 "Batch features retrieved",
                 feature_group=feature_group,
                 total_entities=len(entity_ids),
                 cached_entities=len(entity_ids) - len(missing_entities),
-                db_entities=len(missing_entities)
+                db_entities=len(missing_entities),
             )
 
             return result
@@ -243,7 +261,7 @@ class FeatureStore:
                 "Failed to retrieve batch features",
                 feature_group=feature_group,
                 entity_count=len(entity_ids),
-                error=str(e)
+                error=str(e),
             )
             raise
 
@@ -263,13 +281,11 @@ class FeatureStore:
             with get_session() as session:
                 session.query(FeatureStoreModel).filter(
                     FeatureStoreModel.entity_id == entity_id,
-                    FeatureStoreModel.feature_group == feature_group
+                    FeatureStoreModel.feature_group == feature_group,
                 ).update({FeatureStoreModel.is_active: False})
 
             self.logger.info(
-                "Features deleted",
-                entity_id=entity_id,
-                feature_group=feature_group
+                "Features deleted", entity_id=entity_id, feature_group=feature_group
             )
 
         except Exception as e:
@@ -277,7 +293,7 @@ class FeatureStore:
                 "Failed to delete features",
                 entity_id=entity_id,
                 feature_group=feature_group,
-                error=str(e)
+                error=str(e),
             )
             raise
 
@@ -292,15 +308,16 @@ class FeatureStore:
 
             with get_session() as session:
                 # Mark expired features as inactive
-                expired_count = session.query(FeatureStoreModel).filter(
-                    FeatureStoreModel.ttl_timestamp <= current_time,
-                    FeatureStoreModel.is_active == True
-                ).update({FeatureStoreModel.is_active: False})
+                expired_count = (
+                    session.query(FeatureStoreModel)
+                    .filter(
+                        FeatureStoreModel.ttl_timestamp <= current_time,
+                        FeatureStoreModel.is_active.is_(True),
+                    )
+                    .update({FeatureStoreModel.is_active: False})
+                )
 
-            self.logger.info(
-                "Expired features cleaned up",
-                count=expired_count
-            )
+            self.logger.info("Expired features cleaned up", count=expired_count)
 
             return expired_count
 
@@ -316,7 +333,9 @@ class FeatureStore:
         """
         try:
             with get_session() as session:
-                feature_groups = session.query(FeatureStoreModel.feature_group).distinct().all()
+                feature_groups = (
+                    session.query(FeatureStoreModel.feature_group).distinct().all()
+                )
                 return [fg[0] for fg in feature_groups]
 
         except Exception as e:
@@ -334,7 +353,7 @@ class FeatureStore:
                 "redis_connected": False,
                 "database_connected": False,
                 "cache_info": {},
-                "timestamp": datetime.now(timezone.utc).isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 
             # Check Redis connectivity
@@ -377,7 +396,7 @@ class FeatureStore:
         feature_group: str,
         features: Dict[str, Any],
         event_timestamp: datetime,
-        ttl_seconds: int
+        ttl_seconds: int,
     ) -> None:
         """Persist features to database.
 
@@ -403,7 +422,7 @@ class FeatureStore:
                     feature_value=feature_value,
                     data_type=data_type,
                     event_timestamp=event_timestamp,
-                    ttl_timestamp=ttl_timestamp
+                    ttl_timestamp=ttl_timestamp,
                 )
 
                 session.merge(feature_record)
@@ -412,7 +431,7 @@ class FeatureStore:
         self,
         entity_id: str,
         feature_group: str,
-        feature_names: Optional[List[str]] = None
+        feature_names: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
         """Retrieve features from database.
 
@@ -428,7 +447,7 @@ class FeatureStore:
             query = session.query(FeatureStoreModel).filter(
                 FeatureStoreModel.entity_id == entity_id,
                 FeatureStoreModel.feature_group == feature_group,
-                FeatureStoreModel.is_active == True
+                FeatureStoreModel.is_active.is_(True),
             )
 
             if feature_names:
@@ -444,7 +463,7 @@ class FeatureStore:
         self,
         entity_ids: List[str],
         feature_group: str,
-        feature_names: Optional[List[str]] = None
+        feature_names: Optional[List[str]] = None,
     ) -> Dict[str, Dict[str, Any]]:
         """Retrieve batch features from database.
 
@@ -460,7 +479,7 @@ class FeatureStore:
             query = session.query(FeatureStoreModel).filter(
                 FeatureStoreModel.entity_id.in_(entity_ids),
                 FeatureStoreModel.feature_group == feature_group,
-                FeatureStoreModel.is_active == True
+                FeatureStoreModel.is_active.is_(True),
             )
 
             if feature_names:

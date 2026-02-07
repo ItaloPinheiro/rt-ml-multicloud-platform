@@ -6,18 +6,17 @@ import os
 import sys
 
 # Set environment to avoid Unicode issues on Windows
-os.environ['PYTHONIOENCODING'] = 'utf-8'
-os.environ['MLFLOW_DISABLE_ENV_MANAGER_CONDA_WARNING'] = 'TRUE'
+os.environ["PYTHONIOENCODING"] = "utf-8"
+os.environ["MLFLOW_DISABLE_ENV_MANAGER_CONDA_WARNING"] = "TRUE"
 
 import mlflow
 import mlflow.sklearn
 import pandas as pd
-import numpy as np
-from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.preprocessing import StandardScaler
-from sklearn.pipeline import Pipeline
 from sklearn.metrics import accuracy_score, precision_score, recall_score
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
 
 # Set MLflow tracking URI and S3 configuration
 mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000"))
@@ -31,6 +30,7 @@ os.environ["MLFLOW_S3_ENDPOINT_URL"] = "http://localhost:9000"
 DATA_ROOT = os.getenv("DATA_ROOT", "sample_data")
 DEMO_DATASET = os.path.join(DATA_ROOT, "demo", "datasets", "fraud_detection.csv")
 
+
 def main():
     # Load data
     print(f"Loading training data from {DEMO_DATASET}...")
@@ -41,21 +41,31 @@ def main():
     df = pd.read_csv(DEMO_DATASET)
 
     # Prepare features and target
-    feature_columns = [col for col in df.columns if col != 'label']
+    feature_columns = [col for col in df.columns if col != "label"]
     X = df[feature_columns]
-    y = df['label']
+    y = df["label"]
+
+    # Cast integer columns to float64 for nullable-safe schema inference
+    # This prevents MLflow UserWarning about integer columns not handling missing values
+    int_columns = X.select_dtypes(include=["int64", "int32"]).columns
+    X = X.copy()  # Avoid SettingWithCopyWarning
+    X[int_columns] = X[int_columns].astype("float64")
 
     # Split data
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42
+    )
 
     # Create Pipeline
     # This ensures the model expects raw feature inputs (with column names) and scales them internally
     print("Training Random Forest Pipeline...")
-    pipeline = Pipeline([
-        ('scaler', StandardScaler()),
-        ('clf', RandomForestClassifier(n_estimators=100, random_state=42))
-    ])
-    
+    pipeline = Pipeline(
+        [
+            ("scaler", StandardScaler()),
+            ("clf", RandomForestClassifier(n_estimators=100, random_state=42)),
+        ]
+    )
+
     pipeline.fit(X_train, y_train)
 
     # Make predictions
@@ -78,13 +88,14 @@ def main():
             # Create experiment with S3 artifact location
             artifact_location = "s3://mlflow/fraud_detection_demo"
             experiment_id = mlflow.create_experiment(
-                experiment_name,
-                artifact_location=artifact_location
+                experiment_name, artifact_location=artifact_location
             )
             print(f"Created experiment with S3 storage: {artifact_location}")
         else:
             experiment_id = experiment.experiment_id
-            print(f"Using existing experiment, artifact location: {experiment.artifact_location}")
+            print(
+                f"Using existing experiment, artifact location: {experiment.artifact_location}"
+            )
     except Exception as e:
         print(f"Using default experiment: {e}")
         experiment_id = "0"
@@ -106,9 +117,9 @@ def main():
             # Log model (Pipeline)
             # Infer signature from actual DataFrame inputs to preserve column names
             mlflow.sklearn.log_model(
-                pipeline,
-                "model",
-                signature=mlflow.models.infer_signature(X_test, y_pred)
+                sk_model=pipeline,
+                name="model",  # MLflow 2.9+ uses 'name' instead of 'artifact_path'
+                signature=mlflow.models.infer_signature(X_test, y_pred),
             )
 
             # Save run ID for registration
@@ -133,29 +144,34 @@ def main():
 
         # Create model version
         model_version = client.create_model_version(
-            name="fraud_detector",
-            source=f"runs:/{run_id}/model",
-            run_id=run_id
+            name="fraud_detector", source=f"runs:/{run_id}/model", run_id=run_id
         )
 
         print(f"Registered model version: {model_version.version}")
 
-        # Transition to production
-        client.transition_model_version_stage(
+        # Promote to production using Alias + Tag (MLflow 2.9+)
+        client.set_registered_model_alias(
+            name="fraud_detector", alias="production", version=model_version.version
+        )
+        client.set_model_version_tag(
             name="fraud_detector",
             version=model_version.version,
-            stage="Production"
+            key="deployment_status",
+            value="production",
         )
-        print("Model transitioned to Production stage")
+        print(f"Model v{model_version.version} promoted to production (alias + tag)")
 
     except Exception as e:
         print(f"Model registration failed (this is okay for demo): {e}")
 
     print("\nModel training complete!")
-    print(f"MLflow UI: http://localhost:5000")
+    print("MLflow UI: http://localhost:5000")
     if run_id:
         print(f"Run ID: {run_id}")
-        print(f"View run: http://localhost:5000/#/experiments/{experiment_id}/runs/{run_id}")
+        print(
+            f"View run: http://localhost:5000/#/experiments/{experiment_id}/runs/{run_id}"
+        )
+
 
 if __name__ == "__main__":
     main()
