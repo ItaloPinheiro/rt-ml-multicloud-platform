@@ -283,12 +283,16 @@ jobs:
         kubectl kustomize ops/k8s/overlays/production/ > /dev/null
         echo "✅ Kubernetes manifests validated successfully"
 
-    - name: Run kubeval for manifest validation
+    - name: Run kubeconform for manifest validation
       run: |
-        wget https://github.com/instrumenta/kubeval/releases/latest/download/kubeval-linux-amd64.tar.gz
-        tar xf kubeval-linux-amd64.tar.gz
-        ./kubeval ops/k8s/base/*.yaml
-        ./kubeval ops/k8s/overlays/production/*.yaml
+        # Install kubeconform (modern replacement for kubeval)
+        wget https://github.com/yannh/kubeconform/releases/download/v0.6.4/kubeconform-linux-amd64.tar.gz
+        tar xf kubeconform-linux-amd64.tar.gz
+        
+        # Build manifests with kustomize and validate with kubeconform
+        kubectl kustomize ops/k8s/base/ | ./kubeconform -summary -skip kustomization.yaml
+        kubectl kustomize ops/k8s/overlays/production/ | ./kubeconform -summary -skip kustomization.yaml
+        echo "✅ Kubernetes manifests schema validated"
 
 
 
