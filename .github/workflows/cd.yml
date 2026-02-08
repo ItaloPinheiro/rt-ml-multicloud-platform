@@ -74,8 +74,8 @@ jobs:
     - name: Generate SBOM
       uses: anchore/sbom-action@v0
       with:
-        # Use the image digest from build step for accurate reference
-        image: ${{ env.REGISTRY }}/${{ github.repository }}@${{ steps.build.outputs.digest }}
+        # OCI references must be lowercase - use hardcoded value
+        image: ghcr.io/italopinheiro/rt-ml-multicloud-platform@${{ steps.build.outputs.digest }}
         format: spdx-json
         output-file: sbom.spdx.json
 
