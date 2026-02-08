@@ -250,6 +250,8 @@ jobs:
 
     - name: Start services with Docker Compose
       run: |
+        pwd
+        ls -R ops/ || true
         docker compose -f ops/local/docker-compose.yml up -d
         sleep 30  # Wait for services to be ready
 
