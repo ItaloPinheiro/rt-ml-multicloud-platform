@@ -1,11 +1,9 @@
 name: CI Pipeline
 
 on:
-  # TEMPORARILY DISABLED for Docker build optimization testing
-  # Re-enable after optimization testing is complete
-  # pull_request:
-  #   branches: [ main ]
-  workflow_dispatch:  # Manual triggers only for now
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
 
 env:
   PYTHON_VERSION: '3.11'
