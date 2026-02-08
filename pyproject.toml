@@ -138,4 +138,5 @@ markers = [
     "integration: marks tests as integration tests",
     "e2e: marks tests as end-to-end tests",
     "slow: marks tests as slow running",
+    "performance: marks tests as performance tests",
 ]
