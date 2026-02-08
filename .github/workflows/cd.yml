@@ -74,8 +74,8 @@ jobs:
     - name: Generate SBOM
       uses: anchore/sbom-action@v0
       with:
-        # Use the main tag which is guaranteed to exist
-        image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:main
+        # Use the image digest from build step for accurate reference
+        image: ${{ env.REGISTRY }}/${{ github.repository }}@${{ steps.build.outputs.digest }}
         format: spdx-json
         output-file: sbom.spdx.json
 
