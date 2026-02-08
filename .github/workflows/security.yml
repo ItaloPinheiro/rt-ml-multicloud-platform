@@ -4,11 +4,11 @@ on:
   schedule:
     # Run security scans daily at 2 AM UTC
     - cron: '0 2 * * *'
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-  workflow_dispatch:
+  # TEMPORARILY DISABLED for Docker build optimization testing
+  # Re-enable after optimization testing is complete
+  # pull_request:
+  #   branches: [ main ]
+  workflow_dispatch:  # Manual triggers only for now
 
 env:
   PYTHON_VERSION: '3.11'

@@ -67,7 +67,9 @@ jobs:
         labels: ${{ steps.meta.outputs.labels }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
-        platforms: linux/amd64,linux/arm64
+        # OPTIMIZATION: Single platform only (was linux/amd64,linux/arm64)
+        # This should reduce build time by ~50%
+        platforms: linux/amd64
 
     - name: Generate SBOM
       uses: anchore/sbom-action@v0
