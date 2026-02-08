@@ -2,7 +2,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: ml-pipeline-api
-  namespace: ml-pipeline-staging
 spec:
   replicas: 2
   template:
