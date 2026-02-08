@@ -10,8 +10,8 @@ DATA_ROOT=${DATA_ROOT:-data/sample}
 DEMO_DATA="${DATA_ROOT}/demo"
 
 # Source demo configuration if available
-if [ -f "${DEMO_DATA}/config.env" ]; then
-    source "${DEMO_DATA}/config.env"
+if [ -f "${DEMO_DATA}/demo.env" ]; then
+    source "${DEMO_DATA}/demo.env"
 else
     # Fallback configuration
     DEMO_DATASET="${DEMO_DATA}/datasets/fraud_detection.csv"

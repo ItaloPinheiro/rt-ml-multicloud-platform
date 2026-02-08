@@ -51,7 +51,6 @@ kubectl get pods -n ml-pipeline-prod --watch
 Run the Python script to train the initial model locally and log it to the K8s-hosted MLflow service.
 
 ```bash
-# Train baseline model (Version 1)
 python scripts/demo/local-demo-k8s/train.py
 ```
 
@@ -72,8 +71,6 @@ Invoke-RestMethod -Uri "http://localhost:30001/predict" -Method Post -Header @{"
 Now, simulate a model improvement cycle by training a new version with different hyperparameters.
 
 ```bash
-# Train improved model (Version 2)
-# The script will auto-promote it and verify the API updates with low latency
 python scripts/demo/local-demo-k8s/train.py --n-estimators 200
 ```
 

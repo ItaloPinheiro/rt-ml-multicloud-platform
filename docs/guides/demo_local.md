@@ -60,7 +60,7 @@ Confirmed the model was loaded and capable of predicting.
 
 Check loaded model status:
 ```powershell
-Invoke-RestMethod -Uri "http://localhost:8000/models"
+Invoke-RestMethod -Uri "http://localhost:8000/models" | ConvertTo-Json
 ```
 
 Make a prediction (Baseline request):
@@ -80,7 +80,7 @@ The API polls for updates every 60 seconds (default). Checked that V2 was loaded
 
 Check loaded model status (Wait for version to change to "2"):
 ```powershell
-Invoke-RestMethod -Uri "http://localhost:8000/models"
+Invoke-RestMethod -Uri "http://localhost:8000/models" | ConvertTo-Json
 ```
 
 ### Step 7: Verify Model V2 Prediction
