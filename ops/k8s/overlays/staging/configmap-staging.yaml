@@ -1,7 +1,11 @@
+# Strategic Merge Patch for Staging ConfigMap
+# Note: namespace must match base (ml-pipeline),
+# kustomization.yaml transforms it to ml-pipeline-staging
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: ml-pipeline-config
+  namespace: ml-pipeline
 data:
   ENVIRONMENT: "staging"
   DEBUG: "true"
