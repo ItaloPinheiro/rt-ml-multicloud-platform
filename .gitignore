@@ -343,7 +343,7 @@ terraform.tfstate*
 *.kubeconfig
 
 # Local development
-local/
+/local/
 dev/
 
 # Backup files
