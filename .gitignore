@@ -301,6 +301,7 @@ mlartifacts/
 
 # Model artifacts
 /models/
+model_cache/
 artifacts/
 *.pkl
 *.joblib

@@ -7,7 +7,7 @@ This directory contains sample data for testing, demonstrations, and development
 ```
 sample_data/
 ├── demo/                   # Demo-specific data for showcase and testing
-│   ├── config.env         # Demo configuration variables
+│   ├── demo.env           # Demo configuration variables
 │   ├── datasets/          # Training and validation datasets
 │   ├── requests/          # API request examples
 │   └── expected/          # Expected outcomes for validation
@@ -26,7 +26,7 @@ Contains curated data specifically for running demos and quick tests:
 - **requests/**: API request payloads for testing
   - `baseline.json`: Request for testing initial model
   - `improved.json`: Request for testing improved model
-- **config.env**: Environment configuration for demos
+- **demo.env**: Environment configuration for demos
 
 ### generated/
 Temporary storage for generated data:
@@ -46,7 +46,7 @@ Production-like datasets for more comprehensive testing:
 ### In Demo Scripts
 ```bash
 # Source the configuration
-source sample_data/demo/config.env
+source sample_data/demo/demo.env
 
 # Use configured paths
 docker exec ml-beam-runner python -m src.models.training.train \

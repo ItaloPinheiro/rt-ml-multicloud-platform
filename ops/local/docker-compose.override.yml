@@ -11,9 +11,9 @@ services:
     image: docker.redpanda.com/redpandadata/redpanda:v23.3.3
     container_name: ml-redpanda
     ports:
-      - "9092:9092"   # Kafka API
+      - "${REDPANDA_PORT:-9092}:9092"   # Kafka API
       - "9644:9644"   # Admin API
-      - "8081:8081"   # Schema Registry
+      - "${REDPANDA_CONSOLE_PORT:-8081}:8081"   # Schema Registry
       - "8082:8082"   # REST Proxy
     command:
       - redpanda
@@ -40,19 +40,20 @@ services:
   # =================================================================
   # MLflow Database - PostgreSQL
   # =================================================================
+
   mlflow-db:
     image: postgres:16-alpine
     container_name: ml-mlflow-db
     environment:
-      POSTGRES_USER: mlflow
-      POSTGRES_PASSWORD: mlflow123
-      POSTGRES_DB: mlflow
+      POSTGRES_USER: ${POSTGRES_USER:-mlflow}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mlflow123}
+      POSTGRES_DB: ${POSTGRES_DB:-mlflow}
     ports:
-      - "5433:5432"
+      - "${POSTGRES_PORT:-5433}:5432"
     volumes:
       - mlflow_db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U mlflow"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mlflow}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -60,15 +61,16 @@ services:
   # =================================================================
   # MLflow Artifact Store - MinIO (S3-compatible)
   # =================================================================
+
   mlflow-minio:
     image: minio/minio:latest
     container_name: ml-mlflow-minio
     ports:
-      - "9000:9000"   # API
-      - "9001:9001"   # Console
+      - "${MINIO_PORT:-9000}:9000"   # API
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"   # Console
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin123
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
     volumes:
       - mlflow_minio_data:/data
       - ../../ops/docker/scripts/minio-entrypoint.sh:/entrypoint.sh:ro
@@ -82,19 +84,20 @@ services:
   # =================================================================
   # MLflow Tracking Server - BUILD FROM LOCAL DOCKERFILE
   # =================================================================
+
   mlflow-server:
     build:
       context: ../../
       dockerfile: ops/docker/mlflow/Dockerfile
     container_name: ml-mlflow-server
     ports:
-      - "5000:5000"
+      - "${MLFLOW_PORT:-5000}:5000"
     environment:
-      MLFLOW_BACKEND_STORE_URI: postgresql://mlflow:mlflow123@mlflow-db:5432/mlflow
-      MLFLOW_ARTIFACT_ROOT: s3://mlflow
-      AWS_ACCESS_KEY_ID: minioadmin
-      AWS_SECRET_ACCESS_KEY: minioadmin123
-      MLFLOW_S3_ENDPOINT_URL: http://mlflow-minio:9000
+      MLFLOW_BACKEND_STORE_URI: postgresql://${POSTGRES_USER:-mlflow}:${POSTGRES_PASSWORD:-mlflow123}@mlflow-db:5432/${POSTGRES_DB:-mlflow}
+      MLFLOW_ARTIFACT_ROOT: ${MLFLOW_ARTIFACT_ROOT:-s3://mlflow/artifacts}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-minioadmin}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-minioadmin123}
+      MLFLOW_S3_ENDPOINT_URL: ${MLFLOW_S3_ENDPOINT_URL:-http://mlflow-minio:9000}
       MLFLOW_HOST: 0.0.0.0
     depends_on:
       mlflow-db:
@@ -106,8 +109,8 @@ services:
         mlflow server
         --host 0.0.0.0
         --port 5000
-        --backend-store-uri postgresql://mlflow:mlflow123@mlflow-db:5432/mlflow
-        --default-artifact-root s3://mlflow/artifacts
+        --backend-store-uri postgresql://${POSTGRES_USER:-mlflow}:${POSTGRES_PASSWORD:-mlflow123}@mlflow-db:5432/${POSTGRES_DB:-mlflow}
+        --default-artifact-root ${MLFLOW_ARTIFACT_ROOT:-s3://mlflow/artifacts}
         --no-serve-artifacts
         --workers 2
       "
@@ -124,7 +127,7 @@ services:
     image: redis:7-alpine
     container_name: ml-redis
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
     command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
@@ -137,19 +140,20 @@ services:
   # =================================================================
   # Model API - BUILD FROM LOCAL DOCKERFILE
   # =================================================================
+
   model-api:
     build:
       context: ../../
       dockerfile: ops/docker/api/Dockerfile
     container_name: ml-model-api
     ports:
-      - "8000:8000"
+      - "${API_PORT:-8000}:8000"
     environment:
-      MLFLOW_TRACKING_URI: "http://mlflow-server:5000"
-      AWS_ACCESS_KEY_ID: minioadmin
-      AWS_SECRET_ACCESS_KEY: minioadmin123
-      MLFLOW_S3_ENDPOINT_URL: "http://mlflow-minio:9000"
-      MLFLOW_S3_IGNORE_TLS: "true"
+      MLFLOW_TRACKING_URI: "${MLFLOW_TRACKING_URI:-http://mlflow-server:5000}"
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-minioadmin}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-minioadmin123}
+      MLFLOW_S3_ENDPOINT_URL: "${MLFLOW_S3_ENDPOINT_URL:-http://mlflow-minio:9000}"
+      MLFLOW_S3_IGNORE_TLS: "${MLFLOW_S3_IGNORE_TLS:-true}"
       AWS_S3_ADDRESSING_STYLE: "path"
       AWS_MAX_ATTEMPTS: "2"
       AWS_RETRY_MODE: "standard"
@@ -160,11 +164,11 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
-      LOG_LEVEL: INFO
-      API_RELOAD: "false"
-      PRELOAD_MODELS: "fraud_detector:latest"
-      MODEL_AUTO_UPDATE: "true"
-      MODEL_UPDATE_INTERVAL: "60"
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      API_RELOAD: "${API_RELOAD:-false}"
+      PRELOAD_MODELS: "${PRELOAD_MODELS:-fraud_detector:latest}"
+      MODEL_AUTO_UPDATE: "${MODEL_AUTO_UPDATE:-true}"
+      MODEL_UPDATE_INTERVAL: "${MODEL_UPDATE_INTERVAL:-60}"
     depends_on:
       mlflow-server:
         condition: service_healthy
@@ -187,11 +191,12 @@ services:
   # =================================================================
   # Monitoring - Prometheus
   # =================================================================
+
   prometheus:
     image: prom/prometheus:latest
     container_name: ml-prometheus
     ports:
-      - "9090:9090"
+      - "${PROMETHEUS_PORT:-9090}:9090"
     volumes:
       - ../../ops/monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
@@ -211,13 +216,14 @@ services:
   # =================================================================
   # Monitoring - Grafana
   # =================================================================
+
   grafana:
     image: grafana/grafana:latest
     container_name: ml-grafana
     ports:
-      - "3001:3000"
+      - "${GRAFANA_PORT:-3001}:3000"
     environment:
-      GF_SECURITY_ADMIN_PASSWORD: admin123
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin123}
       GF_INSTALL_PLUGINS: grafana-piechart-panel,grafana-worldmap-panel
       GF_USERS_ALLOW_SIGN_UP: "false"
     volumes:
@@ -250,13 +256,14 @@ services:
   # =================================================================
   # PostgreSQL Exporter - Prometheus metrics for PostgreSQL
   # =================================================================
+
   postgres-exporter:
     image: prometheuscommunity/postgres-exporter:latest
     container_name: ml-postgres-exporter
     ports:
       - "9187:9187"
     environment:
-      DATA_SOURCE_NAME: postgresql://mlflow:mlflow123@mlflow-db:5432/mlflow?sslmode=disable
+      DATA_SOURCE_NAME: postgresql://${POSTGRES_USER:-mlflow}:${POSTGRES_PASSWORD:-mlflow123}@mlflow-db:5432/${POSTGRES_DB:-mlflow}?sslmode=disable
     depends_on:
       mlflow-db:
         condition: service_healthy
@@ -280,8 +287,8 @@ services:
       AWS_REGION: ${AWS_REGION:-us-east-1}
       PYTHONPATH: /app
       MLFLOW_TRACKING_URI: http://mlflow-server:5000
-      AWS_ACCESS_KEY_ID: minioadmin
-      AWS_SECRET_ACCESS_KEY: minioadmin123
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-minioadmin}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-minioadmin123}
       MLFLOW_S3_ENDPOINT_URL: http://mlflow-minio:9000
     volumes:
       - ../../src:/app/src:ro

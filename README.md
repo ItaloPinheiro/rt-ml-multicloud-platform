@@ -8,6 +8,7 @@ Full documentation is available in the [docs/](docs/README.md) directory.
 
 *   **[Setup Guide](docs/guides/setup.md)**: Get started with installation and local setup.
 *   **[Architecture](docs/architecture/overview.md)**: Understand the system design and components.
+*   **[Project Structure](docs/project_structure.md)**: Detailed overview of directories and files.
 *   **[API Reference](docs/api/reference.md)**: Detailed API documentation.
 *   **[Running the Demo](docs/guides/demo.md)**: Step-by-step guide to run the end-to-end demo.
 
@@ -27,13 +28,10 @@ git clone <repository-url>
 cd rt-ml-multicloud-platform
 
 # Setup environment
-cp .env.example .env
+cp ops/envs/.env.example .env
 
-# Start services
-docker-compose -f ops/local/docker-compose.yml -f ops/local/docker-compose.override.yml up -d
-
-# Run demo
-./scripts/demo/demo.sh
+# Run the full end-to-end local demo (starts services, trains models, tests API)
+./scripts/demo/local-demo/demo.sh
 ```
 
 ## License
