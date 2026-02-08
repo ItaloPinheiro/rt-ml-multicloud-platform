@@ -250,7 +250,7 @@ jobs:
 
     - name: Start services with Docker Compose
       run: |
-        docker compose -f ops/local/docker-compose.yml up -d
+        docker compose -f ops/local/docker-compose.yml -f ops/local/docker-compose.override.yml up -d
         sleep 30  # Wait for services to be ready
 
     - name: Run performance tests
@@ -259,7 +259,7 @@ jobs:
 
     - name: Stop services
       run: |
-        docker compose -f ops/local/docker-compose.yml down
+        docker compose -f ops/local/docker-compose.yml -f ops/local/docker-compose.override.yml down
 
   # Kubernetes Validation
   k8s-validation:
