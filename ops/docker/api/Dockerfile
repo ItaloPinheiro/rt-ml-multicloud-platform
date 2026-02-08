@@ -2,7 +2,7 @@
 # FastAPI Model Serving API Dockerfile
 # =============================================================================
 # Stage 1: Builder
-FROM python:3.11-slim as builder
+FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
@@ -27,7 +27,7 @@ RUN poetry config virtualenvs.in-project true \
     && poetry install --no-interaction --no-ansi --only main --no-root
 
 # Stage 2: Runtime
-FROM python:3.11-slim as runtime
+FROM python:3.11-slim AS runtime
 
 LABEL maintainer="Italo Pinheiro <italo@example.com>"
 LABEL description="FastAPI ML model serving container"
@@ -48,7 +48,7 @@ COPY configs ./configs
 
 # Set environment variables
 ENV PATH="/app/.venv/bin:$PATH"
-ENV PYTHONPATH=/app:$PYTHONPATH
+ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
