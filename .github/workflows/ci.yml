@@ -3,6 +3,7 @@ name: CI Pipeline
 on:
   pull_request:
     branches: [ main ]
+    types: [opened, synchronize, reopened, labeled]
   workflow_dispatch:
 
 env:
@@ -230,7 +231,7 @@ jobs:
     name: Performance Tests
     runs-on: ubuntu-latest
     needs: [integration-test]
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'performance')
 
     steps:
     - name: Checkout code
@@ -249,7 +250,7 @@ jobs:
 
     - name: Start services with Docker Compose
       run: |
-        docker-compose -f ops/local/docker-compose.yml up -d
+        docker compose -f ops/local/docker-compose.yml -f ops/local/docker-compose.override.yml up -d
         sleep 30  # Wait for services to be ready
 
     - name: Run performance tests
@@ -258,7 +259,7 @@ jobs:
 
     - name: Stop services
       run: |
-        docker-compose -f ops/local/docker-compose.yml down
+        docker compose -f ops/local/docker-compose.yml -f ops/local/docker-compose.override.yml down
 
   # Kubernetes Validation
   k8s-validation:
