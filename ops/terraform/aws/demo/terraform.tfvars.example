@@ -1,0 +1,39 @@
+# AWS Region
+aws_region = "us-east-1"
+
+# SSH Key Pair (MUST EXIST in AWS console)
+key_name = "ml-pipeline-key"
+
+# Instance Configuration
+# t3.micro is Free Tier eligible
+# t3.small is recommended for better performance (~$8/month)
+instance_type = "t3.micro"
+use_spot_instance = true
+
+# Storage
+# 30GB is Free Tier eligible
+root_volume_size = 30
+
+# Network
+# Use default VPC for simplest setup
+use_default_vpc = true
+# Or specify existing VPC CIDR to create new one
+# vpc_cidr = "10.0.0.0/16"
+
+# Security
+# Restrict SSH to your IP for production
+allowed_ssh_cidrs = ["0.0.0.0/0"]
+
+# Application Ports
+# These are the ports used to access the services
+nodeport_api = 30800
+nodeport_mlflow = 30500
+nodeport_grafana = 30300
+nodeport_prometheus = 30900
+
+# Monitoring
+enable_monitoring = true
+
+# Swap (Recommended for t3.micro)
+enable_swap = true
+swap_size_gb = 2
