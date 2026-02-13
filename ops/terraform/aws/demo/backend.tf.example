@@ -1,0 +1,10 @@
+terraform {
+  backend "s3" {
+    # REPLACE THESE VALUES after running bootstrap
+    bucket         = "rt-ml-platform-tf-state-UNIQUE_SUFFIX"
+    key            = "demo/terraform.tfstate"
+    region         = "us-east-1"
+    dynamodb_table = "rt-ml-platform-tf-locks"
+    encrypt        = true
+  }
+}

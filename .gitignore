@@ -418,3 +418,4 @@ scripts/local/
 
 # Ignore project tar gz files
 *.tar.gz
+*.tfvars
