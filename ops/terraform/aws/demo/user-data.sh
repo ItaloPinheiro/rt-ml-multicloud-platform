@@ -145,7 +145,9 @@ echo "[5/7] Pulling images from GHCR..."
 # 5.1 Retrieve GitHub PAT from Secrets Manager
 echo "Retrieving GitHub PAT..."
 SECRET_ID="rt-ml-platform/gh-pat-read"
-REGION=$(curl -s http://169.254.169.254/latest/meta-data/placement/region)
+# Use IMDSv2 to get the region
+TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+REGION=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -s http://169.254.169.254/latest/meta-data/placement/region)
 GH_PAT=$(aws secretsmanager get-secret-value --secret-id $SECRET_ID --region $REGION --query SecretString --output text)
 
 if [ -z "$GH_PAT" ]; then

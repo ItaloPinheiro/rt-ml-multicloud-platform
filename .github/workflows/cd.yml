@@ -75,14 +75,17 @@ jobs:
           type=semver,pattern={{major}}
           type=sha,prefix=sha-
 
-    - name: Build and push Docker image
+    - name: Build and push API image
       id: build
       uses: docker/build-push-action@v5
       with:
         context: .
         file: ./ops/docker/api/Dockerfile
         push: true
-        tags: ${{ steps.meta.outputs.tags }}
+        tags: |
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:latest
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:${{ steps.meta.outputs.version }}
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:sha-${{ github.sha }}
         labels: ${{ steps.meta.outputs.labels }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
