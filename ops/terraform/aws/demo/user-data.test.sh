@@ -9,13 +9,13 @@
 set -e
 
 # Configuration from Terraform template variables
-ENABLE_SWAP="${enable_swap}"
-SWAP_SIZE_GB="${swap_size_gb}"
-ENABLE_MONITORING="${enable_monitoring}"
-NODEPORT_API="${nodeport_api}"
-NODEPORT_MLFLOW="${nodeport_mlflow}"
-NODEPORT_GRAFANA="${nodeport_grafana}"
-NODEPORT_PROMETHEUS="${nodeport_prometheus}"
+ENABLE_SWAP="true"
+SWAP_SIZE_GB="2"
+ENABLE_MONITORING="true"
+NODEPORT_API="30800"
+NODEPORT_MLFLOW="30500"
+NODEPORT_GRAFANA="30300"
+NODEPORT_PROMETHEUS="30900"
 
 # Logging
 exec > >(tee /var/log/user-data.log | logger -t user-data -s 2>/dev/console) 2>&1
@@ -47,10 +47,10 @@ apt-get install -y \
 # 2. Configure Swap (for t3.micro with limited memory)
 # =============================================================================
 if [ "$ENABLE_SWAP" = "true" ]; then
-    echo "[2/7] Configuring swap ($${SWAP_SIZE_GB}GB)..."
+    echo "[2/7] Configuring swap (${SWAP_SIZE_GB}GB)..."
     SWAP_FILE="/swapfile"
     if [ ! -f "$SWAP_FILE" ]; then
-        fallocate -l $${SWAP_SIZE_GB}G $SWAP_FILE
+        fallocate -l ${SWAP_SIZE_GB}G $SWAP_FILE
         chmod 600 $SWAP_FILE
         mkswap $SWAP_FILE
         swapon $SWAP_FILE
@@ -342,7 +342,7 @@ patches:
         ports:
         - port: 5000
           targetPort: 5000
-          nodePort: $${NODEPORT_MLFLOW}
+          nodePort: ${NODEPORT_MLFLOW}
 
   # API - use local image
   - target:
@@ -408,7 +408,7 @@ patches:
           port: 8000
           targetPort: 8000
           protocol: TCP
-          nodePort: $${NODEPORT_API}
+          nodePort: ${NODEPORT_API}
 
   # Disable HPA (single replica)
   - target:
@@ -437,7 +437,7 @@ patches:
         ports:
         - port: 3000
           targetPort: 3000
-          nodePort: $${NODEPORT_GRAFANA}
+          nodePort: ${NODEPORT_GRAFANA}
 
   # Prometheus Service - NodePort
   - target:
@@ -453,7 +453,7 @@ patches:
         ports:
         - port: 9090
           targetPort: 9090
-          nodePort: $${NODEPORT_PROMETHEUS}
+          nodePort: ${NODEPORT_PROMETHEUS}
 
   # Prometheus - minimal resources
   - target:
@@ -529,10 +529,10 @@ echo "Timestamp: $(date)"
 echo "========================================"
 echo ""
 echo "Service URLs:"
-echo "  - MLflow:     http://$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4):$${NODEPORT_MLFLOW}"
-echo "  - API:        http://$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4):$${NODEPORT_API}"
-echo "  - Grafana:    http://$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4):$${NODEPORT_GRAFANA}"
-echo "  - Prometheus: http://$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4):$${NODEPORT_PROMETHEUS}"
+echo "  - MLflow:     http://$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4):${NODEPORT_MLFLOW}"
+echo "  - API:        http://$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4):${NODEPORT_API}"
+echo "  - Grafana:    http://$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4):${NODEPORT_GRAFANA}"
+echo "  - Prometheus: http://$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4):${NODEPORT_PROMETHEUS}"
 echo ""
 echo "Check pod status with: sudo k3s kubectl get pods -n ml-pipeline"
 echo ""
