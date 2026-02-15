@@ -1,0 +1,41 @@
+# =============================================================================
+# Git Line Ending Configuration
+# =============================================================================
+# Ensure files that run on Linux always have LF line endings,
+# regardless of the developer's OS or Git autocrlf setting.
+# =============================================================================
+
+# Default: auto-detect
+* text=auto
+
+# Shell scripts — MUST be LF (they run on Linux)
+*.sh text eol=lf
+
+# Dockerfiles and docker-compose — run on Linux
+Dockerfile* text eol=lf
+docker-compose*.yml text eol=lf
+docker-compose*.yaml text eol=lf
+
+# Kubernetes manifests — applied to Linux clusters
+*.yaml text eol=lf
+*.yml text eol=lf
+
+# Python — typically runs on Linux in containers
+*.py text eol=lf
+
+# Makefiles — sensitive to line endings
+Makefile text eol=lf
+
+# Keep Windows batch files as CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Binary files — never touch
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pem binary
+*.key binary

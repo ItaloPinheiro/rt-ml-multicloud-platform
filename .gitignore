@@ -333,6 +333,7 @@ Icon?
 *.p12
 *.pfx
 secrets/
+secrets.env
 credentials/
 .secrets/
 .credentials/

@@ -294,7 +294,10 @@ resource "aws_instance" "demo" {
 
   lifecycle {
     # Ignore user_data changes to prevent recreation
-    ignore_changes = [user_data]
+    ignore_changes = [
+      user_data,
+      user_data_base64
+    ]
   }
 }
 

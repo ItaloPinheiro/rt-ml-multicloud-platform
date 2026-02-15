@@ -9,13 +9,13 @@
 set -e
 
 # Configuration from Terraform template variables
-ENABLE_SWAP="${enable_swap}"
-SWAP_SIZE_GB="${swap_size_gb}"
-ENABLE_MONITORING="${enable_monitoring}"
-NODEPORT_API="${nodeport_api}"
-NODEPORT_MLFLOW="${nodeport_mlflow}"
-NODEPORT_GRAFANA="${nodeport_grafana}"
-NODEPORT_PROMETHEUS="${nodeport_prometheus}"
+ENABLE_SWAP="true"
+SWAP_SIZE_GB="2"
+ENABLE_MONITORING="true"
+NODEPORT_API="30800"
+NODEPORT_MLFLOW="30500"
+NODEPORT_GRAFANA="30300"
+NODEPORT_PROMETHEUS="30900"
 
 # Logging
 exec > >(tee /var/log/user-data.log | logger -t user-data -s 2>/dev/console) 2>&1
@@ -47,10 +47,10 @@ apt-get install -y \
 # 2. Configure Swap (for t3.micro with limited memory)
 # =============================================================================
 if [ "$ENABLE_SWAP" = "true" ]; then
-    echo "[2/7] Configuring swap ($${SWAP_SIZE_GB}GB)..."
+    echo "[2/7] Configuring swap (${SWAP_SIZE_GB}GB)..."
     SWAP_FILE="/swapfile"
     if [ ! -f "$SWAP_FILE" ]; then
-        fallocate -l $${SWAP_SIZE_GB}G $SWAP_FILE
+        fallocate -l ${SWAP_SIZE_GB}G $SWAP_FILE
         chmod 600 $SWAP_FILE
         mkswap $SWAP_FILE
         swapon $SWAP_FILE
@@ -197,29 +197,28 @@ echo "[6/7] Configuring secrets and application..."
 echo "Creating namespace..."
 k3s kubectl create namespace ml-pipeline --dry-run=client -o yaml | k3s kubectl apply -f -
 
-# 6.2 Retrieve App Secrets from Secrets Manager
-echo "Retrieving App Secrets..."
-APP_SECRET_ID="rt-ml-platform/app-secrets"
-APP_SECRETS=$(aws secretsmanager get-secret-value --secret-id $APP_SECRET_ID --region $REGION --query SecretString --output text)
-
-if [ -z "$APP_SECRETS" ]; then
-    echo "ERROR: Failed to retrieve App Secrets from Secrets Manager."
-    # Fallback to demo defaults if secret missing (for safety in demo)
-    echo "WARNING: Using fallback demo secrets!"
-    APP_SECRETS='{"DATABASE_USER":"mlflow","DATABASE_PASSWORD":"mlflow123secret","DATABASE_NAME":"mlflow","DATABASE_HOST":"postgres-service","REDIS_HOST":"redis-service","REDIS_PORT":"6379","REDIS_PASSWORD":"redis123secret","MLFLOW_TRACKING_URI":"http://mlflow-service:5000"}'
-fi
+# 6.2 Define Secrets (Hardcoded for Test Script)
+echo "Defining Secrets (TEST MODE)..."
+DATABASE_USER="mlflow"
+DATABASE_PASSWORD="mlflow123secret"
+DATABASE_NAME="mlflow"
+DATABASE_HOST="postgres-service"
+REDIS_HOST="redis-service"
+REDIS_PORT="6379"
+REDIS_PASSWORD="redis123secret"
+MLFLOW_TRACKING_URI="http://mlflow-service:5000"
 
 # 6.3 Create K8s Secret directly (No file on disk)
 echo "Creating K8s Secret..."
 k3s kubectl create secret generic ml-pipeline-secrets -n ml-pipeline \
-  --from-literal=DATABASE_USER="$(echo $APP_SECRETS | jq -r '.DATABASE_USER')" \
-  --from-literal=DATABASE_PASSWORD="$(echo $APP_SECRETS | jq -r '.DATABASE_PASSWORD')" \
-  --from-literal=DATABASE_NAME="$(echo $APP_SECRETS | jq -r '.DATABASE_NAME')" \
-  --from-literal=DATABASE_HOST="$(echo $APP_SECRETS | jq -r '.DATABASE_HOST')" \
-  --from-literal=REDIS_HOST="$(echo $APP_SECRETS | jq -r '.REDIS_HOST')" \
-  --from-literal=REDIS_PORT="$(echo $APP_SECRETS | jq -r '.REDIS_PORT')" \
-  --from-literal=REDIS_PASSWORD="$(echo $APP_SECRETS | jq -r '.REDIS_PASSWORD')" \
-  --from-literal=MLFLOW_TRACKING_URI="$(echo $APP_SECRETS | jq -r '.MLFLOW_TRACKING_URI')" \
+  --from-literal=DATABASE_USER="$DATABASE_USER" \
+  --from-literal=DATABASE_PASSWORD="$DATABASE_PASSWORD" \
+  --from-literal=DATABASE_NAME="$DATABASE_NAME" \
+  --from-literal=DATABASE_HOST="$DATABASE_HOST" \
+  --from-literal=REDIS_HOST="$REDIS_HOST" \
+  --from-literal=REDIS_PORT="$REDIS_PORT" \
+  --from-literal=REDIS_PASSWORD="$REDIS_PASSWORD" \
+  --from-literal=MLFLOW_TRACKING_URI="$MLFLOW_TRACKING_URI" \
   --dry-run=client -o yaml | k3s kubectl apply -f -
 
 # =============================================================================
@@ -228,7 +227,6 @@ k3s kubectl create secret generic ml-pipeline-secrets -n ml-pipeline \
 echo "[7/7] Deploying to Kubernetes..."
 
 # Apply the AWS Demo overlay (which expects the secret to exist)
-# Using aws-demo overlay which does NOT generate secrets (separation of concerns)
 cd /home/ubuntu/rt-ml-multicloud-platform
 k3s kubectl apply -k ops/k8s/overlays/aws-demo
 

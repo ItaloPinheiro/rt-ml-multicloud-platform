@@ -29,7 +29,6 @@ cp terraform.tfvars.example terraform.tfvars
 terraform init
 terraform plan
 terraform apply
-terraform apply
 ```
 
 ### Cleanup (Stop Paying!)

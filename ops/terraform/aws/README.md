@@ -94,11 +94,16 @@ terraform plan
 
 ### Step 4: Deploy
 
-```bash
-terraform apply
-```
+### Step 4: Deploy
+It is best practice to generate a plan first:
 
-Type `yes` when prompted.
+```bash
+# 1. Generate execution plan
+terraform plan -out=tfplan
+
+# 2. Apply the plan
+terraform apply tfplan
+```
 
 ### Step 5: Access the Demo
 
