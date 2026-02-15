@@ -189,331 +189,50 @@ docker save ml-pipeline/mlflow:v1.0.0 | k3s ctr images import -
 echo "Images pulled and imported successfully."
 
 # =============================================================================
-# 6. Create Terraform-specific Kustomize Overlay
+# 6. Configure Secrets & Overlay
 # =============================================================================
-echo "[6/7] Configuring Kubernetes manifests..."
+echo "[6/7] Configuring secrets and application..."
 
-# Create terraform overlay directory
-cd /home/ubuntu/rt-ml-multicloud-platform
-OVERLAY_DIR="ops/k8s/overlays/terraform-demo"
-mkdir -p $OVERLAY_DIR
+# 6.1 Create Namespace
+echo "Creating namespace..."
+k3s kubectl create namespace ml-pipeline --dry-run=client -o yaml | k3s kubectl apply -f -
 
-# Create secrets patch file
-cat > $OVERLAY_DIR/secret-patch.yaml << 'EOF'
-apiVersion: v1
-kind: Secret
-metadata:
-  name: ml-pipeline-secrets
-  namespace: ml-pipeline
-type: Opaque
-stringData:
-  DATABASE_USER: mlflow
-  DATABASE_PASSWORD: mlflow123secret
-  DATABASE_NAME: mlflow
-  DATABASE_HOST: postgres-service
-  REDIS_HOST: redis-service
-  REDIS_PORT: "6379"
-  REDIS_PASSWORD: redis123secret
-  MLFLOW_TRACKING_URI: http://mlflow-service:5000
-EOF
+# 6.2 Define Secrets (Hardcoded for Test Script)
+echo "Defining Secrets (TEST MODE)..."
+DATABASE_USER="mlflow"
+DATABASE_PASSWORD="mlflow123secret"
+DATABASE_NAME="mlflow"
+DATABASE_HOST="postgres-service"
+REDIS_HOST="redis-service"
+REDIS_PORT="6379"
+REDIS_PASSWORD="redis123secret"
+MLFLOW_TRACKING_URI="http://mlflow-service:5000"
 
-# Create kustomization with dynamic NodePorts
-cat > $OVERLAY_DIR/kustomization.yaml << KUSTOMIZE_EOF
-apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
-namespace: ml-pipeline
-
-resources:
-  - ../../base
-
-patches:
-  # Patch the base secret with actual values
-  - path: secret-patch.yaml
-    target:
-      kind: Secret
-      name: ml-pipeline-secrets
-
-  # PostgreSQL - minimal resources
-  - target:
-      kind: Deployment
-      name: postgres
-    patch: |-
-      apiVersion: apps/v1
-      kind: Deployment
-      metadata:
-        name: postgres
-      spec:
-        template:
-          spec:
-            containers:
-            - name: postgres
-              resources:
-                requests:
-                  memory: "128Mi"
-                  cpu: "50m"
-                limits:
-                  memory: "256Mi"
-                  cpu: "250m"
-
-  # Redis - minimal resources
-  - target:
-      kind: Deployment
-      name: redis
-    patch: |-
-      apiVersion: apps/v1
-      kind: Deployment
-      metadata:
-        name: redis
-      spec:
-        template:
-          spec:
-            containers:
-            - name: redis
-              args: ["--requirepass", "\$(REDIS_PASSWORD)", "--maxmemory", "64mb", "--maxmemory-policy", "allkeys-lru"]
-              resources:
-                requests:
-                  memory: "64Mi"
-                  cpu: "25m"
-                limits:
-                  memory: "128Mi"
-                  cpu: "100m"
-
-  # MLflow - use local image
-  - target:
-      kind: Deployment
-      name: mlflow
-    patch: |-
-      apiVersion: apps/v1
-      kind: Deployment
-      metadata:
-        name: mlflow
-      spec:
-        template:
-          spec:
-            containers:
-            - name: mlflow
-              image: ml-pipeline/mlflow:v1.0.0
-              imagePullPolicy: Never
-              args:
-              - "--backend-store-uri"
-              - "postgresql://\$(DATABASE_USER):\$(DATABASE_PASSWORD)@\$(DATABASE_HOST):5432/\$(DATABASE_NAME)"
-              - "--artifacts-destination"
-              - "/mlflow/artifacts"
-              - "--serve-artifacts"
-              - "--host"
-              - "0.0.0.0"
-              - "--port"
-              - "5000"
-              resources:
-                requests:
-                  memory: "512Mi"
-                  cpu: "250m"
-                limits:
-                  memory: "1Gi"
-                  cpu: "1000m"
-              livenessProbe:
-                httpGet:
-                  path: /health
-                  port: 5000
-                initialDelaySeconds: 90
-                periodSeconds: 30
-                timeoutSeconds: 10
-                failureThreshold: 5
-              readinessProbe:
-                httpGet:
-                  path: /health
-                  port: 5000
-                initialDelaySeconds: 60
-                periodSeconds: 15
-                timeoutSeconds: 10
-                failureThreshold: 5
-
-  # MLflow Service - NodePort
-  - target:
-      kind: Service
-      name: mlflow-service
-    patch: |-
-      apiVersion: v1
-      kind: Service
-      metadata:
-        name: mlflow-service
-      spec:
-        type: NodePort
-        ports:
-        - port: 5000
-          targetPort: 5000
-          nodePort: ${NODEPORT_MLFLOW}
-
-  # API - use local image
-  - target:
-      kind: Deployment
-      name: ml-pipeline-api
-    patch: |-
-      apiVersion: apps/v1
-      kind: Deployment
-      metadata:
-        name: ml-pipeline-api
-      spec:
-        replicas: 1
-        template:
-          spec:
-            containers:
-            - name: api
-              image: ml-pipeline/api:v1.0.0
-              imagePullPolicy: Never
-              resources:
-                requests:
-                  memory: "512Mi"
-                  cpu: "250m"
-                limits:
-                  memory: "1Gi"
-                  cpu: "1000m"
-              livenessProbe:
-                httpGet:
-                  path: /health
-                  port: 8000
-                initialDelaySeconds: 90
-                periodSeconds: 30
-                timeoutSeconds: 10
-                failureThreshold: 5
-              readinessProbe:
-                httpGet:
-                  path: /health
-                  port: 8000
-                initialDelaySeconds: 60
-                periodSeconds: 15
-                timeoutSeconds: 10
-                failureThreshold: 5
-              volumeMounts:
-              - name: mlflow-artifacts
-                mountPath: /mlflow/artifacts
-            volumes:
-            - name: mlflow-artifacts
-              persistentVolumeClaim:
-                claimName: mlflow-pvc
-
-  # API Service - NodePort
-  - target:
-      kind: Service
-      name: ml-pipeline-api-service
-    patch: |-
-      apiVersion: v1
-      kind: Service
-      metadata:
-        name: ml-pipeline-api-service
-      spec:
-        type: NodePort
-        ports:
-        - name: http
-          port: 8000
-          targetPort: 8000
-          protocol: TCP
-          nodePort: ${NODEPORT_API}
-
-  # Disable HPA (single replica)
-  - target:
-      kind: HorizontalPodAutoscaler
-      name: ml-pipeline-api-hpa
-    patch: |-
-      apiVersion: autoscaling/v2
-      kind: HorizontalPodAutoscaler
-      metadata:
-        name: ml-pipeline-api-hpa
-      spec:
-        minReplicas: 1
-        maxReplicas: 1
-
-  # Grafana Service - NodePort
-  - target:
-      kind: Service
-      name: grafana-service
-    patch: |-
-      apiVersion: v1
-      kind: Service
-      metadata:
-        name: grafana-service
-      spec:
-        type: NodePort
-        ports:
-        - port: 3000
-          targetPort: 3000
-          nodePort: ${NODEPORT_GRAFANA}
-
-  # Prometheus Service - NodePort
-  - target:
-      kind: Service
-      name: prometheus-service
-    patch: |-
-      apiVersion: v1
-      kind: Service
-      metadata:
-        name: prometheus-service
-      spec:
-        type: NodePort
-        ports:
-        - port: 9090
-          targetPort: 9090
-          nodePort: ${NODEPORT_PROMETHEUS}
-
-  # Prometheus - minimal resources
-  - target:
-      kind: Deployment
-      name: prometheus
-    patch: |-
-      apiVersion: apps/v1
-      kind: Deployment
-      metadata:
-        name: prometheus
-      spec:
-        template:
-          spec:
-            containers:
-            - name: prometheus
-              resources:
-                requests:
-                  memory: "128Mi"
-                  cpu: "50m"
-                limits:
-                  memory: "256Mi"
-                  cpu: "250m"
-
-  # Grafana - minimal resources
-  - target:
-      kind: Deployment
-      name: grafana
-    patch: |-
-      apiVersion: apps/v1
-      kind: Deployment
-      metadata:
-        name: grafana
-      spec:
-        template:
-          spec:
-            containers:
-            - name: grafana
-              resources:
-                requests:
-                  memory: "64Mi"
-                  cpu: "25m"
-                limits:
-                  memory: "128Mi"
-                  cpu: "100m"
-KUSTOMIZE_EOF
-
-chown -R ubuntu:ubuntu $OVERLAY_DIR
+# 6.3 Create K8s Secret directly (No file on disk)
+echo "Creating K8s Secret..."
+k3s kubectl create secret generic ml-pipeline-secrets -n ml-pipeline \
+  --from-literal=DATABASE_USER="$DATABASE_USER" \
+  --from-literal=DATABASE_PASSWORD="$DATABASE_PASSWORD" \
+  --from-literal=DATABASE_NAME="$DATABASE_NAME" \
+  --from-literal=DATABASE_HOST="$DATABASE_HOST" \
+  --from-literal=REDIS_HOST="$REDIS_HOST" \
+  --from-literal=REDIS_PORT="$REDIS_PORT" \
+  --from-literal=REDIS_PASSWORD="$REDIS_PASSWORD" \
+  --from-literal=MLFLOW_TRACKING_URI="$MLFLOW_TRACKING_URI" \
+  --dry-run=client -o yaml | k3s kubectl apply -f -
 
 # =============================================================================
 # 7. Deploy to K3s
 # =============================================================================
 echo "[7/7] Deploying to Kubernetes..."
 
-# Apply the manifests
+# Apply the AWS Demo overlay (which expects the secret to exist)
 cd /home/ubuntu/rt-ml-multicloud-platform
-k3s kubectl apply -k ops/k8s/overlays/terraform-demo
+k3s kubectl apply -k ops/k8s/overlays/aws-demo
 
 # Wait for pods to be ready (with timeout)
 echo "Waiting for pods to start (this may take several minutes)..."
-sleep 60
+sleep 90
 
 # Check pod status
 echo "Current pod status:"
@@ -527,12 +246,6 @@ echo "========================================"
 echo "RT ML Platform Bootstrap Complete!"
 echo "Timestamp: $(date)"
 echo "========================================"
-echo ""
-echo "Service URLs:"
-echo "  - MLflow:     http://$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4):${NODEPORT_MLFLOW}"
-echo "  - API:        http://$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4):${NODEPORT_API}"
-echo "  - Grafana:    http://$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4):${NODEPORT_GRAFANA}"
-echo "  - Prometheus: http://$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4):${NODEPORT_PROMETHEUS}"
 echo ""
 echo "Check pod status with: sudo k3s kubectl get pods -n ml-pipeline"
 echo ""

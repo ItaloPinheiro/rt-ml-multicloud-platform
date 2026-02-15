@@ -63,18 +63,18 @@ sudo docker save ml-pipeline/mlflow:v1.0.0 | sudo k3s ctr images import -
 # echo -e "${GREEN}[4/5] Configuring Kubernetes Manifests...${NC}"
 
 # We will handle Kustomization manually for sequential deployment.
-mkdir -p ops/k8s/overlays/ec2-local
-# cp k8s/overlays/production/* k8s/overlays/ec2-local/ 2>/dev/null || true
-# cp ops/k8s/overlays/production/kustomization.yaml ops/k8s/overlays/ec2-local/
+mkdir -p ops/k8s/overlays/local-dev
+# cp k8s/overlays/production/* k8s/overlays/local-dev/ 2>/dev/null || true
+# cp ops/k8s/overlays/production/kustomization.yaml ops/k8s/overlays/local-dev/
 
 # 5. Deploy
 echo -e "${GREEN}[5/5] Deploying to K3s...${NC}"
 # We assume secrets.env is already there or handled by the user manually transferring it.
 # But since we are automating "everything fresh", we should try to apply if the overlay is ready.
-if [ -f "ops/k8s/overlays/ec2-local/kustomization.yaml" ]; then
-    sudo kubectl kustomize ops/k8s/overlays/ec2-local --load-restrictor LoadRestrictionsNone | sudo kubectl apply -f -
+if [ -f "ops/k8s/overlays/local-dev/kustomization.yaml" ]; then
+    sudo kubectl kustomize ops/k8s/overlays/local-dev --load-restrictor LoadRestrictionsNone | sudo kubectl apply -f -
 else
-    echo "Warning: ops/k8s/overlays/ec2-local/kustomization.yaml not found. Skipping deployment."
+    echo "Warning: ops/k8s/overlays/local-dev/kustomization.yaml not found. Skipping deployment."
 fi
 
 echo -e "${GREEN}Deployment Applied! Checking status...${NC}"

@@ -1,0 +1,285 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: ml-pipeline
+
+resources:
+  - ../../base
+
+patches:
+  # Remove the base secret because we create it manually from Secrets Manager
+  - target:
+      kind: Secret
+      name: ml-pipeline-secrets
+    patch: |-
+      $patch: delete
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: ml-pipeline-secrets
+
+  # PostgreSQL - minimal resources
+  - target:
+      kind: Deployment
+      name: postgres
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: postgres
+      spec:
+        template:
+          spec:
+            containers:
+            - name: postgres
+              resources:
+                requests:
+                  memory: "128Mi"
+                  cpu: "50m"
+                limits:
+                  memory: "256Mi"
+                  cpu: "250m"
+
+  # Redis - minimal resources
+  - target:
+      kind: Deployment
+      name: redis
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: redis
+      spec:
+        template:
+          spec:
+            containers:
+            - name: redis
+              # Note: args will use the secret values at runtime
+              args: ["--requirepass", "$(REDIS_PASSWORD)", "--maxmemory", "64mb", "--maxmemory-policy", "allkeys-lru"]
+              resources:
+                requests:
+                  memory: "64Mi"
+                  cpu: "25m"
+                limits:
+                  memory: "128Mi"
+                  cpu: "100m"
+
+  # MLflow - use local image & custom args
+  - target:
+      kind: Deployment
+      name: mlflow
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: mlflow
+      spec:
+        template:
+          spec:
+            containers:
+            - name: mlflow
+              image: ml-pipeline/mlflow:v1.0.0
+              imagePullPolicy: Never
+              args:
+              - "--backend-store-uri"
+              - "postgresql://$(DATABASE_USER):$(DATABASE_PASSWORD)@$(DATABASE_HOST):5432/$(DATABASE_NAME)"
+              - "--artifacts-destination"
+              - "/mlflow/artifacts"
+              - "--serve-artifacts"
+              - "--host"
+              - "0.0.0.0"
+              - "--port"
+              - "5000"
+              resources:
+                requests:
+                  memory: "512Mi"
+                  cpu: "250m"
+                limits:
+                  memory: "1Gi"
+                  cpu: "1000m"
+              livenessProbe:
+                httpGet:
+                  path: /health
+                  port: 5000
+                initialDelaySeconds: 90
+                periodSeconds: 30
+                timeoutSeconds: 10
+                failureThreshold: 5
+              readinessProbe:
+                httpGet:
+                  path: /health
+                  port: 5000
+                initialDelaySeconds: 60
+                periodSeconds: 15
+                timeoutSeconds: 10
+                failureThreshold: 5
+
+  # MLflow Service - NodePort
+  - target:
+      kind: Service
+      name: mlflow-service
+    patch: |-
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: mlflow-service
+      spec:
+        type: NodePort
+        ports:
+        - port: 5000
+          targetPort: 5000
+          nodePort: 30500
+
+  # API - use local image
+  - target:
+      kind: Deployment
+      name: ml-pipeline-api
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: ml-pipeline-api
+      spec:
+        replicas: 1
+        template:
+          spec:
+            containers:
+            - name: api
+              image: ml-pipeline/api:v1.0.0
+              imagePullPolicy: Never
+              resources:
+                requests:
+                  memory: "512Mi"
+                  cpu: "250m"
+                limits:
+                  memory: "1Gi"
+                  cpu: "1000m"
+              livenessProbe:
+                httpGet:
+                  path: /health
+                  port: 8000
+                initialDelaySeconds: 90
+                periodSeconds: 30
+                timeoutSeconds: 10
+                failureThreshold: 5
+              readinessProbe:
+                httpGet:
+                  path: /health
+                  port: 8000
+                initialDelaySeconds: 60
+                periodSeconds: 15
+                timeoutSeconds: 10
+                failureThreshold: 5
+              volumeMounts:
+              - name: mlflow-artifacts
+                mountPath: /mlflow/artifacts
+            volumes:
+            - name: mlflow-artifacts
+              persistentVolumeClaim:
+                claimName: mlflow-pvc
+
+  # API Service - NodePort
+  - target:
+      kind: Service
+      name: ml-pipeline-api-service
+    patch: |-
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: ml-pipeline-api-service
+      spec:
+        type: NodePort
+        ports:
+        - name: http
+          port: 8000
+          targetPort: 8000
+          protocol: TCP
+          nodePort: 30800
+
+  # Disable HPA (single replica)
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: ml-pipeline-api-hpa
+    patch: |-
+      apiVersion: autoscaling/v2
+      kind: HorizontalPodAutoscaler
+      metadata:
+        name: ml-pipeline-api-hpa
+      spec:
+        minReplicas: 1
+        maxReplicas: 1
+
+  # Grafana Service - NodePort
+  - target:
+      kind: Service
+      name: grafana-service
+    patch: |-
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: grafana-service
+      spec:
+        type: NodePort
+        ports:
+        - port: 3000
+          targetPort: 3000
+          nodePort: 30300
+
+  # Prometheus Service - NodePort
+  - target:
+      kind: Service
+      name: prometheus-service
+    patch: |-
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: prometheus-service
+      spec:
+        type: NodePort
+        ports:
+        - port: 9090
+          targetPort: 9090
+          nodePort: 30900
+
+  # Prometheus - minimal resources
+  - target:
+      kind: Deployment
+      name: prometheus
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: prometheus
+      spec:
+        template:
+          spec:
+            containers:
+            - name: prometheus
+              resources:
+                requests:
+                  memory: "128Mi"
+                  cpu: "50m"
+                limits:
+                  memory: "256Mi"
+                  cpu: "250m"
+
+  # Grafana - minimal resources
+  - target:
+      kind: Deployment
+      name: grafana
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: grafana
+      spec:
+        template:
+          spec:
+            containers:
+            - name: grafana
+              resources:
+                requests:
+                  memory: "64Mi"
+                  cpu: "25m"
+                limits:
+                  memory: "128Mi"
+                  cpu: "100m"
