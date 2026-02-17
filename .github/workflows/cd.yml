@@ -251,10 +251,20 @@ jobs:
     - name: Clean up old images
       run: |
         echo "🧹 Cleaning up old untagged images..."
-        gh api repos/${{ github.repository }}/packages/container/${{ github.event.repository.name }}/versions \
-          --jq '.[] | select(.metadata.container.tags | length == 0) | .id' \
-          | tail -n +11 \
-          | xargs -I {} gh api --method DELETE repos/${{ github.repository }}/packages/container/${{ github.event.repository.name }}/versions/{} || true
+        # Manually define packages to clean
+        # Note: In GHCR, images pushed to user/repo/image become packages named 'repo/image'
+        # We need to URL encode the slash as %2f for the API
+        
+        PACKAGES=("rt-ml-multicloud-platform%2fapi" "rt-ml-multicloud-platform%2fmlflow")
+
+        for PKG in "${PACKAGES[@]}"; do
+          echo "Processing package: $PKG"
+          
+          gh api "repos/${{ github.repository }}/packages/container/${PKG}/versions" \
+            --jq '.[] | select(.metadata.container.tags | length == 0) | .id' \
+            | tail -n +6 \
+            | xargs -I {} gh api --method DELETE "repos/${{ github.repository }}/packages/container/${PKG}/versions/{}" || true
+        done
         echo "✅ Cleanup complete"
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
