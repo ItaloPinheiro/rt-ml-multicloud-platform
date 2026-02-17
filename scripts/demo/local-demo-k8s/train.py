@@ -148,7 +148,7 @@ def main():
 
     import requests
 
-    API_URL = "http://localhost:30001"
+    API_URL = os.getenv("API_URL", "http://localhost:30001")
     PREDICT_URL = f"{API_URL}/predict"
 
     # Payload matching the schema used in training

@@ -13,19 +13,19 @@ We successfully ran the local demonstration of the ML Platform, covering:
 
 ## Reproduction Steps & Commands
 
-The following commands were executed in **PowerShell** (unless otherwise noted) from the repository root: `c:\Users\italo\github\rt-ml-multicloud-platform`.
+The following commands were executed in **Bash** (unless otherwise noted) from the repository root: `c:\Users\italo\github\rt-ml-multicloud-platform`.
 
 ### Step 1: Clean Slate
 Ensure no conflicting containers, networks, or volumes exist. This guarantees starting with model version 1.
 
 Remove existing containers:
-```powershell
-docker ps -aq --filter "name=ml-" | % { docker rm -f $_ }
+```bash
+docker ps -aq --filter "name=ml-" | xargs -r docker rm -f
 ```
 
 Remove named volumes (⚠️ **Caution: Deletes all MLflow experiments and model data**):
-```powershell
-docker volume rm local_mlflow_db_data local_mlflow_minio_data local_redis_data -f 2>$null
+```bash
+docker volume rm local_mlflow_db_data local_mlflow_minio_data local_redis_data -f 2>/dev/null
 docker volume prune -f
 docker network prune -f
 ```
@@ -36,7 +36,7 @@ docker network prune -f
 ### Step 2: Start Infrastructure
 Launched the core services using the fixed Docker Compose files.
 
-```powershell
+```bash
 docker-compose -f ops/local/docker-compose.yml -f ops/local/docker-compose.override.yml up -d
 ```
 
@@ -46,12 +46,12 @@ docker-compose -f ops/local/docker-compose.yml -f ops/local/docker-compose.overr
 Used the `beam-runner` container to execute the training script.
 
 Start the runner container:
-```powershell
+```bash
 docker-compose -f ops/local/docker-compose.yml -f ops/local/docker-compose.override.yml --profile beam up -d beam-runner
 ```
 
 Execute training script:
-```powershell
+```bash
 docker exec ml-beam-runner sh -c "python -m src.models.training.train --data-path /app/data/sample/demo/datasets/fraud_detection.csv --mlflow-uri http://mlflow-server:5000 --experiment fraud_detection --model-name fraud_detector"
 ```
 
@@ -59,19 +59,21 @@ docker exec ml-beam-runner sh -c "python -m src.models.training.train --data-pat
 Confirmed the model was loaded and capable of predicting.
 
 Check loaded model status:
-```powershell
-Invoke-RestMethod -Uri "http://localhost:8000/models" | ConvertTo-Json
+```bash
+curl -s http://localhost:8000/models | jq .
 ```
 
 Make a prediction (Baseline request):
-```powershell
-Invoke-RestMethod -Uri "http://localhost:8000/predict" -Method Post -Header @{"Content-Type"="application/json"} -InFile "data/sample/demo/requests/baseline.json"
+```bash
+curl -X POST http://localhost:8000/predict \
+  -H "Content-Type: application/json" \
+  -d @data/sample/demo/requests/baseline.json
 ```
 
 ### Step 5: Train Model Version 2 (Improved)
 Trained a new version with more estimators (`--n-estimators 150`).
 
-```powershell
+```bash
 docker exec ml-beam-runner sh -c "python -m src.models.training.train --data-path /app/data/sample/demo/datasets/fraud_detection.csv --mlflow-uri http://mlflow-server:5000 --experiment fraud_detection --model-name fraud_detector --n-estimators 150"
 ```
 
@@ -79,15 +81,17 @@ docker exec ml-beam-runner sh -c "python -m src.models.training.train --data-pat
 The API polls for updates every 60 seconds (default). Checked that V2 was loaded.
 
 Check loaded model status (Wait for version to change to "2"):
-```powershell
-Invoke-RestMethod -Uri "http://localhost:8000/models" | ConvertTo-Json
+```bash
+curl -s http://localhost:8000/models | jq .
 ```
 
 ### Step 7: Verify Model V2 Prediction
 Tested predictions with the new model version using the corrected "improved" payload.
 
-```powershell
-Invoke-RestMethod -Uri "http://localhost:8000/predict" -Method Post -Header @{"Content-Type"="application/json"} -InFile "data/sample/demo/requests/improved.json"
+```bash
+curl -X POST http://localhost:8000/predict \
+  -H "Content-Type: application/json" \
+  -d @data/sample/demo/requests/improved.json
 ```
 
 ## Verification Results
