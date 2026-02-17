@@ -1,6 +1,6 @@
 # Remote State & CI/CD Setup Guide
 
-This guide explains how to transition from local state to a robust Remote State setup with AWS S3 + DynamoDB, and how to enable the Continuous Deployment pipeline.
+This guide explains how to transition from local state to a robust Remote State setup with AWS S3 + DynamoDB, and how to enable the Continuous Deployment pipeline for the RT ML Platform.
 
 ## Phase 1: One-Time Bootstrap (Manual)
 

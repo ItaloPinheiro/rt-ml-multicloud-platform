@@ -1,7 +1,7 @@
 # =============================================================================
 # AWS Demo Environment - Variables
 # =============================================================================
-# Zero-cost demo infrastructure for RT ML Platform
+# Near-Zero Cost demo infrastructure for RT ML Platform
 # Uses EC2 Spot Instance with K3s for Kubernetes
 # =============================================================================
 

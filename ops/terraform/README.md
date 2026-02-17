@@ -7,19 +7,24 @@ This directory contains Terraform configurations for multi-cloud deployment of t
 ```
 ops/terraform/
 ├── aws/
-│   ├── demo/                    # Zero-cost demo environment
+│   ├── demo/                    # Near-Zero Cost demo environment
 │   │   ├── main.tf             # Main infrastructure
 │   │   ├── variables.tf        # Input variables
 │   │   ├── outputs.tf          # Output values
 │   │   ├── user-data.sh        # EC2 bootstrap script
 │   │   └── terraform.tfvars.example
-│   └── README.md               # AWS-specific documentation
+│   └── README.md               # Quick Reference (see docs for details)
 └── README.md                   # This file
 ```
 
+## Documentation
+
+*   **[AWS Deployment Guide](../../docs/terraform/aws-guide.md):** Detailed deployment instructions for the AWS Demo environment.
+*   **[Remote State & CI/CD Guide](../../docs/terraform/remote-state.md):** Setting up S3 backend and GitHub Actions pipeline.
+
 ## Quick Start
 
-### AWS Demo (Zero-Cost)
+### AWS Demo
 
 ```bash
 cd ops/terraform/aws/demo
@@ -37,12 +42,3 @@ terraform apply
 cd ops/terraform/aws/demo
 terraform destroy -auto-approve
 ```
-
-## Cost Summary
-
-| Environment | Monthly Cost | Notes |
-|-------------|--------------|-------|
-| **Demo** | $6-10/month | Mostly Free Tier eligible |
-| **Production** | ~$200+/month | EKS + RDS + ElastiCache |
-
-See [aws/README.md](./aws/README.md) for detailed cost breakdown.
