@@ -31,6 +31,38 @@ env:
 
 jobs:
   # ==========================================================================
+  # CLEANUP - Runs first for debugging
+  # ==========================================================================
+  cleanup:
+    name: Cleanup Old Images
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    
+    steps:
+    - name: Clean up old images
+      run: |
+        echo "🧹 Cleaning up old untagged images..."
+        # Try both package naming conventions:
+        # 1. Namespaced: repo/image
+        # 2. Simple: image (if directly under user)
+        PACKAGES=("rt-ml-multicloud-platform%2fapi" "rt-ml-multicloud-platform%2fmlflow" "api" "mlflow")
+
+        for PKG in "${PACKAGES[@]}"; do
+          echo "Processing package: $PKG"
+          
+          # Use the USER endpoint since these are user-owned packages
+          gh api "users/${{ github.repository_owner }}/packages/container/${PKG}/versions" \
+            --jq '.[] | select(.metadata.container.tags | length == 0) | .id' \
+            | tail -n +6 \
+            | xargs -I {} gh api --method DELETE "users/${{ github.repository_owner }}/packages/container/${PKG}/versions/{}" || true
+        done
+        echo "✅ Cleanup complete"
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      continue-on-error: true
+
+  # ==========================================================================
   # BUILD AND PUSH - Always runs
   # ==========================================================================
   build-and-push:
@@ -238,37 +270,7 @@ jobs:
         kubectl apply -k ops/k8s/overlays/production/
         kubectl rollout status deployment/ml-pipeline-api -n ml-pipeline-prod --timeout=300s
 
-  # ==========================================================================
-  # CLEANUP - Always runs
-  # ==========================================================================
-  cleanup:
-    name: Cleanup Old Images
-    runs-on: ubuntu-latest
-    needs: [validate-staging]
-    if: always() && needs.validate-staging.result == 'success'
 
-    steps:
-    - name: Clean up old images
-      run: |
-        echo "🧹 Cleaning up old untagged images..."
-        # Manually define packages to clean
-        # Note: In GHCR, images pushed to user/repo/image become packages named 'repo/image'
-        # We need to URL encode the slash as %2f for the API
-        
-        PACKAGES=("rt-ml-multicloud-platform%2fapi" "rt-ml-multicloud-platform%2fmlflow")
-
-        for PKG in "${PACKAGES[@]}"; do
-          echo "Processing package: $PKG"
-          
-          gh api "repos/${{ github.repository }}/packages/container/${PKG}/versions" \
-            --jq '.[] | select(.metadata.container.tags | length == 0) | .id' \
-            | tail -n +6 \
-            | xargs -I {} gh api --method DELETE "repos/${{ github.repository }}/packages/container/${PKG}/versions/{}" || true
-        done
-        echo "✅ Cleanup complete"
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      continue-on-error: true
 
 
   # ==========================================================================
