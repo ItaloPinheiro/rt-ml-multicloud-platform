@@ -26,18 +26,15 @@ Located in `demo/`. Designed for demonstrations and learning with minimal costs.
    export AWS_DEFAULT_REGION="us-east-1"
    ```
 
-   **Windows / PowerShell (AWS SSO):**
-   If you are using AWS SSO, Terraform might not pick up the credentials automatically on Windows. Run this before your Terraform commands:
+   **Bash (AWS SSO):**
+   If you are using AWS SSO, you may need to explicitly export credentials:
 
-   ```powershell
+   ```bash
    # Authenticate first
-   aws login 
+   aws sso login
 
    # Export credentials to environment variables
-   $creds = aws configure export-credentials | ConvertFrom-Json
-   $env:AWS_ACCESS_KEY_ID = $creds.AccessKeyId
-   $env:AWS_SECRET_ACCESS_KEY = $creds.SecretAccessKey
-   $env:AWS_SESSION_TOKEN = $creds.SessionToken
+   eval $(aws configure export-credentials --format env)
    ```
 
 3. **Terraform installed** (v1.5+)
@@ -102,7 +99,7 @@ It is best practice to generate a plan first:
 terraform plan -out=tfplan
 
 # 2. Apply the plan
-terraform apply tfplan
+terraform apply tfplan -no-color > terraform_apply.log 2>&1
 ```
 
 ### Step 5: Access the Demo

@@ -343,6 +343,7 @@ credentials/
 .aws/
 terraform.tfstate*
 .terraform/
+tfplan
 
 # Kubernetes
 *.kubeconfig

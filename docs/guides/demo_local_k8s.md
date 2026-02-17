@@ -20,12 +20,12 @@ The following commands describe the process to verify the infrastructure.
 To start fresh with model version 1, you must remove both Docker containers and the Kubernetes namespace (which contains the PVC data).
 
 Stop any running "local demo" Docker containers:
-```powershell
-docker ps -aq --filter "name=ml-" | % { docker rm -f $_ }
+```bash
+docker ps -aq --filter "name=ml-" | xargs -r docker rm -f
 ```
 
 Delete the Kubernetes namespace (⚠️ **Deletes all MLflow experiments and model data**):
-```powershell
+```bash
 kubectl delete namespace ml-pipeline-prod --ignore-not-found
 ```
 
@@ -42,7 +42,7 @@ bash scripts/demo/local-demo-k8s/setup.sh
 
 Verify that the `ml-pipeline-prod` namespace was created and all services are running.
 
-```powershell
+```bash
 kubectl get pods -n ml-pipeline-prod --watch
 ```
 *Wait for all pods to show status "Running".*
@@ -63,8 +63,10 @@ This script will:
 
 Test the API to ensure it picked up the new Production model (Version 1).
 
-```powershell
-Invoke-RestMethod -Uri "http://localhost:30001/predict" -Method Post -Header @{"Content-Type"="application/json"} -InFile "data/sample/demo/requests/baseline.json"
+```bash
+curl -X POST http://localhost:30001/predict \
+  -H "Content-Type: application/json" \
+  -d @data/sample/demo/requests/baseline.json
 ```
 
 ### 5. Train & Upgrade Model (Version 2)
@@ -83,8 +85,10 @@ This step verifies:
 
 Confirm the API is serving Version 2 by sending a test request:
 
-```powershell
-Invoke-RestMethod -Uri "http://localhost:30001/predict" -Method Post -Header @{"Content-Type"="application/json"} -InFile "data/sample/demo/requests/baseline.json"
+```bash
+curl -X POST http://localhost:30001/predict \
+  -H "Content-Type: application/json" \
+  -d @data/sample/demo/requests/baseline.json
 ```
 
 Verify that the response contains `model_version: 2` (or higher if you ran multiple training iterations).
@@ -102,6 +106,6 @@ Verify that the response contains `model_version: 2` (or higher if you ran multi
 
 To remove the simulated production environment and delete the namespace:
 
-```powershell
+```bash
 kubectl delete namespace ml-pipeline-prod
 ```
