@@ -30,37 +30,7 @@ env:
   ENABLE_SLACK_NOTIFICATIONS: 'false' # Set to 'true' when Slack webhook is configured
 
 jobs:
-  # ==========================================================================
-  # CLEANUP - Runs first for debugging
-  # ==========================================================================
-  cleanup:
-    name: Cleanup Old Images
-    runs-on: ubuntu-latest
-    permissions:
-      packages: write
-    
-    steps:
-    - name: Clean up old images
-      run: |
-        echo "🧹 Cleaning up old untagged images..."
-        # Try both package naming conventions:
-        # 1. Namespaced: repo/image
-        # 2. Simple: image (if directly under user)
-        PACKAGES=("rt-ml-multicloud-platform%2fapi" "rt-ml-multicloud-platform%2fmlflow" "api" "mlflow")
 
-        for PKG in "${PACKAGES[@]}"; do
-          echo "Processing package: $PKG"
-          
-          # Use the USER endpoint since these are user-owned packages
-          gh api "users/${{ github.repository_owner }}/packages/container/${PKG}/versions" \
-            --jq '.[] | select(.metadata.container.tags | length == 0) | .id' \
-            | tail -n +6 \
-            | xargs -I {} gh api --method DELETE "users/${{ github.repository_owner }}/packages/container/${PKG}/versions/{}" || true
-        done
-        echo "✅ Cleanup complete"
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      continue-on-error: true
 
   # ==========================================================================
   # BUILD AND PUSH - Always runs
@@ -264,11 +234,40 @@ jobs:
       run: |
         mkdir -p ~/.kube
         echo "${{ secrets.KUBECONFIG_PRODUCTION }}" | base64 -d > ~/.kube/config
+  # ==========================================================================
+  # CLEANUP - Always runs
+  # ==========================================================================
+  cleanup:
+    name: Cleanup Old Images
+    runs-on: ubuntu-latest
+    needs: [validate-staging]
+    if: always() && needs.validate-staging.result == 'success'
+    permissions:
+      packages: write
 
-    - name: Deploy to production
+    steps:
+    - name: Clean up old images
       run: |
-        kubectl apply -k ops/k8s/overlays/production/
-        kubectl rollout status deployment/ml-pipeline-api -n ml-pipeline-prod --timeout=300s
+        echo "🧹 Cleaning up old untagged images..."
+        # Note: In GHCR, packages pushed to user/repo/image become namespaced packages.
+        # We must URL encode the slash as %2f for the API path.
+        
+        PACKAGES=("rt-ml-multicloud-platform%2fapi" "rt-ml-multicloud-platform%2fmlflow")
+
+        for PKG in "${PACKAGES[@]}"; do
+          echo "Processing package: $PKG"
+          
+          # Use the USER endpoint since these are user-owned packages
+          gh api "users/${{ github.repository_owner }}/packages/container/${PKG}/versions" \
+            --jq '.[] | select(.metadata.container.tags | length == 0) | .id' \
+            | tail -n +6 \
+            | xargs -I {} gh api --method DELETE "users/${{ github.repository_owner }}/packages/container/${PKG}/versions/{}" || true
+        done
+        echo "✅ Cleanup complete"
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      continue-on-error: true
+
 
 
 
