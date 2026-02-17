@@ -93,6 +93,7 @@ jobs:
         platforms: linux/amd64
 
     - name: Build and push MLflow image
+      id: build-mlflow
       uses: docker/build-push-action@v5
       with:
         context: .
@@ -106,19 +107,29 @@ jobs:
         cache-to: type=gha,mode=max
         platforms: linux/amd64
 
-    - name: Generate SBOM
+    - name: Generate SBOM (API)
       uses: anchore/sbom-action@v0
       with:
         # OCI references must be lowercase
-        image: ghcr.io/italopinheiro/rt-ml-multicloud-platform@${{ steps.build.outputs.digest }}
+        image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api@${{ steps.build.outputs.digest }}
         format: spdx-json
-        output-file: sbom.spdx.json
+        output-file: sbom-api.spdx.json
+
+    - name: Generate SBOM (MLflow)
+      uses: anchore/sbom-action@v0
+      with:
+        # OCI references must be lowercase
+        image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/mlflow@${{ steps.build-mlflow.outputs.digest }}
+        format: spdx-json
+        output-file: sbom-mlflow.spdx.json
 
     - name: Upload SBOM
       uses: actions/upload-artifact@v4
       with:
         name: sbom
-        path: sbom.spdx.json
+        path: |
+          sbom-api.spdx.json
+          sbom-mlflow.spdx.json
 
   # ==========================================================================
   # VALIDATE STAGING - Always runs (no cluster needed)
