@@ -88,7 +88,52 @@ This guide explains how to transition from local state to a robust Remote State 
 
 ---
 
-## Workflow Summary
+## Day-to-Day Workflow
+ 
+Once the remote backend is configured, your local Terraform commaands will automatically sync with the S3 state.
+ 
+### 1. Initialize (First Time Only)
+Ensure your local directory is configured to use the S3 backend.
+```bash
+terraform init
+```
+*   This downloads the provider plugins and configures the backend.
+*   It does **not** change any infrastructure.
+ 
+### 2. Verify State (ReadOnly)
+To check what Terraform thinks is the current state of the world (from S3) vs. your local code:
+```bash
+terraform plan
+```
+*   **No Changes:** If it says "No changes", your local code matches the remote infrastructure.
+*   **Changes:** If it lists changes, it means either:
+    *   You modified local code.
+    *   Someone else updated the infrastructure (and the remote state).
+ 
+### 3. Sync State (Refresh)
+If you suspect the state file is out of sync with *actual* AWS resources (e.g., someone manually deleted an EC2 instance), use:
+```bash
+terraform refresh
+```
+*   This updates the `terraform.tfstate` in S3 to match reality.
+*   **Warning:** It does not modify resources, only the state file.
+ 
+### 4. Deploying Changes
+**Recommended:** Push your changes to GitHub and let the CI/CD pipeline handle the `apply`.
+ 
+**Emergency (Manual Apply):**
+If you must apply locally (bypassing CI/CD), ensure you pull the latest code first.
+```bash
+git pull origin main
+terraform apply
+```
+ 
+> [!WARNING]
+> **State Locking:** Terraform automatically locks the DynamoDB table during operations. If you run `apply` locally while the CI/CD pipeline is running, one will fail with a "Lock Error". Wait for it to finish.
+ 
+---
+ 
+ ## Workflow Summary
 
 ### **1. Pull Request (CI Check)**
 *   When you open a PR modifying `ops/terraform/**`, the **Terraform Plan** job runs.
