@@ -9,7 +9,8 @@ This guide details how to deploy the RT ML Platform to AWS using the Terraform c
 Designed for demonstrations and learning with minimal costs.
 
 **Architecture:**
-- Single EC2 Spot Instance (t3.micro/t3.small)
+- Single EC2 Instance (t3.micro)
+- Terraform for automated provisioning
 - K3s (lightweight Kubernetes)
 - SQLite for MLflow metadata
 - In-memory Redis

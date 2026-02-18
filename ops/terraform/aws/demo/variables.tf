@@ -2,7 +2,7 @@
 # AWS Demo Environment - Variables
 # =============================================================================
 # Near-Zero Cost demo infrastructure for RT ML Platform
-# Uses EC2 Spot Instance with K3s for Kubernetes
+# Uses EC2 Instance (t3.micro) with K3s for Kubernetes
 # =============================================================================
 
 # -----------------------------------------------------------------------------
@@ -22,7 +22,7 @@ variable "aws_region" {
 variable "instance_type" {
   description = "EC2 instance type. Use t3.micro for Free Tier, t3.small for better performance"
   type        = string
-  default     = "t3.medium"
+  default     = "t3.micro"
 
   validation {
     condition     = can(regex("^t[23]\\.(micro|small|medium)$", var.instance_type))
@@ -33,7 +33,7 @@ variable "instance_type" {
 variable "use_spot_instance" {
   description = "Use Spot Instance for cost savings (~70% cheaper). Risk: can be terminated with 2-min notice"
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "root_volume_size" {

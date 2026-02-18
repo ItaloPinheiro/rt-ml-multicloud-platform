@@ -133,12 +133,10 @@ output "estimated_monthly_cost" {
     💰 Estimated Monthly Costs:
     ─────────────────────────────────────────
     Public IPv4:        ~$3.65/month (unavoidable)
-    EC2 ${var.instance_type} Spot:  ~$2-4/month (or Free Tier)
-    EBS ${var.root_volume_size}GB gp3:       ~$${format("%.2f", var.root_volume_size * 0.08)}/month (or Free Tier)
-    ─────────────────────────────────────────
-    Total (Free Tier):  ~$3.65/month
-    Total (No Free):    ~$8-12/month
-    
+    EC2 ${var.instance_type}:  ~$8/month (or Free Tier)
+    EBS 30GB gp3:      ~$2.40/month (or Free Tier)
+    Public IPv4:       ~$3.60/month (AWS now charges for all public IPs)
+    Total Estimated:   ~$14/month (or $3.60 if on Free Tier)
   EOT
 }
 
