@@ -500,7 +500,9 @@ jobs:
               "${{ needs.sast-scan.result }}" == "failure" ||
               "${{ needs.secret-scan.result }}" == "failure" ||
               "${{ needs.trivy-scan.result }}" == "failure" ||
-              "${{ needs.grype-scan.result }}" == "failure" ]]; then
+              "${{ needs.grype-scan.result }}" == "failure" ||
+              "${{ needs.license-scan.result }}" == "failure" ||
+              "${{ needs.iac-scan.result }}" == "failure" ]]; then
           echo "❌ Critical security issues found - failing workflow"
           exit 1
         else
