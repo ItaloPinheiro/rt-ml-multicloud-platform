@@ -202,11 +202,6 @@ jobs:
   trivy-scan:
     name: Container Scan (Trivy)
     runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request' # Skip on PRs as CI pipeline already performs container scan - Wait, user asked to REVERT this logic.
-    # Ah, I should check if I should keep the 'revert'.
-    # The user said "I did not tell you to skip".
-    # So I must NOT skip on PRs.
-    # I will remove the 'if' condition.
     permissions:
       security-events: write
       contents: read
