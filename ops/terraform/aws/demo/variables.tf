@@ -22,7 +22,7 @@ variable "aws_region" {
 variable "instance_type" {
   description = "EC2 instance type. Use t3.micro for Free Tier, t3.small for better performance"
   type        = string
-  default     = "t3.micro"
+  default     = "t3.small"
 
   validation {
     condition     = can(regex("^t[23]\\.(micro|small|medium)$", var.instance_type))

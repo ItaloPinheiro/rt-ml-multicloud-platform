@@ -6,9 +6,9 @@ key_name = "ml-pipeline-key"
 
 # Instance Configuration
 # t3.micro is Free Tier eligible
-# t3.small is recommended for better performance (~$8/month)
-instance_type = "t3.micro"
-use_spot_instance = true
+# t3.small is recommended (~$12/month)
+instance_type = "t3.small"
+use_spot_instance = false
 
 # Storage
 # 30GB is Free Tier eligible
