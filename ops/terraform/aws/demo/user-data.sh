@@ -172,11 +172,19 @@ echo $GH_PAT | docker login ghcr.io -u ItaloPinheiro --password-stdin
 IMAGE_REPO="ghcr.io/italopinheiro/rt-ml-multicloud-platform"
 
 echo "Pulling API image..."
-docker pull $IMAGE_REPO/api:latest
+if ! docker pull --platform linux/amd64 $IMAGE_REPO/api:latest; then
+    echo "WARNING: Failed to pull api:latest, trying api:main..."
+    docker pull --platform linux/amd64 $IMAGE_REPO/api:main
+    docker tag $IMAGE_REPO/api:main $IMAGE_REPO/api:latest
+fi
 docker tag $IMAGE_REPO/api:latest ml-pipeline/api:v1.0.0
 
 echo "Pulling MLflow image..."
-docker pull $IMAGE_REPO/mlflow:latest
+if ! docker pull --platform linux/amd64 $IMAGE_REPO/mlflow:latest; then
+    echo "WARNING: Failed to pull mlflow:latest, trying mlflow:main..."
+    docker pull --platform linux/amd64 $IMAGE_REPO/mlflow:main
+    docker tag $IMAGE_REPO/mlflow:main $IMAGE_REPO/mlflow:latest
+fi
 docker tag $IMAGE_REPO/mlflow:latest ml-pipeline/mlflow:v1.0.0
 
 # Import into K3s (since we are using local images in manifests)
