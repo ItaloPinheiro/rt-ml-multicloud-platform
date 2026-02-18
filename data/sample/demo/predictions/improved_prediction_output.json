@@ -1,0 +1,22 @@
+{
+    "prediction": 0.0,
+    "probabilities": [
+        0.92,
+        0.08
+    ],
+    "model_name": "fraud_detector",
+    "model_version": "2",
+    "timestamp": "2026-02-18T15:35:04.827900+00:00",
+    "latency_ms": 56.9300651550293,
+    "features_used": {
+        "hour_of_day": 22.0,
+        "day_of_week": 6.0,
+        "is_weekend": true,
+        "transaction_count_24h": 15.0,
+        "avg_amount_30d": 450.75,
+        "risk_score": 0.85,
+        "amount": 2500.0,
+        "merchant_category_encoded": 5.0,
+        "payment_method_encoded": 3.0
+    }
+}

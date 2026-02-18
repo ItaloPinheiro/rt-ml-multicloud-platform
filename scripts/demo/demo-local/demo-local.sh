@@ -15,8 +15,8 @@ if [ -f "${DEMO_DATA}/demo.env" ]; then
 else
     # Fallback configuration
     DEMO_DATASET="${DEMO_DATA}/datasets/fraud_detection.csv"
-    DEMO_REQUEST_V1="${DEMO_DATA}/requests/baseline.json"
-    DEMO_REQUEST_V2="${DEMO_DATA}/requests/improved.json"
+    DEMO_REQUEST_V1="${DEMO_DATA}/requests/baseline_prediction_request.json"
+    DEMO_REQUEST_V2="${DEMO_DATA}/requests/improved_prediction_request.json"
 fi
 
 # Colors for output

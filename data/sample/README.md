@@ -5,13 +5,13 @@ This directory contains sample data for testing, demonstrations, and development
 ## Directory Structure
 
 ```
-sample_data/
+data/sample/
 ├── demo/                   # Demo-specific data for showcase and testing
 │   ├── demo.env           # Demo configuration variables
 │   ├── datasets/          # Training and validation datasets
 │   ├── requests/          # API request examples
 │   └── expected/          # Expected outcomes for validation
-├── generated/             # Dynamically generated data (gitignored)
+├── generated/             # Dynamically generated data
 └── production/            # Production-like datasets for realistic testing
     └── datasets/
         └── v1.0/          # Versioned datasets
@@ -24,16 +24,28 @@ Contains curated data specifically for running demos and quick tests:
 - **datasets/**: Training data for model development
   - `fraud_detection.csv`: Sample fraud detection training data
 - **requests/**: API request payloads for testing
-  - `baseline.json`: Request for testing initial model
-  - `improved.json`: Request for testing improved model
+  - `baseline_prediction_request.json`: Request for testing initial model
+  - `improved_prediction_request.json`: Request for testing improved model
+- **expected/**: Expected outcomes for validation
 - **demo.env**: Environment configuration for demos
 
 ### generated/
-Temporary storage for generated data:
-- Created by scripts during runtime
-- Should be gitignored
-- Contains output from data generation scripts
-- Gets cleared during cleanup operations
+Temporary storage for data created by `generate_data.py`:
+- `generated/user_features.json`: Raw user profile data
+- `generated/transactions.json`: Raw transaction logs
+- These files are intermediate artifacts used to create the final CSVs in `demo/datasets`.
+- **Do not commit** this folder to git.
+
+### features/
+Storage for computed features (e.g., from a Feature Store export):
+- Place to store offline feature definitions or point-in-time correct features
+- Often used when backfilling feature groups
+
+### predictions/
+Target directory for model inference outputs:
+- Batch prediction results
+- Model evaluation logs
+- Should be gitignored (typically validation artifacts, not source code)
 
 ### production/
 Production-like datasets for more comprehensive testing:
@@ -46,7 +58,7 @@ Production-like datasets for more comprehensive testing:
 ### In Demo Scripts
 ```bash
 # Source the configuration
-source sample_data/demo/demo.env
+source data/sample/demo/demo.env
 
 # Use configured paths
 docker exec ml-beam-runner python -m src.models.training.train \
@@ -58,14 +70,14 @@ curl -X POST http://localhost:8000/predict \
 ```
 
 ### Environment Variables
-- `DATA_ROOT`: Root directory for all data (default: `sample_data`)
+- `DATA_ROOT`: Root directory for all data (default: `data/sample`)
 - `DEMO_ENV`: Environment mode (`local`, `ci`, `staging`)
 - `DEMO_MODE`: Enable demo mode (`true`/`false`)
 
 ### Data Generation
 ```bash
 # Generate new sample data
-python scripts/demo/generate_data.py
+python scripts/demo/demo-local/generate_data.py
 
 # Load data into feature store
 python scripts/demo/load_sample_data.py
@@ -98,11 +110,11 @@ python scripts/demo/load_sample_data.py
   - Size: ~40KB
 
 ### Demo Requests
-- **baseline.json**: Standard prediction request
+- **baseline_prediction_request.json**: Standard prediction request
   - Single transaction features
   - Used for v1 model testing
 
-- **improved.json**: Enhanced prediction request
+- **improved_prediction_request.json**: Enhanced prediction request
   - Additional features for v2 model
   - Demonstrates model versioning
 
@@ -111,19 +123,19 @@ python scripts/demo/load_sample_data.py
 ### Cleanup Generated Data
 ```bash
 # Remove all generated data
-rm -rf sample_data/generated/*
+rm -rf data/sample/generated/*
 
 # Full cleanup (keeps structure)
-find sample_data/generated -type f -delete
+find data/sample/generated -type f -delete
 ```
 
 ### Verify Data Integrity
 ```bash
 # Check file sizes
-du -sh sample_data/*
+du -sh data/sample/*
 
 # Validate JSON files
-for f in sample_data/demo/requests/*.json; do
+for f in data/sample/demo/requests/*.json; do
     python -m json.tool "$f" > /dev/null || echo "Invalid: $f"
 done
 ```

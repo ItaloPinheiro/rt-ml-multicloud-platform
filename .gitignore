@@ -4,8 +4,8 @@
 .agent/
 
 # Generated sample data
-sample_data/generated/
-sample_data/production/datasets/*/
+data/sample/generated/
+data/sample/production/datasets/*/
 
 # Environment files
 .env
@@ -309,9 +309,6 @@ artifacts/
 
 # Data files (add specific patterns you want to track)
 data/raw/
-data/processed/
-data/external/
-*.csv
 *.parquet
 *.feather
 *.h5

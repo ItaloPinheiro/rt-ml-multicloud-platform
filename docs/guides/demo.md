@@ -7,7 +7,7 @@ This guide walks you through a complete end-to-end demo of the platform, from da
 The easiest way to run the demo is using the provided script:
 
 ```bash
-./scripts/demo/local-demo/demo.sh
+./scripts/demo/demo-local/demo.sh
 ```
 
 This script will:
@@ -24,9 +24,9 @@ If you prefer to run steps manually:
 ### 1. Generate Data
 
 ```bash
-python scripts/demo/local-demo/generate_data.py
+python scripts/demo/demo-local/generate_data.py
 ```
-This creates training data in `sample_data/demo/datasets/` and test requests in `sample_data/demo/requests/`.
+This creates training data in `data/sample/demo/datasets/` and test requests in `data/sample/demo/requests/`.
 
 ### 2. Train Model
 
@@ -53,7 +53,7 @@ Visit [http://localhost:5000](http://localhost:5000). You should see a new exper
 ```bash
 curl -X POST http://localhost:8000/predict \
   -H "Content-Type: application/json" \
-  -d @sample_data/demo/requests/baseline.json
+  -d @data/sample/demo/requests/baseline_prediction_request.json
 ```
 
 **Batch Prediction:**

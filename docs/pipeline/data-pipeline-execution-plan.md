@@ -20,7 +20,7 @@ Process streaming transaction data through the complete ML pipeline from ingesti
 docker-compose up -d
 
 # Verify services are healthy
-./scripts/demo/demo.sh
+./scripts/demo/demo-local/demo.sh
 ```
 
 ### Step 1: Raw Data Ingestion

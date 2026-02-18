@@ -37,7 +37,7 @@ kubectl delete namespace ml-pipeline-prod --ignore-not-found
 Use the provided helper script to build docker images and deploy the Kubernetes manifests (applies `k8s/overlays/ec2-local`).
 
 ```bash
-bash scripts/demo/local-demo-k8s/setup.sh
+bash scripts/demo/demo-local-k8s/setup.sh
 ```
 
 Verify that the `ml-pipeline-prod` namespace was created and all services are running.
@@ -51,7 +51,7 @@ kubectl get pods -n ml-pipeline-prod --watch
 Run the Python script to train the initial model locally and log it to the K8s-hosted MLflow service.
 
 ```bash
-python scripts/demo/local-demo-k8s/train.py
+python scripts/demo/demo-local-k8s/train.py
 ```
 
 This script will:
@@ -66,14 +66,14 @@ Test the API to ensure it picked up the new Production model (Version 1).
 ```bash
 curl -X POST http://localhost:30001/predict \
   -H "Content-Type: application/json" \
-  -d @data/sample/demo/requests/baseline.json
+  -d @data/sample/demo/requests/baseline_prediction_request.json
 ```
 
 ### 5. Train & Upgrade Model (Version 2)
 Now, simulate a model improvement cycle by training a new version with different hyperparameters.
 
 ```bash
-python scripts/demo/local-demo-k8s/train.py --n-estimators 200
+python scripts/demo/demo-local-k8s/train.py --n-estimators 200
 ```
 
 This step verifies:
@@ -88,7 +88,7 @@ Confirm the API is serving Version 2 by sending a test request:
 ```bash
 curl -X POST http://localhost:30001/predict \
   -H "Content-Type: application/json" \
-  -d @data/sample/demo/requests/baseline.json
+  -d @data/sample/demo/requests/baseline_prediction_request.json
 ```
 
 Verify that the response contains `model_version: 2` (or higher if you ran multiple training iterations).

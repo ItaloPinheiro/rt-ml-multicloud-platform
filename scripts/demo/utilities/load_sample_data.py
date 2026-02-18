@@ -26,7 +26,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Configuration
-DATA_ROOT = os.getenv("DATA_ROOT", "sample_data")
+DATA_ROOT = os.getenv("DATA_ROOT", "data/sample")
 GENERATED_DIR = os.path.join(DATA_ROOT, "generated")
 DEMO_DATASETS_DIR = os.path.join(DATA_ROOT, "demo", "datasets")
 
@@ -223,12 +223,12 @@ def load_to_database(
         df_users = pd.DataFrame(users)
 
         # Save to CSV files as a fallback (can be imported to DB later)
-        os.makedirs("data/demo", exist_ok=True)
+        os.makedirs(DEMO_DATASETS_DIR, exist_ok=True)
 
-        df_transactions.to_csv("data/demo/transactions.csv", index=False)
-        df_users.to_csv("data/demo/users.csv", index=False)
+        df_transactions.to_csv(os.path.join(DEMO_DATASETS_DIR, "transactions.csv"), index=False)
+        df_users.to_csv(os.path.join(DEMO_DATASETS_DIR, "users.csv"), index=False)
 
-        logger.info("Data saved to CSV files in data/demo/")
+        logger.info(f"Data saved to CSV files in {DEMO_DATASETS_DIR}")
         return True
 
     except Exception as e:
@@ -244,7 +244,10 @@ def verify_data_loading() -> bool:
         logger.info("Verifying data loading...")
 
         # Check if CSV files were created
-        required_files = ["data/demo/transactions.csv", "data/demo/users.csv"]
+        required_files = [
+            os.path.join(DEMO_DATASETS_DIR, "transactions.csv"),
+            os.path.join(DEMO_DATASETS_DIR, "users.csv"),
+        ]
 
         for file_path in required_files:
             if not os.path.exists(file_path):

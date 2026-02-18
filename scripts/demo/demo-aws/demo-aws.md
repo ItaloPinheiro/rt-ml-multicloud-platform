@@ -61,6 +61,13 @@ If the setup failed or you need to re-trigger the script:
 ssh -i ml-pipeline-debug.pem ubuntu@$INSTANCE_IP "sudo /var/lib/cloud/instance/scripts/part-001"
 ```
 
+**Verify Services:**
+Once the script completes, ensure the platform pods are running:
+```bash
+ssh -i ml-pipeline-debug.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl get pods -n ml-pipeline"
+```
+*   You should see `ml-pipeline-api` and `ml-pipeline-mlflow` with status `Running`.
+
 ### 4. Train Model Version 1 (Baseline)
 
 Run the training script locally. It will:
@@ -70,7 +77,7 @@ Run the training script locally. It will:
 4.  Promote it to "Production".
 
 ```bash
-python scripts/demo/local-demo-k8s/train.py
+python scripts/demo/demo-aws/train.py
 ```
 
 **What to expect:**
@@ -84,7 +91,7 @@ Manually send a prediction request to the remote API to confirm it is serving Ve
 ```bash
 curl -X POST "$API_URL/predict" \
   -H "Content-Type: application/json" \
-  -d @data/sample/demo/requests/baseline.json
+  -d @data/sample/demo/requests/baseline_prediction_request.json
 ```
 
 *   **Success Criteria**: Response contains `"model_version": "1"`.
@@ -94,7 +101,7 @@ curl -X POST "$API_URL/predict" \
 Simulate a model improvement cycle by training with different hyperparameters (e.g., more trees).
 
 ```bash
-python scripts/demo/local-demo-k8s/train.py --n-estimators 200
+python scripts/demo/demo-aws/train.py --n-estimators 200
 ```
 
 1.  Trains a new model (Version 2).
@@ -110,7 +117,7 @@ Wait ~60 seconds, then check the model version again:
 ```bash
 curl -X POST "$API_URL/predict" \
   -H "Content-Type: application/json" \
-  -d @data/sample/demo/requests/improved.json
+  -d @data/sample/demo/requests/improved_prediction_request.json
 ```
 
 *   **Success Criteria**: Response usually switches from `"model_version": "1"` to `"model_version": "2"` without any downtime.
@@ -132,7 +139,8 @@ You can monitor the platform status via these URLs (replace hardcoded IPs with t
 
 *   **Connection Refused**: Ensure the security group allows traffic on ports 30300-30900 from your IP.
 *   **Model Not Updating**: 
-    *   Check API logs: `ssh -i ml-pipeline-debug.pem ubuntu@<IP> "sudo k3s kubectl logs -l app=ml-pipeline-api -n ml-pipeline --tail 50"`
+    *   Check API logs: `ssh -i ml-pipeline-debug.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl logs -l app=ml-pipeline-api -n ml-pipeline --tail 50"`
+    *   Check MLflow logs: `ssh -i ml-pipeline-debug.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl logs -l app=mlflow -n ml-pipeline --tail 50"`
     *   Ensure the model was actually promoted to "Production" in the MLflow UI.
 
 ## Cleanup
@@ -142,7 +150,7 @@ You can monitor the platform status via these URLs (replace hardcoded IPs with t
 To stop all costs, simply destroy the Terraform infrastructure. This will automatically delete the EC2 instance and **permanently delete** the secrets from AWS Secrets Manager (recovery window is set to 0 days).
 
 ```bash
-cd ops/terraform/aws/demo
+cd ops/terraform/aws/demo;
 terraform destroy -auto-approve
 ```
 

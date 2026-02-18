@@ -31,7 +31,7 @@ cd rt-ml-multicloud-platform
 cp ops/envs/.env.example .env
 
 # Run the full end-to-end local demo (starts services, trains models, tests API)
-./scripts/demo/local-demo/demo.sh
+./scripts/demo/demo-local/demo.sh
 ```
 
 ## License
