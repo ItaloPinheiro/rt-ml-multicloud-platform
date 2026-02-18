@@ -225,7 +225,9 @@ def load_to_database(
         # Save to CSV files as a fallback (can be imported to DB later)
         os.makedirs(DEMO_DATASETS_DIR, exist_ok=True)
 
-        df_transactions.to_csv(os.path.join(DEMO_DATASETS_DIR, "transactions.csv"), index=False)
+        df_transactions.to_csv(
+            os.path.join(DEMO_DATASETS_DIR, "transactions.csv"), index=False
+        )
         df_users.to_csv(os.path.join(DEMO_DATASETS_DIR, "users.csv"), index=False)
 
         logger.info(f"Data saved to CSV files in {DEMO_DATASETS_DIR}")
