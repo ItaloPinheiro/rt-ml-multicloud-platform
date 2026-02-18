@@ -206,8 +206,8 @@ jobs:
         file: ./ops/docker/api/Dockerfile
         push: false
         tags: ml-pipeline:test
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+        cache-from: type=gha,scope=api-build
+        cache-to: type=gha,mode=max,scope=api-build
         load: true
 
     - name: Test Docker image

@@ -221,7 +221,8 @@ jobs:
         file: ./ops/docker/api/Dockerfile
         push: false
         tags: ml-pipeline:security-scan
-        cache-from: type=gha
+        cache-from: type=gha,scope=api-build
+        cache-to: type=gha,mode=max,scope=api-build
         load: true
 
     - name: Run Trivy vulnerability scanner
