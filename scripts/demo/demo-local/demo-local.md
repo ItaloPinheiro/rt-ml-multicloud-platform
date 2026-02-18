@@ -67,7 +67,7 @@ Make a prediction (Baseline request):
 ```bash
 curl -X POST http://localhost:8000/predict \
   -H "Content-Type: application/json" \
-  -d @data/sample/demo/requests/baseline.json
+  -d @data/sample/demo/requests/baseline_prediction_request.json
 ```
 
 ### Step 5: Train Model Version 2 (Improved)
@@ -91,7 +91,7 @@ Tested predictions with the new model version using the corrected "improved" pay
 ```bash
 curl -X POST http://localhost:8000/predict \
   -H "Content-Type: application/json" \
-  -d @data/sample/demo/requests/improved.json
+  -d @data/sample/demo/requests/improved_prediction_request.json
 ```
 
 ## Verification Results

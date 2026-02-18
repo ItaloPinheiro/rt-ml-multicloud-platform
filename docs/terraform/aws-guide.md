@@ -140,13 +140,13 @@ aws ec2 describe-volumes --filters "Name=tag:Environment,Values=demo"
 
 ```bash
 # Check cloud-init logs
-ssh -i your-key.pem ubuntu@<IP> "sudo cat /var/log/cloud-init-output.log"
+ssh -i your-key.pem ubuntu@$INSTANCE_IP "sudo cat /var/log/cloud-init-output.log"
 ```
 
 ### K3s Not Running
 
 ```bash
-ssh -i your-key.pem ubuntu@<IP>
+ssh -i your-key.pem ubuntu@$INSTANCE_IP
 sudo systemctl status k3s
 sudo journalctl -u k3s -f
 ```
@@ -154,7 +154,7 @@ sudo journalctl -u k3s -f
 ### Pods Not Running
 
 ```bash
-ssh -i your-key.pem ubuntu@<IP>
+ssh -i your-key.pem ubuntu@$INSTANCE_IP
 sudo k3s kubectl get pods -n ml-pipeline
 sudo k3s kubectl describe pod <pod-name> -n ml-pipeline
 ```
