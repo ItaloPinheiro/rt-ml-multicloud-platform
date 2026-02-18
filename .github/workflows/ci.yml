@@ -135,7 +135,6 @@ jobs:
   integration-test:
     name: Integration Tests
     runs-on: ubuntu-latest
-    needs: [lint, test]
 
     services:
       postgres:
@@ -190,7 +189,6 @@ jobs:
   docker-build:
     name: Docker Build & Test
     runs-on: ubuntu-latest
-    needs: [lint, test]
 
     steps:
     - name: Checkout code
@@ -265,7 +263,6 @@ jobs:
   k8s-validation:
     name: Kubernetes Validation
     runs-on: ubuntu-latest
-    needs: [docker-build]
 
     steps:
     - name: Checkout code
