@@ -96,22 +96,24 @@ jobs:
       run: |
         semgrep --config=auto --json --output=semgrep-report.json src/ || true
 
-    - name: Initialize CodeQL
-      uses: github/codeql-action/init@v3
-      continue-on-error: true  # Code Scanning requires GitHub Advanced Security
-      with:
-        languages: python
-        queries: security-and-quality
-
-    - name: Autobuild
-      uses: github/codeql-action/autobuild@v3
-      continue-on-error: true
-
-    - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v3
-      continue-on-error: true  # Code Scanning requires GitHub Advanced Security
-      with:
-        category: '/language:python'
+    # CodeQL requires GitHub Advanced Security for private repositories.
+    # To enable, uncomment the following steps:
+    # - name: Initialize CodeQL
+    #   uses: github/codeql-action/init@v3
+    #   continue-on-error: true
+    #   with:
+    #     languages: python
+    #     queries: security-and-quality
+    #
+    # - name: Autobuild
+    #   uses: github/codeql-action/autobuild@v3
+    #   continue-on-error: true
+    #
+    # - name: Perform CodeQL Analysis
+    #   uses: github/codeql-action/analyze@v3
+    #   continue-on-error: true
+    #   with:
+    #     category: '/language:python'
 
     - name: Upload SAST results
       uses: actions/upload-artifact@v4
@@ -223,12 +225,13 @@ jobs:
         cache-from: type=gha,scope=api-build
         load: true
 
-    - name: Run Trivy vulnerability scanner
-      uses: aquasecurity/trivy-action@master
-      with:
-        image-ref: 'ml-pipeline:security-scan'
-        format: 'sarif'
-        output: 'trivy-results.sarif'
+    # SARIF output for GitHub Security tab (requires Advanced Security/Code Scanning)
+    # - name: Run Trivy vulnerability scanner
+    #   uses: aquasecurity/trivy-action@master
+    #   with:
+    #     image-ref: 'ml-pipeline:security-scan'
+    #     format: 'sarif'
+    #     output: 'trivy-results.sarif'
 
     - name: Run Trivy vulnerability scanner (JSON output)
       uses: aquasecurity/trivy-action@master
