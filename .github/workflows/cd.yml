@@ -234,6 +234,7 @@ jobs:
       run: |
         mkdir -p ~/.kube
         echo "${{ secrets.KUBECONFIG_PRODUCTION }}" | base64 -d > ~/.kube/config
+        
   # ==========================================================================
   # CLEANUP - Always runs
   # ==========================================================================
@@ -267,10 +268,6 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       continue-on-error: true
-
-
-
-
 
   # ==========================================================================
   # TERRAFORM PLAN - Runs on changes to ops/terraform

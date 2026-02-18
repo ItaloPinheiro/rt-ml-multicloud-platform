@@ -35,7 +35,7 @@ eksctl create cluster \
 > **Cost Warning**: EKS charges **$0.10 per hour** (~$73/month) for the control plane, even if you use free tier nodes. To minimize costs:
 > 1.  **Delete the cluster immediately** after your demo.
 > 2.  Use **Spot Instances** (configured above) to save up to 90% on compute.
-> 3.  If you need a **truly zero-cost** option (excluding EC2 run time), consider running [Minikube](https://minikube.sigs.k8s.io/docs/start/) or [K3s](https://k3s.io/) on a single EC2 instance instead of using managed EKS.
+> 3.  If you need a **truly Near-Zero Cost** option (excluding EC2 run time), consider running [Minikube](https://minikube.sigs.k8s.io/docs/start/) or [K3s](https://k3s.io/) on a single EC2 instance instead of using managed EKS.
 
 *Note: This process can take 15-20 minutes.*
 
@@ -177,7 +177,7 @@ For a robust production environment, consider replacing in-cluster stateful serv
     *   Update `KAFKA_BOOTSTRAP_SERVERS` to point to MSK brokers.
 4.  **IAM Roles for Service Accounts (IRSA)**: Instead of long-lived AWS keys in secrets (`aws-credentials`), configure IRSA to grant the MLflow pod permissions to access S3 securely.
 
-## 9. Alternative: Zero-Cost Demo on EC2
+## 9. Alternative: Near-Zero Cost Demo on EC2
 
 To avoid the EKS control plane cost (~$0.10/hour), you can run a single EC2 instance with `k3s`.
 
