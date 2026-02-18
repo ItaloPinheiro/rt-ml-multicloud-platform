@@ -46,7 +46,22 @@ export MLFLOW_TRACKING_URI="http://${INSTANCE_IP}:30500"
 export API_URL="http://${INSTANCE_IP}:30800"
 ```
 
-### 3. Train Model Version 1 (Baseline)
+### 3. Verify Instance Setup
+
+Before training, ensure the EC2 instance has finished running its bootstrap script (installing K3s, Docker, etc.).
+
+**Check User Script Logs:**
+```bash
+ssh -i ml-pipeline-debug.pem ubuntu@$INSTANCE_IP "sudo cat /var/log/user-data.log"
+```
+
+**Re-run Bootstrap (if needed):**
+If the setup failed or you need to re-trigger the script:
+```bash
+ssh -i ml-pipeline-debug.pem ubuntu@$INSTANCE_IP "sudo /var/lib/cloud/instance/scripts/part-001"
+```
+
+### 4. Train Model Version 1 (Baseline)
 
 Run the training script locally. It will:
 1.  Train a Random Forest model on your machine.
@@ -62,7 +77,7 @@ python scripts/demo/local-demo-k8s/train.py
 *   The script should output `Model logged with run_id: ...`
 *   It automatically attempts to verify the API using the `$Env:API_URL` you set.
 
-### 4. Verify API Prediction (Version 1)
+### 5. Verify API Prediction (Version 1)
 
 Manually send a prediction request to the remote API to confirm it is serving Version 1.
 
@@ -74,7 +89,7 @@ curl -X POST "$API_URL/predict" \
 
 *   **Success Criteria**: Response contains `"model_version": "1"`.
 
-### 5. Train & Upgrade Model (Version 2)
+### 6. Train & Upgrade Model (Version 2)
 
 Simulate a model improvement cycle by training with different hyperparameters (e.g., more trees).
 
@@ -86,7 +101,7 @@ python scripts/demo/local-demo-k8s/train.py --n-estimators 200
 2.  Logs/Registers it to remote MLflow.
 3.  Promotes Version 2 to "Production".
 
-### 6. Verify Auto-Promotion (Zero-Downtime Deployment)
+### 7. Verify Auto-Promotion (Zero-Downtime Deployment)
 
 The remote API polls MLflow every **60 seconds** for changes to the "Production" alias. 
 

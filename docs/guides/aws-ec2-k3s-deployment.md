@@ -1,4 +1,4 @@
-# Zero-Cost EC2 Deployment Guide
+# Near-Zero Cost EC2 Deployment Guide
 
 This guide explains how to deploy the platform on a single AWS EC2 instance using **K3s** (Lightweight Kubernetes). This method avoids the EKS control plane cost (~$73/month) and only costs the EC2 run time (pennies per hour with Spot Instances).
 
