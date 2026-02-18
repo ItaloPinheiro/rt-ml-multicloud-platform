@@ -2,7 +2,7 @@
 # AWS Demo Environment - Main Configuration
 # =============================================================================
 # Near-Zero Cost demo infrastructure for RT ML Platform
-# Uses EC2 Spot Instance with K3s for lightweight Kubernetes
+# Uses EC2 Instance (t3.micro) with K3s for lightweight Kubernetes
 # =============================================================================
 
 terraform {
