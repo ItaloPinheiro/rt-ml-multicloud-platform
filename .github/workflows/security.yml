@@ -201,7 +201,6 @@ jobs:
   container-scan:
     name: Container Security Scan
     runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request' # Skip on PRs as CI pipeline already performs container scan
     permissions:
       security-events: write
       contents: read
