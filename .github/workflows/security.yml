@@ -197,7 +197,6 @@ jobs:
 
         echo "✅ No secrets detected"
 
-  # Container Security Scanning
   # Container Security Scanning - Trivy
   trivy-scan:
     name: Container Scan (Trivy)
@@ -425,7 +424,7 @@ jobs:
     - name: Download all scan results
       uses: actions/download-artifact@v4
       with:
-        pattern: *-results
+        pattern: "*-results"
         merge-multiple: true
 
     - name: Generate security summary
