@@ -130,10 +130,10 @@ You can monitor the platform status via these URLs (replace hardcoded IPs with t
 
 | Service | Port | Description |
 | :--- | :--- | :--- |
-| **MLflow UI** | `30500` | [Open MLflow](http://localhost:30500) (Replace localhost with Instance IP) |
-| **Grafana** | `30300` | [Open Grafana](http://localhost:30300) (User: `admin`, Pass: `admin`) |
-| **Prometheus**| `30900` | [Open Prometheus](http://localhost:30900) |
-| **API Docs** | `30800` | [Open API Docs](http://localhost:30800/docs) |
+| **MLflow UI** | `30500` | http://$INSTANCE_IP:30500 |
+| **Grafana** | `30300` | http://$INSTANCE_IP:30300 |
+| **Prometheus**| `30900` | http://$INSTANCE_IP:30900 |
+| **API Docs** | `30800` | http://$INSTANCE_IP:30800/docs |
 
 ## Troubleshooting
 
