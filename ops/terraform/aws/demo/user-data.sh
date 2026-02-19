@@ -41,6 +41,7 @@ apt-get install -y \
     jq \
     htop \
     unzip \
+    pass \
     awscli
 
 # =============================================================================
@@ -164,7 +165,40 @@ if [ ! -d "rt-ml-multicloud-platform" ]; then
     chown -R ubuntu:ubuntu rt-ml-multicloud-platform
 fi
 
-# 5.3 Login to GHCR
+# =============================================================================
+# 5.3 Login to GHCR (Securely via pass)
+# =============================================================================
+echo "Configuring secure Docker credentials helper..."
+# Download and install docker-credential-pass
+wget -q https://github.com/docker/docker-credential-helpers/releases/download/v0.7.0/docker-credential-pass-v0.7.0.linux-amd64
+chmod +x docker-credential-pass-v0.7.0.linux-amd64
+mv docker-credential-pass-v0.7.0.linux-amd64 /usr/local/bin/docker-credential-pass
+
+# Initialize GPG key for pass
+gpg --batch --gen-key <<EOF
+Key-Type: 1
+Key-Length: 2048
+Subkey-Type: 1
+Subkey-Length: 2048
+Name-Real: Docker Credential Helper
+Name-Email: docker@local
+Expire-Date: 0
+%no-protection
+%commit
+EOF
+
+# Initialize pass
+pass init "Docker Credential Helper"
+
+# Configure Docker to use pass
+mkdir -p /root/.docker
+cat > /root/.docker/config.json << 'EOF'
+{
+  "credsStore": "pass"
+}
+EOF
+
+echo "Logging in to GHCR..."
 echo $GH_PAT | docker login ghcr.io -u ItaloPinheiro --password-stdin
 
 # 5.4 Pull Images
