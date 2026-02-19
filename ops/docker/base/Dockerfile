@@ -1,7 +1,7 @@
 # =============================================================================
 # ML Pipeline Platform - Main Application Dockerfile
 # =============================================================================
-FROM python:3.11-slim
+FROM python:3.13-slim
 
 LABEL maintainer="ML Pipeline Platform Team"
 LABEL description="Main ML Pipeline Platform application container"

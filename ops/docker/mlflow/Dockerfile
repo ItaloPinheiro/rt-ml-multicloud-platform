@@ -2,7 +2,7 @@
 # MLflow Tracking Server Dockerfile
 # =============================================================================
 # Stage 1: Builder
-FROM python:3.11-slim as builder
+FROM python:3.13-slim AS builder
 
 WORKDIR /app
 
@@ -28,7 +28,7 @@ RUN poetry config virtualenvs.in-project true \
     && poetry install --no-interaction --no-ansi --only main --no-root
 
 # Stage 2: Runtime
-FROM python:3.11-slim as runtime
+FROM python:3.13-slim AS runtime
 
 LABEL maintainer="Italo Pinheiro <italo@example.com>"
 LABEL description="MLflow tracking server with S3 and PostgreSQL support"

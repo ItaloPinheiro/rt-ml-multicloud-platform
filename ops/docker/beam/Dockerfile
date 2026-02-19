@@ -1,7 +1,7 @@
 # =============================================================================
 # Apache Beam Runner Dockerfile
 # =============================================================================
-FROM python:3.11-slim
+FROM python:3.13-slim
 
 LABEL maintainer="Italo Pinheiro <italo@example.com>"
 LABEL description="Apache Beam pipeline runner with multi-cloud support"
