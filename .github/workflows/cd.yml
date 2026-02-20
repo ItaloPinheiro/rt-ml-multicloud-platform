@@ -173,25 +173,48 @@ jobs:
         echo "ip=$INSTANCE_IP" >> $GITHUB_OUTPUT
         echo "Found demo instance at $INSTANCE_IP"
 
+    - name: Wait for instance bootstrap
+      uses: appleboy/ssh-action@v1
+      with:
+        host: ${{ steps.ec2.outputs.ip }}
+        username: ubuntu
+        key: ${{ secrets.EC2_SSH_KEY }}
+        command_timeout: 10m
+        script: |
+          set -e
+          echo "⏳ Waiting for bootstrap to complete..."
+          for i in $(seq 1 60); do
+            if sudo k3s kubectl get namespace ml-pipeline &>/dev/null; then
+              echo "✅ Namespace ml-pipeline exists"
+              if sudo k3s kubectl wait --for=condition=available deployment --all -n ml-pipeline --timeout=10s &>/dev/null; then
+                echo "✅ All deployments ready"
+                break
+              fi
+            fi
+            echo "  Attempt $i/60 - waiting 10s..."
+            sleep 10
+          done
+          sudo k3s kubectl get pods -n ml-pipeline
+
     - name: Deploy new images (zero-downtime)
       uses: appleboy/ssh-action@v1
       with:
         host: ${{ steps.ec2.outputs.ip }}
         username: ubuntu
         key: ${{ secrets.EC2_SSH_KEY }}
+        command_timeout: 10m
         script: |
+          set -e
           IMAGE_TAG="sha-${{ github.sha }}"
           REGISTRY="ghcr.io/italopinheiro/rt-ml-multicloud-platform"
 
           echo "🚀 Deploying images with tag: ${IMAGE_TAG}"
 
-          # Update image tags — K3s pulls from GHCR via imagePullSecret
           sudo k3s kubectl set image deployment/ml-pipeline-api \
             api=${REGISTRY}/api:${IMAGE_TAG} -n ml-pipeline
           sudo k3s kubectl set image deployment/mlflow \
             mlflow=${REGISTRY}/mlflow:${IMAGE_TAG} -n ml-pipeline
 
-          # Wait for rollout (zero-downtime: new pod Ready → old pod terminated)
           echo "⏳ Waiting for API rollout..."
           sudo k3s kubectl rollout status deployment/ml-pipeline-api \
             -n ml-pipeline --timeout=300s
@@ -208,11 +231,15 @@ jobs:
         username: ubuntu
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
+          set -e
           echo "=== Pod Status ==="
           sudo k3s kubectl get pods -n ml-pipeline
           echo ""
           echo "=== API Health Check ==="
           curl -sf http://localhost:30800/health || echo "⚠️ API not healthy yet (may still be starting)"
+          echo ""
+          echo "=== MLflow Health Check ==="
+          curl -sf http://localhost:30500/health || echo "⚠️ MLflow not healthy yet (may still be starting)"
 
   # ==========================================================================
   # VALIDATE STAGING - Always runs (no cluster needed)
