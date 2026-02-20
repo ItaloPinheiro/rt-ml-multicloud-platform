@@ -237,6 +237,9 @@ jobs:
           echo ""
           echo "=== API Health Check ==="
           curl -sf http://localhost:30800/health || echo "⚠️ API not healthy yet (may still be starting)"
+          echo ""
+          echo "=== MLflow Health Check ==="
+          curl -sf http://localhost:30500/health || echo "⚠️ MLflow not healthy yet (may still be starting)"
 
   # ==========================================================================
   # VALIDATE STAGING - Always runs (no cluster needed)

@@ -97,23 +97,20 @@ jobs:
         semgrep --config=auto --json --output=semgrep-report.json src/ || true
 
     # CodeQL requires GitHub Advanced Security for private repositories.
-    # To enable, uncomment the following steps:
-    # - name: Initialize CodeQL
-    #   uses: github/codeql-action/init@v3
-    #   continue-on-error: true
-    #   with:
-    #     languages: python
-    #     queries: security-and-quality
-    #
-    # - name: Autobuild
-    #   uses: github/codeql-action/autobuild@v3
-    #   continue-on-error: true
-    #
-    # - name: Perform CodeQL Analysis
-    #   uses: github/codeql-action/analyze@v3
-    #   continue-on-error: true
-    #   with:
-    #     category: '/language:python'
+    # It is free for public repositories like this one.
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v3
+      with:
+        languages: python
+        queries: security-and-quality
+
+    - name: Autobuild
+      uses: github/codeql-action/autobuild@v3
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
+      with:
+        category: '/language:python'
 
     - name: Upload SAST results
       uses: actions/upload-artifact@v4
@@ -226,12 +223,18 @@ jobs:
         load: true
 
     # SARIF output for GitHub Security tab (requires Advanced Security/Code Scanning)
-    # - name: Run Trivy vulnerability scanner
-    #   uses: aquasecurity/trivy-action@master
-    #   with:
-    #     image-ref: 'ml-pipeline:security-scan'
-    #     format: 'sarif'
-    #     output: 'trivy-results.sarif'
+    - name: Run Trivy vulnerability scanner (SARIF output)
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: 'ml-pipeline:security-scan'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+        
+    - name: Upload Trivy results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
 
     - name: Run Trivy vulnerability scanner (JSON output)
       uses: aquasecurity/trivy-action@master
