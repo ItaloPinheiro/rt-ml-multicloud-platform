@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: mlflow
-        image: mlflow/mlflow:2.8.1
+        image: mlflow/mlflow:3.10.0
         ports:
         - containerPort: 5000
         command: ["mlflow", "server"]
@@ -30,6 +30,8 @@ spec:
         - "0.0.0.0"
         - "--port"
         - "5000"
+        - "--allowed-hosts"
+        - "all"
         env:
         - name: DATABASE_USER
           valueFrom:
