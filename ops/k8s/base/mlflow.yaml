@@ -58,11 +58,11 @@ spec:
           mountPath: /mlflow/artifacts
         resources:
           requests:
-            memory: "512Mi"
+            memory: "1Gi"
             cpu: "250m"
           limits:
-            memory: "1Gi"
-            cpu: "500m"
+            memory: "1536Mi"
+            cpu: "1"
         livenessProbe:
           httpGet:
             path: /health
