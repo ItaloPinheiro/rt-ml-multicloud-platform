@@ -142,8 +142,11 @@ jobs:
   deploy-demo:
     name: Deploy to Demo Instance
     runs-on: ubuntu-latest
-    needs: build-and-push
+    needs: [build-and-push, terraform-apply]
     if: |
+      always() &&
+      needs.build-and-push.result == 'success' &&
+      (needs.terraform-apply.result == 'success' || needs.terraform-apply.result == 'skipped') &&
       github.ref == 'refs/heads/main' &&
       vars.ENABLE_DEMO_DEPLOY == 'true'
 
@@ -170,12 +173,38 @@ jobs:
         echo "ip=$INSTANCE_IP" >> $GITHUB_OUTPUT
         echo "Found demo instance at $INSTANCE_IP"
 
+    - name: Wait for instance bootstrap
+      uses: appleboy/ssh-action@v1
+      with:
+        host: ${{ steps.ec2.outputs.ip }}
+        username: ubuntu
+        key: ${{ secrets.EC2_SSH_KEY }}
+        command_timeout: 10m
+        script_stop: true
+        script: |
+          echo "⏳ Waiting for bootstrap to complete..."
+          for i in $(seq 1 60); do
+            if sudo k3s kubectl get namespace ml-pipeline &>/dev/null; then
+              echo "✅ Namespace ml-pipeline exists"
+              # Wait for all deployments to be available
+              if sudo k3s kubectl wait --for=condition=available deployment --all -n ml-pipeline --timeout=10s &>/dev/null; then
+                echo "✅ All deployments ready"
+                break
+              fi
+            fi
+            echo "  Attempt $i/60 - waiting 10s..."
+            sleep 10
+          done
+          sudo k3s kubectl get pods -n ml-pipeline
+
     - name: Deploy new images (zero-downtime)
       uses: appleboy/ssh-action@v1
       with:
         host: ${{ steps.ec2.outputs.ip }}
         username: ubuntu
         key: ${{ secrets.EC2_SSH_KEY }}
+        command_timeout: 10m
+        script_stop: true
         script: |
           IMAGE_TAG="sha-${{ github.sha }}"
           REGISTRY="ghcr.io/italopinheiro/rt-ml-multicloud-platform"
@@ -204,6 +233,7 @@ jobs:
         host: ${{ steps.ec2.outputs.ip }}
         username: ubuntu
         key: ${{ secrets.EC2_SSH_KEY }}
+        script_stop: true
         script: |
           echo "=== Pod Status ==="
           sudo k3s kubectl get pods -n ml-pipeline
