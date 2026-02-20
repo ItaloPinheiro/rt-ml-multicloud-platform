@@ -1,8 +1,7 @@
 # =============================================================================
-# FastAPI Model Serving API Dockerfile
+# FAStAPI Model Serving API Dockerfile
 # =============================================================================
-# Stage 1: Builder
-FROM python:3.11-slim AS builder
+FROM python:3.13-slim AS builder
 
 WORKDIR /app
 
@@ -27,10 +26,10 @@ RUN poetry config virtualenvs.in-project true \
     && poetry install --no-interaction --no-ansi --only main --no-root
 
 # Stage 2: Runtime
-FROM python:3.11-slim AS runtime
+FROM python:3.13-slim AS runtime
 
 LABEL maintainer="Italo Pinheiro <italo@example.com>"
-LABEL description="FastAPI ML model serving container"
+LABEL description="FAStAPI ML model serving container"
 
 WORKDIR /app
 
