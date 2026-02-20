@@ -63,7 +63,7 @@ patches:
                   memory: "128Mi"
                   cpu: "100m"
 
-  # MLflow - use local image & custom args
+  # MLflow - pull from GHCR with zero-downtime rolling updates
   - target:
       kind: Deployment
       name: mlflow
@@ -73,12 +73,19 @@ patches:
       metadata:
         name: mlflow
       spec:
+        strategy:
+          type: RollingUpdate
+          rollingUpdate:
+            maxSurge: 1
+            maxUnavailable: 0
         template:
           spec:
+            imagePullSecrets:
+            - name: ghcr-pull-secret
             containers:
             - name: mlflow
-              image: ml-pipeline/mlflow:v1.0.0
-              imagePullPolicy: Never
+              image: ghcr.io/italopinheiro/rt-ml-multicloud-platform/mlflow:main
+              imagePullPolicy: Always
               args:
               - "--backend-store-uri"
               - "postgresql://$(DATABASE_USER):$(DATABASE_PASSWORD)@$(DATABASE_HOST):5432/$(DATABASE_NAME)"
@@ -129,7 +136,7 @@ patches:
           targetPort: 5000
           nodePort: 30500
 
-  # API - use local image
+  # API - pull from GHCR with zero-downtime rolling updates
   - target:
       kind: Deployment
       name: ml-pipeline-api
@@ -140,12 +147,19 @@ patches:
         name: ml-pipeline-api
       spec:
         replicas: 1
+        strategy:
+          type: RollingUpdate
+          rollingUpdate:
+            maxSurge: 1
+            maxUnavailable: 0
         template:
           spec:
+            imagePullSecrets:
+            - name: ghcr-pull-secret
             containers:
             - name: api
-              image: ml-pipeline/api:v1.0.0
-              imagePullPolicy: Never
+              image: ghcr.io/italopinheiro/rt-ml-multicloud-platform/api:main
+              imagePullPolicy: Always
               resources:
                 requests:
                   memory: "512Mi"
