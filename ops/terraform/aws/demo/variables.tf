@@ -1,8 +1,8 @@
 # =============================================================================
 # AWS Demo Environment - Variables
 # =============================================================================
-# Near-Zero Cost demo infrastructure for RT ML Platform
-# Uses EC2 Instance (t3.micro) with K3s for Kubernetes
+# Demo infrastructure for RT ML Platform
+# Uses EC2 Instance (t3.medium) with K3s for Kubernetes
 # =============================================================================
 
 # -----------------------------------------------------------------------------
@@ -20,9 +20,9 @@ variable "aws_region" {
 # -----------------------------------------------------------------------------
 
 variable "instance_type" {
-  description = "EC2 instance type. Use t3.micro for Free Tier, t3.small for better performance"
+  description = "EC2 instance type. t3.medium (4GB) recommended for zero-downtime rolling updates"
   type        = string
-  default     = "t3.small"
+  default     = "t3.medium"
 
   validation {
     condition     = can(regex("^t[23]\\.(micro|small|medium)$", var.instance_type))

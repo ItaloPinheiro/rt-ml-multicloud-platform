@@ -139,9 +139,9 @@ else
 fi
 
 # =============================================================================
-# 5. Pull Docker Images from GHCR
+# 5. Clone Repository & Configure GHCR Access
 # =============================================================================
-echo "[5/7] Pulling images from GHCR..."
+echo "[5/7] Configuring GHCR access..."
 
 # 5.1 Retrieve GitHub PAT from Secrets Manager
 echo "Retrieving GitHub PAT..."
@@ -165,70 +165,7 @@ if [ ! -d "rt-ml-multicloud-platform" ]; then
     chown -R ubuntu:ubuntu rt-ml-multicloud-platform
 fi
 
-# =============================================================================
-# 5.3 Login to GHCR (Securely via pass)
-# =============================================================================
-echo "Configuring secure Docker credentials helper..."
-# Download and install docker-credential-pass
-wget -q https://github.com/docker/docker-credential-helpers/releases/download/v0.7.0/docker-credential-pass-v0.7.0.linux-amd64
-chmod +x docker-credential-pass-v0.7.0.linux-amd64
-mv docker-credential-pass-v0.7.0.linux-amd64 /usr/local/bin/docker-credential-pass
-
-# Initialize GPG key for pass
-gpg --batch --gen-key <<EOF
-Key-Type: 1
-Key-Length: 2048
-Subkey-Type: 1
-Subkey-Length: 2048
-Name-Real: Docker Credential Helper
-Name-Email: docker@local
-Expire-Date: 0
-%no-protection
-%commit
-EOF
-
-# Initialize pass
-pass init "Docker Credential Helper"
-
-# Configure Docker to use pass
-mkdir -p /root/.docker
-cat > /root/.docker/config.json << 'EOF'
-{
-  "credsStore": "pass"
-}
-EOF
-
-echo "Logging in to GHCR..."
-echo $GH_PAT | docker login ghcr.io -u ItaloPinheiro --password-stdin
-
-# 5.4 Pull Images
-# Using 'latest' tag for now, but in prod we should use specific versions passing via terraform var
-IMAGE_REPO="ghcr.io/italopinheiro/rt-ml-multicloud-platform"
-
-echo "Pulling API image..."
-if ! docker pull --platform linux/amd64 $IMAGE_REPO/api:latest; then
-    echo "WARNING: Failed to pull api:latest, trying api:main..."
-    docker pull --platform linux/amd64 $IMAGE_REPO/api:main
-    docker tag $IMAGE_REPO/api:main $IMAGE_REPO/api:latest
-fi
-docker tag $IMAGE_REPO/api:latest ml-pipeline/api:v1.0.0
-
-echo "Pulling MLflow image..."
-if ! docker pull --platform linux/amd64 $IMAGE_REPO/mlflow:latest; then
-    echo "WARNING: Failed to pull mlflow:latest, trying mlflow:main..."
-    docker pull --platform linux/amd64 $IMAGE_REPO/mlflow:main
-    docker tag $IMAGE_REPO/mlflow:main $IMAGE_REPO/mlflow:latest
-fi
-docker tag $IMAGE_REPO/mlflow:latest ml-pipeline/mlflow:v1.0.0
-
-# Import into K3s (since we are using local images in manifests)
-# Note: In a real production setup, K3s would pull directly from GHCR using imagePullSecrets.
-# For this demo, we re-tag and import to keep the manifests simple and identical to local dev.
-echo "Importing images into K3s..."
-docker save ml-pipeline/api:v1.0.0 | k3s ctr images import -
-docker save ml-pipeline/mlflow:v1.0.0 | k3s ctr images import -
-
-echo "Images pulled and imported successfully."
+echo "Repository cloned and GHCR access configured."
 
 # =============================================================================
 # 6. Configure Secrets & Overlay
@@ -251,8 +188,17 @@ if [ -z "$APP_SECRETS" ]; then
     APP_SECRETS='{"DATABASE_USER":"mlflow","DATABASE_PASSWORD":"mlflow123secret","DATABASE_NAME":"mlflow","DATABASE_HOST":"postgres-service","REDIS_HOST":"redis-service","REDIS_PORT":"6379","REDIS_PASSWORD":"redis123secret","MLFLOW_TRACKING_URI":"http://mlflow-service:5000"}'
 fi
 
-# 6.3 Create K8s Secret directly (No file on disk)
-echo "Creating K8s Secret..."
+# 6.3 Create GHCR Pull Secret (for K3s to pull images directly from GHCR)
+echo "Creating GHCR pull secret..."
+k3s kubectl create secret docker-registry ghcr-pull-secret \
+  --docker-server=ghcr.io \
+  --docker-username=ItaloPinheiro \
+  --docker-password=$GH_PAT \
+  -n ml-pipeline \
+  --dry-run=client -o yaml | k3s kubectl apply -f -
+
+# 6.4 Create App Secrets
+echo "Creating K8s App Secret..."
 k3s kubectl create secret generic ml-pipeline-secrets -n ml-pipeline \
   --from-literal=DATABASE_USER="$(echo $APP_SECRETS | jq -r '.DATABASE_USER')" \
   --from-literal=DATABASE_PASSWORD="$(echo $APP_SECRETS | jq -r '.DATABASE_PASSWORD')" \

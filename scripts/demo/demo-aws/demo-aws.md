@@ -7,7 +7,7 @@ Unlike the local demo which runs everything on your machine, this workflow runs 
 
 ## Prerequisites
 
-*   **Python 3.9+** installed locally.
+*   **Python 3.13+** installed locally.
 *   **Bash** (recommended) or Git Bash on Windows.
 *   **AWS CLI** installed and configured.
 *   Project dependencies installed (`pip install -r requirements.txt` or `poetry install`).
@@ -60,6 +60,8 @@ If the setup failed or you need to re-trigger the script:
 ```bash
 ssh -i ml-pipeline-debug.pem ubuntu@$INSTANCE_IP "sudo /var/lib/cloud/instance/scripts/part-001"
 ```
+
+> **Note:** You no longer need to manually pull/import Docker images. K3s pulls images directly from GHCR using an `imagePullSecret` configured during bootstrap.
 
 **Verify Services:**
 Once the script completes, ensure the platform pods are running:
@@ -155,3 +157,14 @@ terraform destroy -auto-approve
 ```
 
 > **Note**: You do not need to manually delete secrets using the script. Terraform manages their lifecycle.
+
+## Automated Deployment (CD Pipeline)
+
+When code is merged to `main`, the CD pipeline automatically:
+1. Builds and pushes new Docker images to GHCR (tagged with the commit SHA).
+2. SSHes into the EC2 instance and runs `kubectl set image` to update deployments.
+3. K3s pulls the new images from GHCR and performs a **zero-downtime rolling update** (new pod starts → health check passes → old pod terminates).
+
+This requires:
+- **`ENABLE_DEMO_DEPLOY`** repo variable set to `true` (GitHub → Settings → Variables → Actions).
+- **`EC2_SSH_KEY`** repo secret containing the SSH private key for the EC2 instance.
