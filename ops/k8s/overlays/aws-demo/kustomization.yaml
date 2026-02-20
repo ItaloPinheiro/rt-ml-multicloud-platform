@@ -74,10 +74,7 @@ patches:
         name: mlflow
       spec:
         strategy:
-          type: RollingUpdate
-          rollingUpdate:
-            maxSurge: 1
-            maxUnavailable: 0
+          type: Recreate
         template:
           spec:
             imagePullSecrets:
@@ -101,7 +98,7 @@ patches:
                   memory: "512Mi"
                   cpu: "250m"
                 limits:
-                  memory: "1Gi"
+                  memory: "1536Mi"
                   cpu: "1000m"
               livenessProbe:
                 httpGet:
@@ -148,10 +145,7 @@ patches:
       spec:
         replicas: 1
         strategy:
-          type: RollingUpdate
-          rollingUpdate:
-            maxSurge: 1
-            maxUnavailable: 0
+          type: Recreate
         template:
           spec:
             imagePullSecrets:
