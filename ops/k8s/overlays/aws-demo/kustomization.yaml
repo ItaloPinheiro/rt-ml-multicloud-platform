@@ -97,7 +97,7 @@ patches:
               - "--port"
               - "5000"
               - "--expose-prometheus"
-              - "/mlflow/prometheus"
+              - "/tmp/prometheus"
               - "--allowed-hosts"
               - "all"
               resources:
