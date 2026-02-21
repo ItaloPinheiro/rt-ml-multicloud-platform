@@ -206,8 +206,18 @@ spec:
         ports:
         - containerPort: 3000
         env:
+        - name: GF_SECURITY_ADMIN_USER
+          valueFrom:
+            secretKeyRef:
+              name: ml-pipeline-secrets
+              key: GRAFANA_ADMIN_USER
+              optional: true
         - name: GF_SECURITY_ADMIN_PASSWORD
-          value: "admin123"  # Change in production
+          valueFrom:
+            secretKeyRef:
+              name: ml-pipeline-secrets
+              key: GRAFANA_ADMIN_PASSWORD
+              optional: true
         - name: GF_USERS_ALLOW_SIGN_UP
           value: "false"
         volumeMounts:
