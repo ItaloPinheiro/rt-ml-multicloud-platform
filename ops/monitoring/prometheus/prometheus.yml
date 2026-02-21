@@ -1,93 +1,57 @@
-# =============================================================================
-# Prometheus Configuration for ML Pipeline Monitoring
-# =============================================================================
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
-  external_labels:
-    cluster: 'ml-pipeline-local'
-    environment: 'development'
-
-# Rule files for alerting
 rule_files:
-  - "alerts/*.yml"
-
-# Scrape configurations
+- alert_rules.yml
+- recording_rules.yml
+alerting:
+  alertmanagers:
+  - static_configs:
+    - targets:
+      - alertmanager:9093
 scrape_configs:
-  # =================================================================
-  # Model API Metrics
-  # =================================================================
-  - job_name: 'model-api'
-    static_configs:
-      - targets: ['model-api:8000']
-    metrics_path: '/metrics/'
-    scrape_interval: 10s
-    scrape_timeout: 5s
-    scheme: http
-    enable_compression: false
-
-  # =================================================================
-  # MLflow Server Metrics
-  # =================================================================
-  - job_name: 'mlflow-server'
-    static_configs:
-      - targets: ['mlflow-server:5000']
-    metrics_path: '/metrics'
-    scrape_interval: 30s
-    scrape_timeout: 10s
-    scheme: http
-
-  # =================================================================
-  # Redis Metrics (using redis_exporter)
-  # =================================================================
-  - job_name: 'redis'
-    static_configs:
-      - targets: ['redis-exporter:9121']
-    metrics_path: '/metrics'
-    scrape_interval: 15s
-    scrape_timeout: 5s
-
-  # =================================================================
-  # Redpanda/Kafka Metrics
-  # =================================================================
-  - job_name: 'redpanda'
-    static_configs:
-      - targets: ['redpanda:9644']
-    metrics_path: '/metrics'
-    scrape_interval: 15s
-    scrape_timeout: 5s
-
-  # =================================================================
-  # PostgreSQL Metrics (using postgres_exporter)
-  # =================================================================
-  - job_name: 'postgres'
-    static_configs:
-      - targets: ['postgres-exporter:9187']
-    metrics_path: '/metrics'
-    scrape_interval: 30s
-    scrape_timeout: 10s
-
-  # =================================================================
-  # Prometheus Self-Monitoring
-  # =================================================================
-  - job_name: 'prometheus'
-    static_configs:
-      - targets: ['localhost:9090']
-    metrics_path: '/metrics'
-    scrape_interval: 30s
-
-  # =================================================================
-  # Node Exporter (if added for system metrics)
-  # =================================================================
-  - job_name: 'node-exporter'
-    static_configs:
-      - targets: ['node-exporter:9100']
-    scrape_interval: 15s
-    scrape_timeout: 5s
-
-# Alertmanager configuration (if alertmanager is added)
-# alerting:
-#   alertmanagers:
-#     - static_configs:
-#         - targets:
-#           - alertmanager:9093
+- job_name: prometheus
+  static_configs:
+  - targets:
+    - localhost:9090
+- job_name: model-api
+  scrape_interval: 10s
+  metrics_path: /metrics
+  static_configs:
+  - targets:
+    - ml-pipeline-api-service:8000
+- job_name: mlflow-server
+  scrape_interval: 10s
+  metrics_path: /metrics
+  static_configs:
+  - targets:
+    - mlflow-service:5000
+- job_name: redis
+  static_configs:
+  - targets:
+    - redis-service:6379
+- job_name: postgres
+  static_configs:
+  - targets:
+    - postgres-service:5432
+- job_name: kubernetes-apiservers
+  kubernetes_sd_configs:
+  - role: endpoints
+  scheme: https
+  tls_config:
+    ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+  bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+  relabel_configs:
+  - source_labels:
+    - __meta_kubernetes_namespace
+    - __meta_kubernetes_service_name
+    - __meta_kubernetes_endpoint_port_name
+    action: keep
+    regex: default;kubernetes;https
+- job_name: kubernetes-nodes
+  kubernetes_sd_configs:
+  - role: node
+  scheme: https
+  tls_config:
+    ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+  bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
