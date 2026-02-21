@@ -208,7 +208,15 @@ jobs:
           IMAGE_TAG="sha-${{ github.sha }}"
           REGISTRY="ghcr.io/italopinheiro/rt-ml-multicloud-platform"
 
-          echo "🚀 Deploying images with tag: ${IMAGE_TAG}"
+          echo "� Pulling latest infrastructure manifests..."
+          cd /home/ubuntu/rt-ml-multicloud-platform
+          git fetch origin main
+          git reset --hard origin/main
+          
+          echo "⚙️ Applying latest Kubernetes configuration..."
+          sudo k3s kubectl apply -k ops/k8s/overlays/aws-demo
+
+          echo "�🚀 Deploying images with tag: ${IMAGE_TAG}"
 
           sudo k3s kubectl set image deployment/ml-pipeline-api \
             api=${REGISTRY}/api:${IMAGE_TAG} -n ml-pipeline
