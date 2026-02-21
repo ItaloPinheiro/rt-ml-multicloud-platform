@@ -31,7 +31,7 @@ spec:
         - "--port"
         - "5000"
         - "--allowed-hosts"
-        - "all"
+        - "*"
         - "--expose-prometheus"
         - "/tmp/prometheus"
         env:
