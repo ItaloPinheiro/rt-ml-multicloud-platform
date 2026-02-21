@@ -165,6 +165,8 @@ spec:
               optional: true
         - name: GF_USERS_ALLOW_SIGN_UP
           value: 'false'
+        - name: PROMETHEUS_URL
+          value: http://prometheus-service:9090
         volumeMounts:
         - name: grafana-storage
           mountPath: /var/lib/grafana

@@ -35,12 +35,6 @@ prometheus_yml = {
             "static_configs": [{"targets": ["ml-pipeline-api-service:8000"]}]
         },
         {
-            "job_name": "mlflow-server",
-            "scrape_interval": "10s",
-            "metrics_path": "/metrics",
-            "static_configs": [{"targets": ["mlflow-service:5000"]}]
-        },
-        {
             "job_name": "redis",
             "static_configs": [{"targets": ["redis-service:6379"]}]
         },
@@ -184,8 +178,12 @@ datasource_yml = {
             "name": "Prometheus",
             "type": "prometheus",
             "access": "proxy",
-            "url": "http://prometheus-service:9090",
-            "isDefault": True
+            "url": "${PROMETHEUS_URL}",
+            "isDefault": True,
+            "jsonData": {
+                "httpMethod": "POST",
+                "manageAlerts": True
+            }
         }
     ]
 }
@@ -209,6 +207,36 @@ dashboard_provider_yml = {
 
 with open("ops/monitoring/prometheus/prometheus.yml", "w") as f:
     yaml.dump(prometheus_yml, f, default_flow_style=False, sort_keys=False)
+
+# 5. Generate Local Prometheus Configuration (override for Docker Compose)
+prometheus_local_yml = prometheus_yml.copy()
+prometheus_local_yml["scrape_configs"] = [
+    {
+        "job_name": "prometheus",
+        "static_configs": [{"targets": ["localhost:9090"]}]
+    },
+    {
+        "job_name": "model-api",
+        "scrape_interval": "10s",
+        "metrics_path": "/metrics/",
+        "static_configs": [{"targets": ["model-api:8000"]}]
+    },
+    {
+        "job_name": "redis",
+        "static_configs": [{"targets": ["redis-exporter:9121"]}]
+    },
+    {
+        "job_name": "postgres",
+        "static_configs": [{"targets": ["postgres-exporter:9187"]}]
+    },
+    {
+        "job_name": "redpanda",
+        "static_configs": [{"targets": ["redpanda:9644"]}]
+    }
+]
+
+with open("ops/monitoring/prometheus/prometheus-local.yml", "w") as f:
+    yaml.dump(prometheus_local_yml, f, default_flow_style=False, sort_keys=False)
 
 with open("ops/monitoring/prometheus/alerts/alert_rules.yml", "w") as f:
     yaml.dump(alert_rules_yml, f, default_flow_style=False, sort_keys=False)

@@ -148,7 +148,19 @@ apps_uptime = create_dashboard(
             "type": "stat",
             "title": "MLflow Status",
             "gridPos": {"x": 6, "y": 0, "w": 6, "h": 6},
-            "targets": [{"expr": 'up{job="mlflow-server"}', "refId": "A"}],
+            "targets": [{"expr": 'ml_dependency_health{dependency="mlflow"}', "refId": "A"}],
+            "options": {"colorMode": "background", "graphMode": "none"},
+            "fieldConfig": {"defaults": {
+                "mappings": [{"type": "value", "options": {"1": {"text": "Healthy", "color": "green"}, "0": {"text": "Down", "color": "red"}}}],
+                "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": None}, {"color": "green", "value": 1}]}
+            }, "overrides": []}
+        },
+        # Redis Health (New)
+         {
+            "type": "stat",
+            "title": "Redis Status",
+            "gridPos": {"x": 12, "y": 0, "w": 6, "h": 6},
+            "targets": [{"expr": 'ml_dependency_health{dependency="redis"}', "refId": "A"}],
             "options": {"colorMode": "background", "graphMode": "none"},
             "fieldConfig": {"defaults": {
                 "mappings": [{"type": "value", "options": {"1": {"text": "Healthy", "color": "green"}, "0": {"text": "Down", "color": "red"}}}],
@@ -156,10 +168,10 @@ apps_uptime = create_dashboard(
             }, "overrides": []}
         },
         # API Uptime %
-        stat_panel("API Uptime (24h%)", 12, 0, 'avg_over_time(up{job="model-api"}[24h]) * 100', unit="percent", decimals=2,
+        stat_panel("API Uptime (24h%)", 0, 6, 'avg_over_time(up{job="model-api"}[24h]) * 100', unit="percent", decimals=2,
             thresholds={"mode": "absolute", "steps": [{"color": "red", "value": None}, {"color": "orange", "value": 90}, {"color": "green", "value": 99}]}),
         # Time since boot
-        stat_panel("API Time Since Boot", 18, 0, 'time() - process_start_time_seconds{job="model-api"}', unit="s")
+        stat_panel("API Time Since Boot", 6, 6, 'time() - process_start_time_seconds{job="model-api"}', unit="s")
     ]
 )
 

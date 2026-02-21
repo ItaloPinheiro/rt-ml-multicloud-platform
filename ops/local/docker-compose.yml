@@ -106,6 +106,8 @@ services:
       - ../../ops/monitoring/grafana/datasources/datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml:ro
       - ../../ops/monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
       - grafana_data:/var/lib/grafana
+    environment:
+      - PROMETHEUS_URL=http://prometheus:9090
     depends_on:
       prometheus:
         condition: service_healthy

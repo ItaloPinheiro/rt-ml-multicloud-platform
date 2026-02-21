@@ -108,6 +108,11 @@ if Counter is not None:
     api_requests_counter = Counter(
         "ml_api_requests_total", "Total API requests", ["endpoint", "method", "status"]
     )
+    dependency_health_gauge = Gauge(
+        "ml_dependency_health",
+        "Health status of dependencies (1=Healthy, 0=Unhealthy)",
+        ["dependency"],
+    )
 else:
     # Create dummy metrics if Prometheus is not available
     class DummyMetric:
@@ -670,6 +675,12 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning("Failed to start model update manager", error=str(e))
 
+    # Initialize dependency health task
+    health_task = None
+    if dependency_health_gauge is not None:
+        health_task = asyncio.create_task(update_dependency_health())
+        logger.info("Dependency health monitoring enabled")
+
     logger.info("ML Model API startup completed")
 
     yield
@@ -677,6 +688,8 @@ async def lifespan(app: FastAPI):
     # Shutdown
     if update_task:
         update_task.cancel()
+    if health_task:
+        health_task.cancel()
         try:
             await update_task
         except asyncio.CancelledError:
@@ -752,6 +765,42 @@ async def track_requests(request: Request, call_next):
         response.headers["X-Request-ID"] = request_id
 
         return response
+
+
+if dependency_health_gauge is not None:
+
+    async def update_dependency_health():
+        """Background task to update dependency health metrics."""
+        while True:
+            try:
+                # Check MLflow
+                mlflow_status = 0
+                if model_manager and model_manager.client:
+                    try:
+                        # Use a light operation to check connectivity
+                        model_manager.client.search_experiments(max_results=1)
+                        mlflow_status = 1
+                    except Exception:
+                        pass
+                dependency_health_gauge.labels(dependency="mlflow").set(mlflow_status)
+
+                # Check Redis
+                redis_status = 0
+                if model_manager and model_manager.cache:
+                    try:
+                        model_manager.cache.ping()
+                        redis_status = 1
+                    except Exception:
+                        pass
+                dependency_health_gauge.labels(dependency="redis").set(redis_status)
+
+            except Exception as e:
+                if logger:
+                    logger.error(
+                        "Failed to update dependency health metrics", error=str(e)
+                    )
+
+            await asyncio.sleep(30)
 
 
 # Health check endpoints

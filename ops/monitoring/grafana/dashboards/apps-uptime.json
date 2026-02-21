@@ -66,7 +66,60 @@
       },
       "targets": [
         {
-          "expr": "up{job=\"mlflow-server\"}",
+          "expr": "ml_dependency_health{dependency=\"mlflow\"}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "1": {
+                  "text": "Healthy",
+                  "color": "green"
+                },
+                "0": {
+                  "text": "Down",
+                  "color": "red"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Redis Status",
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 6,
+        "h": 6
+      },
+      "targets": [
+        {
+          "expr": "ml_dependency_health{dependency=\"redis\"}",
           "refId": "A"
         }
       ],
@@ -112,8 +165,8 @@
       "type": "stat",
       "title": "API Uptime (24h%)",
       "gridPos": {
-        "x": 12,
-        "y": 0,
+        "x": 0,
+        "y": 6,
         "w": 6,
         "h": 6
       },
@@ -158,8 +211,8 @@
       "type": "stat",
       "title": "API Time Since Boot",
       "gridPos": {
-        "x": 18,
-        "y": 0,
+        "x": 6,
+        "y": 6,
         "w": 6,
         "h": 6
       },
