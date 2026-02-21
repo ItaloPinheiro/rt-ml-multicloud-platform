@@ -99,7 +99,7 @@ patches:
               - "--expose-prometheus"
               - "/tmp/prometheus"
               - "--allowed-hosts"
-              - "all"
+              - "*"
               resources:
                 requests:
                   memory: "512Mi"
