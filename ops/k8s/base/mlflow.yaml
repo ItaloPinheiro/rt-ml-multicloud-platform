@@ -32,6 +32,8 @@ spec:
         - "5000"
         - "--allowed-hosts"
         - "all"
+        - "--expose-prometheus"
+        - "/mlflow/prometheus"
         env:
         - name: DATABASE_USER
           valueFrom:
