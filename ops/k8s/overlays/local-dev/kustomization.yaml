@@ -84,6 +84,8 @@ patches:
               - "5000"
               - "--expose-prometheus"
               - "/mlflow/prometheus"
+              - "--allowed-hosts"
+              - "all"
               resources:
                 requests:
                   memory: "512Mi"
