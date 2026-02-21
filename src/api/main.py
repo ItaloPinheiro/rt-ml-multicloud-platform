@@ -713,7 +713,7 @@ if simple_predict_router:
 
 # Mount Prometheus metrics if available
 if make_asgi_app is not None:
-    metrics_app = make_asgi_app()
+    metrics_app = make_asgi_app(disable_compression=True)
     app.mount("/metrics", metrics_app)
 
 

@@ -81,6 +81,8 @@ services:
     container_name: ml-prometheus
     volumes:
       - ../../ops/monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ../../ops/monitoring/prometheus/alerts/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
+      - ../../ops/monitoring/prometheus/rules/recording_rules.yml:/etc/prometheus/recording_rules.yml:ro
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
@@ -100,8 +102,9 @@ services:
     image: grafana/grafana:latest
     container_name: ml-grafana
     volumes:
-      - ../../ops/monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
-      - ../../ops/monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - ../../ops/monitoring/grafana/dashboards/dashboards.yaml:/etc/grafana/provisioning/dashboards/dashboards.yaml:ro
+      - ../../ops/monitoring/grafana/datasources/datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml:ro
+      - ../../ops/monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
       - grafana_data:/var/lib/grafana
     depends_on:
       prometheus:

@@ -198,13 +198,12 @@ services:
     ports:
       - "${PROMETHEUS_PORT:-9090}:9090"
     volumes:
-      - ../../ops/monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ../../ops/monitoring/prometheus/prometheus-local.yml:/etc/prometheus/prometheus.yml:ro
+      - ../../ops/monitoring/prometheus/alerts/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
+      - ../../ops/monitoring/prometheus/rules/recording_rules.yml:/etc/prometheus/recording_rules.yml:ro
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/etc/prometheus/console_libraries'
-      - '--web.console.templates=/etc/prometheus/consoles'
       - '--storage.tsdb.retention.time=15d'
       - '--web.enable-lifecycle'
     healthcheck:
@@ -227,8 +226,9 @@ services:
       GF_INSTALL_PLUGINS: grafana-piechart-panel,grafana-worldmap-panel
       GF_USERS_ALLOW_SIGN_UP: "false"
     volumes:
-      - ../../ops/monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
-      - ../../ops/monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - ../../ops/monitoring/grafana/dashboards/dashboards.yaml:/etc/grafana/provisioning/dashboards/dashboards.yaml:ro
+      - ../../ops/monitoring/grafana/datasources/datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml:ro
+      - ../../ops/monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
       - grafana_data:/var/lib/grafana
     depends_on:
       prometheus:
