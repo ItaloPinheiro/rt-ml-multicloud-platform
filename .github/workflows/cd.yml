@@ -357,7 +357,7 @@ jobs:
     steps:
     - name: Clean up old images
       run: |
-        echo "🧹 Cleaning up old untagged images..."
+        echo "🧹 Cleaning up old images..."
         # Note: In GHCR, packages pushed to user/repo/image become namespaced packages.
         # We must URL encode the slash as %2f for the API path.
         
@@ -367,8 +367,8 @@ jobs:
           echo "Processing package: $PKG"
           
           # Use the USER endpoint since these are user-owned packages
-          gh api "users/${{ github.repository_owner }}/packages/container/${PKG}/versions" \
-            --jq '.[] | select(.metadata.container.tags | length == 0) | .id' \
+          gh api "users/${{ github.repository_owner }}/packages/container/${PKG}/versions?per_page=100" \
+            --jq '.[] | .id' \
             | tail -n +6 \
             | xargs -I {} gh api --method DELETE "users/${{ github.repository_owner }}/packages/container/${PKG}/versions/{}" || true
         done
