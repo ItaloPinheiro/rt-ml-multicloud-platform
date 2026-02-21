@@ -13,7 +13,7 @@
       },
       "targets": [
         {
-          "expr": "max(up{job=\"model-api\"})",
+          "expr": "max(up{job=\"ml-pipeline-api-service\"})",
           "refId": "A"
         }
       ],
@@ -172,7 +172,7 @@
       },
       "targets": [
         {
-          "expr": "avg_over_time(up{job=\"model-api\"}[24h]) * 100",
+          "expr": "avg_over_time(up{job=\"ml-pipeline-api-service\"}[24h]) * 100",
           "refId": "A"
         }
       ],
@@ -218,7 +218,7 @@
       },
       "targets": [
         {
-          "expr": "time() - process_start_time_seconds{job=\"model-api\"}",
+          "expr": "time() - process_start_time_seconds{job=\"ml-pipeline-api-service\"}",
           "refId": "A"
         }
       ],

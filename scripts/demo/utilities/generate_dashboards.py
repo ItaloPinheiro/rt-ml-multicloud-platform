@@ -136,7 +136,7 @@ apps_uptime = create_dashboard(
             "type": "stat",
             "title": "API Status",
             "gridPos": {"x": 0, "y": 0, "w": 6, "h": 6},
-            "targets": [{"expr": 'max(up{job="model-api"})', "refId": "A"}],
+            "targets": [{"expr": 'max(up{job="ml-pipeline-api-service"})', "refId": "A"}],
             "options": {"colorMode": "background", "graphMode": "none"},
             "fieldConfig": {"defaults": {
                 "mappings": [{"type": "value", "options": {"1": {"text": "Healthy", "color": "green"}, "0": {"text": "Down", "color": "red"}}}],
@@ -168,10 +168,10 @@ apps_uptime = create_dashboard(
             }, "overrides": []}
         },
         # API Uptime %
-        stat_panel("API Uptime (24h%)", 0, 6, 'avg_over_time(up{job="model-api"}[24h]) * 100', unit="percent", decimals=2,
+        stat_panel("API Uptime (24h%)", 0, 6, 'avg_over_time(up{job="ml-pipeline-api-service"}[24h]) * 100', unit="percent", decimals=2,
             thresholds={"mode": "absolute", "steps": [{"color": "red", "value": None}, {"color": "orange", "value": 90}, {"color": "green", "value": 99}]}),
         # Time since boot
-        stat_panel("API Time Since Boot", 6, 6, 'time() - process_start_time_seconds{job="model-api"}', unit="s")
+        stat_panel("API Time Since Boot", 6, 6, 'time() - process_start_time_seconds{job="ml-pipeline-api-service"}', unit="s")
     ]
 )
 

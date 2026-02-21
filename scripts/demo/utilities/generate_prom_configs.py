@@ -29,7 +29,7 @@ prometheus_yml = {
             "static_configs": [{"targets": ["localhost:9090"]}]
         },
         {
-            "job_name": "model-api",
+            "job_name": "ml-pipeline-api-service",
             "scrape_interval": "10s",
             "metrics_path": "/metrics",
             "static_configs": [{"targets": ["ml-pipeline-api-service:8000"]}]
@@ -216,10 +216,10 @@ prometheus_local_yml["scrape_configs"] = [
         "static_configs": [{"targets": ["localhost:9090"]}]
     },
     {
-        "job_name": "model-api",
+        "job_name": "ml-pipeline-api-service",
         "scrape_interval": "10s",
         "metrics_path": "/metrics/",
-        "static_configs": [{"targets": ["model-api:8000"]}]
+        "static_configs": [{"targets": ["ml-pipeline-api-service:8000"]}]
     },
     {
         "job_name": "redis",
