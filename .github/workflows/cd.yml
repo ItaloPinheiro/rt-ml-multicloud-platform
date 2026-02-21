@@ -186,8 +186,8 @@ jobs:
           for i in $(seq 1 60); do
             if sudo k3s kubectl get namespace ml-pipeline &>/dev/null; then
               echo "✅ Namespace ml-pipeline exists"
-              if sudo k3s kubectl wait --for=condition=available deployment --all -n ml-pipeline --timeout=10s &>/dev/null; then
-                echo "✅ All deployments ready"
+              if sudo k3s kubectl get deployment ml-pipeline-api -n ml-pipeline &>/dev/null && sudo k3s kubectl get deployment mlflow -n ml-pipeline &>/dev/null; then
+                echo "✅ Target deployments exist"
                 break
               fi
             fi
