@@ -135,7 +135,11 @@ class ModelManager:
     """Manage ML models with caching and lifecycle management."""
 
     def __init__(
-        self, mlflow_uri: str, cache_host: str = "redis", cache_port: int = 6379
+        self,
+        mlflow_uri: str,
+        cache_host: str = "redis",
+        cache_port: int = 6379,
+        cache_password: str | None = None,
     ):
         """Initialize model manager.
 
@@ -143,6 +147,7 @@ class ModelManager:
             mlflow_uri: MLflow tracking server URI
             cache_host: Redis cache host
             cache_port: Redis cache port
+            cache_password: Redis cache password
         """
         self.mlflow_uri = mlflow_uri
         self.models: Dict[str, Any] = {}
@@ -155,6 +160,7 @@ class ModelManager:
                 self.cache = redis.StrictRedis(
                     host=cache_host,
                     port=cache_port,
+                    password=cache_password,
                     decode_responses=True,
                     socket_timeout=5,
                     socket_connect_timeout=5,
@@ -623,8 +629,9 @@ async def lifespan(app: FastAPI):
     mlflow_uri = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
     redis_host = os.getenv("REDIS_HOST", "localhost")
     redis_port = int(os.getenv("REDIS_PORT", "6379"))
+    redis_password = os.getenv("REDIS_PASSWORD")
 
-    model_manager = ModelManager(mlflow_uri, redis_host, redis_port)
+    model_manager = ModelManager(mlflow_uri, redis_host, redis_port, redis_password)
 
     # Preload default models
     try:
