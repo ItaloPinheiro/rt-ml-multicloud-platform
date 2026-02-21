@@ -113,7 +113,7 @@ system_resources = create_dashboard(
 data_ingestion = create_dashboard(
     "data-ingestion", "4. Data Ingestion",
     [
-        stat_panel("Redpanda Status", 0, 0, 'up{job="redpanda"}', 
+        stat_panel("Redpanda Status", 0, 0, 'max(up{job="redpanda"})', 
             mappings=[{"type": "value", "options": {"1": {"text": "UP", "color": "green"}, "0": {"text": "DOWN", "color": "red"}}}]
         )
     ]
@@ -136,7 +136,7 @@ apps_uptime = create_dashboard(
             "type": "stat",
             "title": "API Status",
             "gridPos": {"x": 0, "y": 0, "w": 6, "h": 6},
-            "targets": [{"expr": 'up{job="model-api"}', "refId": "A"}],
+            "targets": [{"expr": 'max(up{job="model-api"})', "refId": "A"}],
             "options": {"colorMode": "background", "graphMode": "none"},
             "fieldConfig": {"defaults": {
                 "mappings": [{"type": "value", "options": {"1": {"text": "Healthy", "color": "green"}, "0": {"text": "Down", "color": "red"}}}],
@@ -148,7 +148,7 @@ apps_uptime = create_dashboard(
             "type": "stat",
             "title": "MLflow Status",
             "gridPos": {"x": 6, "y": 0, "w": 6, "h": 6},
-            "targets": [{"expr": 'ml_dependency_health{dependency="mlflow"}', "refId": "A"}],
+            "targets": [{"expr": 'max(ml_dependency_health{dependency="mlflow"})', "refId": "A"}],
             "options": {"colorMode": "background", "graphMode": "none"},
             "fieldConfig": {"defaults": {
                 "mappings": [{"type": "value", "options": {"1": {"text": "Healthy", "color": "green"}, "0": {"text": "Down", "color": "red"}}}],
@@ -160,7 +160,7 @@ apps_uptime = create_dashboard(
             "type": "stat",
             "title": "Redis Status",
             "gridPos": {"x": 12, "y": 0, "w": 6, "h": 6},
-            "targets": [{"expr": 'ml_dependency_health{dependency="redis"}', "refId": "A"}],
+            "targets": [{"expr": 'max(ml_dependency_health{dependency="redis"})', "refId": "A"}],
             "options": {"colorMode": "background", "graphMode": "none"},
             "fieldConfig": {"defaults": {
                 "mappings": [{"type": "value", "options": {"1": {"text": "Healthy", "color": "green"}, "0": {"text": "Down", "color": "red"}}}],

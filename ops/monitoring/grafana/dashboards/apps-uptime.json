@@ -13,7 +13,7 @@
       },
       "targets": [
         {
-          "expr": "up{job=\"model-api\"}",
+          "expr": "max(up{job=\"model-api\"})",
           "refId": "A"
         }
       ],
@@ -66,7 +66,7 @@
       },
       "targets": [
         {
-          "expr": "ml_dependency_health{dependency=\"mlflow\"}",
+          "expr": "max(ml_dependency_health{dependency=\"mlflow\"})",
           "refId": "A"
         }
       ],
@@ -119,7 +119,7 @@
       },
       "targets": [
         {
-          "expr": "ml_dependency_health{dependency=\"redis\"}",
+          "expr": "max(ml_dependency_health{dependency=\"redis\"})",
           "refId": "A"
         }
       ],

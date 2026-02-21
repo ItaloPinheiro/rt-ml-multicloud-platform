@@ -13,7 +13,7 @@
       },
       "targets": [
         {
-          "expr": "up{job=\"redpanda\"}",
+          "expr": "max(up{job=\"redpanda\"})",
           "refId": "A"
         }
       ],
