@@ -6,8 +6,12 @@ import argparse
 import os
 import sys
 
-# Set environment to avoid Unicode issues on Windows
-os.environ["PYTHONIOENCODING"] = "utf-8"
+# Reconfigure stdout/stderr to UTF-8 before any imports that may print emoji
+# (MLflow 3.x prints a runner emoji in end_run(); cp1252 on Windows cannot encode it)
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 import mlflow
 import mlflow.sklearn
@@ -190,32 +194,32 @@ def main():
 
                 if str(served_version) == str(latest_version):
                     print(
-                        f"✅ Success! API is serving the expected version {latest_version}"
+                        f"OK: API is serving the expected version {latest_version}"
                     )
 
                     # Verify Latency SLA (e.g., < 200ms) - Note: First hit might be slower due to loading
                     if i > 0 and latency < 200:
-                        print("✅ Latency within acceptable limits (<200ms)")
+                        print("OK: Latency within acceptable limits (<200ms)")
                     elif i == 0:
-                        print(f"⚠️ First hit latency: {latency:.2f}ms (Cold start)")
+                        print(f"INFO: First hit latency: {latency:.2f}ms (Cold start)")
                     else:
-                        print(f"⚠️ High latency detected: {latency:.2f}ms")
+                        print(f"WARN: High latency detected: {latency:.2f}ms")
 
                     break
                 else:
                     print(
-                        f"⏳ Waiting for version update (Current: {served_version}, Expected: {latest_version})..."
+                        f"WAIT: Waiting for version update (Current: {served_version}, Expected: {latest_version})..."
                     )
             else:
-                print(f"❌ API Error {response.status_code}: {response.text}")
+                print(f"ERROR: API Error {response.status_code}: {response.text}")
 
         except Exception as e:
-            print(f"❌ Connection Error: {e}")
+            print(f"ERROR: Connection Error: {e}")
 
         time.sleep(retry_delay)
     else:
         print(
-            f"❌ Timeout: API did not update to version {latest_version} within {max_retries * retry_delay} seconds."
+            f"TIMEOUT: API did not update to version {latest_version} within {max_retries * retry_delay} seconds."
         )
         sys.exit(1)
 

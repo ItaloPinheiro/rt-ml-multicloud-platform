@@ -360,11 +360,19 @@ class ModelManager:
         start_time = time.time()
 
         try:
-            # Generate cache key for prediction
+            # Generate cache key for prediction.
+            # Resolve aliases ("latest", "production") to the actual in-memory version so
+            # the cache key is version-specific. Without this, stale results from a previous
+            # model version are returned after a hot-swap until the key expires.
             features_hash = hashlib.md5(
                 json.dumps(features, sort_keys=True).encode(), usedforsecurity=False
             ).hexdigest()
-            cache_key = f"pred:{model_name}:{version}:{features_hash}"
+            resolved_version = version
+            if version in ("latest", "production", "staging"):
+                meta = self.model_metadata.get(f"model:{model_name}:{version}")
+                if meta:
+                    resolved_version = meta.get("version", version)
+            cache_key = f"pred:{model_name}:{resolved_version}:{features_hash}"
 
             # Check cache first
             cached_result = None
