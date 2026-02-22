@@ -196,9 +196,9 @@ class ModelTrainer:
             signature = mlflow.models.infer_signature(X_test, y_pred)
 
             # Use explicit parameter name to avoid deprecation warning
-            mlflow.sklearn.log_model(
+            model_info = mlflow.sklearn.log_model(
                 sk_model=pipeline,
-                name="model",  # MLflow 2.9+ uses 'name' instead of 'artifact_path'
+                name="model",  # MLflow 3.x prefers 'name' instead of 'artifact_path'
                 signature=signature,
             )
 
@@ -206,15 +206,16 @@ class ModelTrainer:
 
             # Register model if specified
             if model_name:
-                self.register_model(run.info.run_id, model_name)
+                self.register_model(run.info.run_id, model_info.model_uri, model_name)
 
             return run.info.run_id, metrics
 
-    def register_model(self, run_id: str, model_name: str, auto_promote: bool = True):
+    def register_model(self, run_id: str, model_uri: str, model_name: str, auto_promote: bool = True):
         """Register model in MLflow Model Registry and optionally promote to production.
 
         Args:
             run_id: MLflow run ID
+            model_uri: The actual model URI returned by log_model
             model_name: Name for registered model
             auto_promote: If True, promote to production if metrics are better
         """
@@ -231,9 +232,9 @@ class ModelTrainer:
             except Exception:
                 logger.info(f"Registered model {model_name} already exists")
 
-            # Create model version
+            # Create model version using the actual model_uri
             model_version = client.create_model_version(
-                name=model_name, source=f"runs:/{run_id}/model", run_id=run_id
+                name=model_name, source=model_uri, run_id=run_id
             )
 
             logger.info(f"Registered model version: {model_version.version}")

@@ -136,7 +136,7 @@ apps_uptime = create_dashboard(
             "type": "stat",
             "title": "API Status",
             "gridPos": {"x": 0, "y": 0, "w": 6, "h": 6},
-            "targets": [{"expr": 'max(up{job="ml-pipeline-api-service"})', "refId": "A"}],
+            "targets": [{"expr": 'max(up{job="ml-pipeline-api-service"}) or vector(0)', "refId": "A"}],
             "options": {"colorMode": "background", "graphMode": "none"},
             "fieldConfig": {"defaults": {
                 "mappings": [{"type": "value", "options": {"1": {"text": "Healthy", "color": "green"}, "0": {"text": "Down", "color": "red"}}}],
@@ -148,7 +148,7 @@ apps_uptime = create_dashboard(
             "type": "stat",
             "title": "MLflow Status",
             "gridPos": {"x": 6, "y": 0, "w": 6, "h": 6},
-            "targets": [{"expr": 'max(ml_dependency_health{dependency="mlflow"})', "refId": "A"}],
+            "targets": [{"expr": '(max(ml_dependency_health{dependency="mlflow"}) or vector(0)) * on() group_left() (max(up{job="ml-pipeline-api-service"}) or vector(0))', "refId": "A"}],
             "options": {"colorMode": "background", "graphMode": "none"},
             "fieldConfig": {"defaults": {
                 "mappings": [{"type": "value", "options": {"1": {"text": "Healthy", "color": "green"}, "0": {"text": "Down", "color": "red"}}}],
@@ -160,7 +160,7 @@ apps_uptime = create_dashboard(
             "type": "stat",
             "title": "Redis Status",
             "gridPos": {"x": 12, "y": 0, "w": 6, "h": 6},
-            "targets": [{"expr": 'max(ml_dependency_health{dependency="redis"})', "refId": "A"}],
+            "targets": [{"expr": '(max(ml_dependency_health{dependency="redis"}) or vector(0)) * on() group_left() (max(up{job="ml-pipeline-api-service"}) or vector(0))', "refId": "A"}],
             "options": {"colorMode": "background", "graphMode": "none"},
             "fieldConfig": {"defaults": {
                 "mappings": [{"type": "value", "options": {"1": {"text": "Healthy", "color": "green"}, "0": {"text": "Down", "color": "red"}}}],

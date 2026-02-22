@@ -16,6 +16,7 @@ try:
     from fastapi.middleware.cors import CORSMiddleware
     from fastapi.middleware.gzip import GZipMiddleware
     from fastapi.responses import JSONResponse
+    from starlette.concurrency import run_in_threadpool
 except ImportError:
     raise ImportError("fastapi is required. Install with: pip install fastapi")
 
@@ -778,7 +779,10 @@ if dependency_health_gauge is not None:
                 if model_manager and model_manager.client:
                     try:
                         # Use a light operation to check connectivity
-                        model_manager.client.search_experiments(max_results=1)
+                        await asyncio.wait_for(
+                            run_in_threadpool(model_manager.client.search_experiments, max_results=1),
+                            timeout=2.0
+                        )
                         mlflow_status = 1
                     except Exception:
                         pass
@@ -788,7 +792,10 @@ if dependency_health_gauge is not None:
                 redis_status = 0
                 if model_manager and model_manager.cache:
                     try:
-                        model_manager.cache.ping()
+                        await asyncio.wait_for(
+                            run_in_threadpool(model_manager.cache.ping),
+                            timeout=2.0
+                        )
                         redis_status = 1
                     except Exception:
                         pass
@@ -800,7 +807,7 @@ if dependency_health_gauge is not None:
                         "Failed to update dependency health metrics", error=str(e)
                     )
 
-            await asyncio.sleep(30)
+            await asyncio.sleep(5)
 
 
 # Health check endpoints
@@ -813,7 +820,10 @@ async def health_check():
     # Check MLflow connection
     if model_manager and model_manager.client:
         try:
-            model_manager.client.search_experiments(max_results=1)
+            await asyncio.wait_for(
+                run_in_threadpool(model_manager.client.search_experiments, max_results=1),
+                timeout=2.0
+            )
             checks["mlflow"] = "healthy"
         except Exception:
             checks["mlflow"] = "unhealthy"
@@ -823,7 +833,10 @@ async def health_check():
     # Check Redis connection
     if model_manager and model_manager.cache:
         try:
-            model_manager.cache.ping()
+            await asyncio.wait_for(
+                run_in_threadpool(model_manager.cache.ping),
+                timeout=2.0
+            )
             checks["redis"] = "healthy"
         except Exception:
             checks["redis"] = "unhealthy"
