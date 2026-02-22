@@ -37,7 +37,7 @@ kubectl delete namespace ml-pipeline-prod --ignore-not-found
 Use the provided helper script to build docker images and deploy the Kubernetes manifests (applies `k8s/overlays/ec2-local`).
 
 ```bash
-bash scripts/demo/demo-local-k8s/setup.sh
+bash scripts/demo/demo-local-k8s/demo-local-k8s.sh
 ```
 
 Verify that the `ml-pipeline-prod` namespace was created and all services are running.
@@ -88,7 +88,7 @@ Confirm the API is serving Version 2 by sending a test request:
 ```bash
 curl -X POST http://localhost:30001/predict \
   -H "Content-Type: application/json" \
-  -d @data/sample/demo/requests/baseline_prediction_request.json
+  -d @data/sample/demo/requests/improved_prediction_request.json
 ```
 
 Verify that the response contains `model_version: 2` (or higher if you ran multiple training iterations).

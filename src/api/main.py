@@ -1033,19 +1033,21 @@ async def log_prediction(model_name: str, features: Dict[str, Any], prediction: 
     """Log prediction for monitoring and analytics."""
     try:
         if model_manager and model_manager.cache:
-            prediction_data = {
-                "model_name": model_name,
-                "features": features,
-                "prediction": prediction,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-            }
+            # Redis xadd requires all field values to be scalars (str/bytes/int/float).
+            # Serialize features dict and coerce prediction (may be numpy type) to str.
+            def _xadd():
+                model_manager.cache.xadd(
+                    f"predictions:{model_name}",
+                    {
+                        "model_name": model_name,
+                        "features": json.dumps(features),
+                        "prediction": str(prediction),
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    },
+                    maxlen=10000,  # Keep last 10k predictions
+                )
 
-            # Store in Redis stream for real-time monitoring
-            model_manager.cache.xadd(
-                f"predictions:{model_name}",
-                prediction_data,
-                maxlen=10000,  # Keep last 10k predictions
-            )
+            await run_in_threadpool(_xadd)
     except Exception as e:
         logger.error("Failed to log prediction", error=str(e))
 
