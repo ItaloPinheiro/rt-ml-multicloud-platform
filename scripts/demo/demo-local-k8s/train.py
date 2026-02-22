@@ -83,7 +83,7 @@ def main():
     print(f"Accuracy: {accuracy:.3f}")
 
     # Create or get experiment (Use Default Artifact Root from Server)
-    experiment_name = "fraud_detection_local_v3"
+    experiment_name = "fraud_detection_local_k8s"
     try:
         experiment = mlflow.get_experiment_by_name(experiment_name)
         if experiment is None:

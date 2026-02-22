@@ -66,7 +66,7 @@ Test the API to ensure it picked up the new Production model (Version 1).
 ```bash
 curl -X POST http://localhost:30001/predict \
   -H "Content-Type: application/json" \
-  -d @data/sample/demo/requests/baseline_prediction_request.json
+  -d @data/sample/demo/requests/baseline_prediction_request.json | python -m json.tool
 ```
 
 ### 5. Train & Upgrade Model (Version 2)
@@ -88,7 +88,7 @@ Confirm the API is serving Version 2 by sending a test request:
 ```bash
 curl -X POST http://localhost:30001/predict \
   -H "Content-Type: application/json" \
-  -d @data/sample/demo/requests/improved_prediction_request.json
+  -d @data/sample/demo/requests/improved_prediction_request.json | python -m json.tool
 ```
 
 Verify that the response contains `model_version: 2` (or higher if you ran multiple training iterations).
