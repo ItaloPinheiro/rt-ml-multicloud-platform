@@ -301,3 +301,69 @@ patches:
                 limits:
                   memory: "128Mi"
                   cpu: "100m"
+
+  # PVC sizes - fit within 30Gi EC2 root volume (total: ~15Gi)
+  - target:
+      kind: PersistentVolumeClaim
+      name: prometheus-pvc
+    patch: |-
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: prometheus-pvc
+      spec:
+        resources:
+          requests:
+            storage: "5Gi"
+
+  - target:
+      kind: PersistentVolumeClaim
+      name: grafana-pvc
+    patch: |-
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: grafana-pvc
+      spec:
+        resources:
+          requests:
+            storage: "1Gi"
+
+  - target:
+      kind: PersistentVolumeClaim
+      name: mlflow-pvc
+    patch: |-
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: mlflow-pvc
+      spec:
+        resources:
+          requests:
+            storage: "5Gi"
+
+  - target:
+      kind: PersistentVolumeClaim
+      name: postgres-pvc
+    patch: |-
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: postgres-pvc
+      spec:
+        resources:
+          requests:
+            storage: "3Gi"
+
+  - target:
+      kind: PersistentVolumeClaim
+      name: redis-pvc
+    patch: |-
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: redis-pvc
+      spec:
+        resources:
+          requests:
+            storage: "1Gi"

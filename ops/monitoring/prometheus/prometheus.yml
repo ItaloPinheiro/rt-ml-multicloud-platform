@@ -1,33 +1,28 @@
 global:
-  scrape_interval: 15s
-  evaluation_interval: 15s
+  scrape_interval: 5s
+  evaluation_interval: 5s
 rule_files:
 - alert_rules.yml
 - recording_rules.yml
-alerting:
-  alertmanagers:
-  - static_configs:
-    - targets:
-      - alertmanager:9093
 scrape_configs:
 - job_name: prometheus
   static_configs:
   - targets:
     - localhost:9090
 - job_name: ml-pipeline-api-service
-  scrape_interval: 10s
-  metrics_path: /metrics
+  scrape_interval: 5s
+  metrics_path: /metrics/
   static_configs:
   - targets:
     - ml-pipeline-api-service:8000
 - job_name: redis
   static_configs:
   - targets:
-    - redis-service:6379
+    - redis-exporter:9121
 - job_name: postgres
   static_configs:
   - targets:
-    - postgres-service:5432
+    - postgres-exporter:9187
 - job_name: kubernetes-apiservers
   kubernetes_sd_configs:
   - role: endpoints

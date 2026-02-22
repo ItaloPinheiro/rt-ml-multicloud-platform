@@ -8,21 +8,19 @@ ALERTS_DIR = "ops/monitoring/prometheus/alerts"
 os.makedirs(RULES_DIR, exist_ok=True)
 os.makedirs(ALERTS_DIR, exist_ok=True)
 
-# 1. Scrape Configuration
+# 1. Scrape Configuration (K8s / AWS demo)
+# - No alertmanager block (not deployed in K8s)
+# - metrics_path uses trailing slash for FastAPI ASGI mount compatibility
+# - redis/postgres targets point to exporter sidecars, not native service ports
 prometheus_yml = {
     "global": {
-        "scrape_interval": "15s",
-        "evaluation_interval": "15s"
+        "scrape_interval": "5s",
+        "evaluation_interval": "5s"
     },
     "rule_files": [
         "alert_rules.yml",
         "recording_rules.yml"
     ],
-    "alerting": {
-        "alertmanagers": [
-            {"static_configs": [{"targets": ["alertmanager:9093"]}]}
-        ]
-    },
     "scrape_configs": [
         {
             "job_name": "prometheus",
@@ -30,17 +28,17 @@ prometheus_yml = {
         },
         {
             "job_name": "ml-pipeline-api-service",
-            "scrape_interval": "10s",
-            "metrics_path": "/metrics",
+            "scrape_interval": "5s",
+            "metrics_path": "/metrics/",
             "static_configs": [{"targets": ["ml-pipeline-api-service:8000"]}]
         },
         {
             "job_name": "redis",
-            "static_configs": [{"targets": ["redis-service:6379"]}]
+            "static_configs": [{"targets": ["redis-exporter:9121"]}]
         },
         {
             "job_name": "postgres",
-            "static_configs": [{"targets": ["postgres-service:5432"]}]
+            "static_configs": [{"targets": ["postgres-exporter:9187"]}]
         },
         {
             "job_name": "kubernetes-apiservers",
@@ -105,7 +103,7 @@ alert_rules_yml = {
                 },
                 {
                     "alert": "ModelAPIDown",
-                    "expr": 'up{job="model-api"} == 0',
+                    "expr": 'up{job="ml-pipeline-api-service"} == 0',
                     "for": "1m",
                     "labels": {"severity": "critical"},
                     "annotations": {
@@ -209,6 +207,7 @@ with open("ops/monitoring/prometheus/prometheus.yml", "w") as f:
     yaml.dump(prometheus_yml, f, default_flow_style=False, sort_keys=False)
 
 # 5. Generate Local Prometheus Configuration (override for Docker Compose)
+# Local uses docker-compose service names and includes redpanda
 prometheus_local_yml = prometheus_yml.copy()
 prometheus_local_yml["scrape_configs"] = [
     {
@@ -217,7 +216,7 @@ prometheus_local_yml["scrape_configs"] = [
     },
     {
         "job_name": "ml-pipeline-api-service",
-        "scrape_interval": "10s",
+        "scrape_interval": "5s",
         "metrics_path": "/metrics/",
         "static_configs": [{"targets": ["ml-pipeline-api-service:8000"]}]
     },
@@ -249,5 +248,5 @@ with open("ops/monitoring/grafana/datasources/datasources.yaml", "w") as f:
 
 with open("ops/monitoring/grafana/dashboards/dashboards.yaml", "w") as f:
     yaml.dump(dashboard_provider_yml, f, default_flow_style=False, sort_keys=False)
-    
+
 print("Generated Prometheus and Grafana configuration files successfully.")

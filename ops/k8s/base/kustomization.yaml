@@ -9,6 +9,7 @@ resources:
 - mlflow.yaml
 - api.yaml
 - monitoring.yaml
+- exporters.yaml
 commonLabels:
   app.kubernetes.io/name: ml-pipeline
   app.kubernetes.io/instance: ml-pipeline-platform

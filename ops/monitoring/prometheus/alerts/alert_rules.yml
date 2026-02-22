@@ -30,7 +30,7 @@ groups:
       summary: Critical prediction latency
       description: '95th percentile latency is {{ $value }}s (threshold: 1s)'
   - alert: ModelAPIDown
-    expr: up{job="model-api"} == 0
+    expr: up{job="ml-pipeline-api-service"} == 0
     for: 1m
     labels:
       severity: critical
