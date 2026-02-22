@@ -20,26 +20,3 @@ namespace: ml-pipeline
 images:
 - name: ml-pipeline/api
   newTag: latest
-configMapGenerator:
-- name: prometheus-config
-  namespace: ml-pipeline
-  files:
-  - ../../monitoring/prometheus/prometheus.yml
-  - ../../monitoring/prometheus/alerts/alert_rules.yml
-  - ../../monitoring/prometheus/rules/recording_rules.yml
-- name: grafana-config
-  namespace: ml-pipeline
-  files:
-  - ../../monitoring/grafana/datasources/datasources.yaml
-  - ../../monitoring/grafana/dashboards/dashboards.yaml
-- name: grafana-dashboards
-  namespace: ml-pipeline
-  files:
-  - ../../monitoring/grafana/dashboards/model-performance.json
-  - ../../monitoring/grafana/dashboards/feature-store.json
-  - ../../monitoring/grafana/dashboards/system-resources.json
-  - ../../monitoring/grafana/dashboards/data-ingestion.json
-  - ../../monitoring/grafana/dashboards/error-tracking.json
-  - ../../monitoring/grafana/dashboards/apps-uptime.json
-generatorOptions:
-  disableNameSuffixHash: true
