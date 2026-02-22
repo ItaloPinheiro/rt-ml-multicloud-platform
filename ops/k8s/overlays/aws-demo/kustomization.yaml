@@ -5,6 +5,31 @@ namespace: ml-pipeline
 resources:
   - ../../base
 
+# Prometheus and Grafana configs - generated from monitoring source files.
+# Paths use ../../../ because this file is at ops/k8s/overlays/aws-demo/
+# and monitoring files are at ops/monitoring/ (3 levels up from here).
+configMapGenerator:
+  - name: prometheus-config
+    files:
+      - ../../../monitoring/prometheus/prometheus.yml
+      - ../../../monitoring/prometheus/alerts/alert_rules.yml
+      - ../../../monitoring/prometheus/rules/recording_rules.yml
+  - name: grafana-config
+    files:
+      - ../../../monitoring/grafana/datasources/datasources.yaml
+      - ../../../monitoring/grafana/dashboards/dashboards.yaml
+  - name: grafana-dashboards
+    files:
+      - ../../../monitoring/grafana/dashboards/model-performance.json
+      - ../../../monitoring/grafana/dashboards/feature-store.json
+      - ../../../monitoring/grafana/dashboards/system-resources.json
+      - ../../../monitoring/grafana/dashboards/data-ingestion.json
+      - ../../../monitoring/grafana/dashboards/error-tracking.json
+      - ../../../monitoring/grafana/dashboards/apps-uptime.json
+
+generatorOptions:
+  disableNameSuffixHash: true
+
 patches:
   # Remove the base secret because we create it manually from Secrets Manager
   - target:
