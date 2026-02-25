@@ -182,19 +182,21 @@ jobs:
         command_timeout: 10m
         script: |
           set -e
-          echo "⏳ Waiting for bootstrap to complete..."
+          echo "Waiting for K3s and namespace to be ready..."
           for i in $(seq 1 60); do
             if sudo k3s kubectl get namespace ml-pipeline &>/dev/null; then
-              echo "✅ Namespace ml-pipeline exists"
-              if sudo k3s kubectl get deployment ml-pipeline-api -n ml-pipeline &>/dev/null && sudo k3s kubectl get deployment mlflow -n ml-pipeline &>/dev/null; then
-                echo "✅ Target deployments exist"
-                break
-              fi
+              echo "K3s ready, namespace ml-pipeline exists"
+              break
             fi
             echo "  Attempt $i/60 - waiting 10s..."
             sleep 10
           done
-          sudo k3s kubectl get pods -n ml-pipeline
+          if ! sudo k3s kubectl get namespace ml-pipeline &>/dev/null; then
+            echo "ERROR: Namespace ml-pipeline never became available"
+            exit 1
+          fi
+          echo "Existing pods (may be empty on first deploy):"
+          sudo k3s kubectl get pods -n ml-pipeline || true
 
     - name: Deploy new images (zero-downtime)
       uses: appleboy/ssh-action@v1
@@ -213,8 +215,8 @@ jobs:
           git fetch origin main
           git reset --hard origin/main
           
-          echo "⚙️ Applying latest Kubernetes configuration..."
-          sudo k3s kubectl apply -k ops/k8s/overlays/aws-demo
+          echo "Applying latest Kubernetes configuration..."
+          sudo k3s kubectl kustomize ops/k8s/overlays/aws-demo --load-restrictor LoadRestrictionsNone | sudo k3s kubectl apply -f -
 
           echo "�🚀 Deploying images with tag: ${IMAGE_TAG}"
 
