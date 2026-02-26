@@ -73,8 +73,8 @@ model_perf = create_dashboard(
             "title": "Success vs Error",
             "gridPos": {"x": 0, "y": 8, "w": 8, "h": 8},
             "targets": [
-                {"expr": 'sum(increase(ml_predictions_total{status="success"}[1h])) or vector(0)', "legendFormat": "Success"},
-                {"expr": 'sum(increase(ml_predictions_total{status="error"}[1h])) or vector(0)', "legendFormat": "Error"}
+                {"expr": 'sum(increase(ml_predictions_total{status="success"}[$__range])) or vector(0)', "legendFormat": "Success"},
+                {"expr": 'sum(increase(ml_predictions_total{status="error"}[$__range])) or vector(0)', "legendFormat": "Error"}
             ],
             "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "pieType": "pie", "tooltip": {"mode": "single", "sort": "none"}}
         },
@@ -136,47 +136,29 @@ error_tracking = create_dashboard(
 apps_uptime = create_dashboard(
     "apps-uptime", "Applications Uptime & Health",
     [
-        # API Health (Red/Green Box)
+        # Service Health Status (0/1 over time)
         {
-            "type": "stat",
-            "title": "API Status",
-            "gridPos": {"x": 0, "y": 0, "w": 6, "h": 6},
-            "targets": [{"expr": 'max(up{job="ml-pipeline-api-service"}) or vector(0)', "refId": "A"}],
-            "options": {"colorMode": "background", "graphMode": "none"},
+            "type": "timeseries",
+            "title": "Service Health Status",
+            "gridPos": {"x": 0, "y": 0, "w": 24, "h": 8},
+            "targets": [
+                {"expr": 'max(up{job="ml-pipeline-api-service"}) or vector(0)', "legendFormat": "API", "refId": "A"},
+                {"expr": '(max(ml_dependency_health{dependency="mlflow"}) or vector(0)) * on() group_left() (max(up{job="ml-pipeline-api-service"}) or vector(0))', "legendFormat": "MLflow", "refId": "B"},
+                {"expr": '(max(ml_dependency_health{dependency="redis"}) or vector(0)) * on() group_left() (max(up{job="ml-pipeline-api-service"}) or vector(0))', "legendFormat": "Redis", "refId": "C"},
+            ],
+            "options": {"legend": {"displayMode": "list", "placement": "bottom"}},
             "fieldConfig": {"defaults": {
-                "mappings": [{"type": "value", "options": {"1": {"text": "Healthy", "color": "green"}, "0": {"text": "Down", "color": "red"}}}],
-                "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": None}, {"color": "green", "value": 1}]}
-            }, "overrides": []}
-        },
-        # MLflow Health (Red/Green Box)
-         {
-            "type": "stat",
-            "title": "MLflow Status",
-            "gridPos": {"x": 6, "y": 0, "w": 6, "h": 6},
-            "targets": [{"expr": '(max(ml_dependency_health{dependency="mlflow"}) or vector(0)) * on() group_left() (max(up{job="ml-pipeline-api-service"}) or vector(0))', "refId": "A"}],
-            "options": {"colorMode": "background", "graphMode": "none"},
-            "fieldConfig": {"defaults": {
-                "mappings": [{"type": "value", "options": {"1": {"text": "Healthy", "color": "green"}, "0": {"text": "Down", "color": "red"}}}],
-                "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": None}, {"color": "green", "value": 1}]}
-            }, "overrides": []}
-        },
-        # Redis Health (New)
-         {
-            "type": "stat",
-            "title": "Redis Status",
-            "gridPos": {"x": 12, "y": 0, "w": 6, "h": 6},
-            "targets": [{"expr": '(max(ml_dependency_health{dependency="redis"}) or vector(0)) * on() group_left() (max(up{job="ml-pipeline-api-service"}) or vector(0))', "refId": "A"}],
-            "options": {"colorMode": "background", "graphMode": "none"},
-            "fieldConfig": {"defaults": {
-                "mappings": [{"type": "value", "options": {"1": {"text": "Healthy", "color": "green"}, "0": {"text": "Down", "color": "red"}}}],
-                "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": None}, {"color": "green", "value": 1}]}
+                "min": 0, "max": 1, "decimals": 0,
+                "custom": {"drawStyle": "line", "lineInterpolation": "stepAfter", "lineWidth": 2, "fillOpacity": 20, "showPoints": "never"},
+                "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": None}, {"color": "green", "value": 1}]},
+                "color": {"mode": "thresholds"}
             }, "overrides": []}
         },
         # API Uptime %
-        stat_panel("API Uptime (24h%)", 0, 6, 'avg_over_time(up{job="ml-pipeline-api-service"}[24h]) * 100', unit="percent", decimals=2,
+        stat_panel("API Uptime (24h%)", 0, 8, 'avg_over_time(up{job="ml-pipeline-api-service"}[24h]) * 100', unit="percent", decimals=2,
             thresholds={"mode": "absolute", "steps": [{"color": "red", "value": None}, {"color": "orange", "value": 90}, {"color": "green", "value": 99}]}),
         # Time since boot
-        stat_panel("API Time Since Boot", 6, 6, 'time() - process_start_time_seconds{job="ml-pipeline-api-service"}', unit="s")
+        stat_panel("API Time Since Boot", 6, 8, 'time() - process_start_time_seconds{job="ml-pipeline-api-service"}', unit="s")
     ]
 )
 

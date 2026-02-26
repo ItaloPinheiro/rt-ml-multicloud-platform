@@ -93,11 +93,11 @@
       },
       "targets": [
         {
-          "expr": "sum(increase(ml_predictions_total{status=\"success\"}[1h])) or vector(0)",
+          "expr": "sum(increase(ml_predictions_total{status=\"success\"}[$__range])) or vector(0)",
           "legendFormat": "Success"
         },
         {
-          "expr": "sum(increase(ml_predictions_total{status=\"error\"}[1h])) or vector(0)",
+          "expr": "sum(increase(ml_predictions_total{status=\"error\"}[$__range])) or vector(0)",
           "legendFormat": "Error"
         }
       ],

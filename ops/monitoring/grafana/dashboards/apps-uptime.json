@@ -3,147 +3,49 @@
   "title": "Applications Uptime & Health",
   "panels": [
     {
-      "type": "stat",
-      "title": "API Status",
+      "type": "timeseries",
+      "title": "Service Health Status",
       "gridPos": {
         "x": 0,
         "y": 0,
-        "w": 6,
-        "h": 6
+        "w": 24,
+        "h": 8
       },
       "targets": [
         {
           "expr": "max(up{job=\"ml-pipeline-api-service\"}) or vector(0)",
+          "legendFormat": "API",
           "refId": "A"
-        }
-      ],
-      "options": {
-        "colorMode": "background",
-        "graphMode": "none"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "mappings": [
-            {
-              "type": "value",
-              "options": {
-                "1": {
-                  "text": "Healthy",
-                  "color": "green"
-                },
-                "0": {
-                  "text": "Down",
-                  "color": "red"
-                }
-              }
-            }
-          ],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "red",
-                "value": null
-              },
-              {
-                "color": "green",
-                "value": 1
-              }
-            ]
-          }
         },
-        "overrides": []
-      }
-    },
-    {
-      "type": "stat",
-      "title": "MLflow Status",
-      "gridPos": {
-        "x": 6,
-        "y": 0,
-        "w": 6,
-        "h": 6
-      },
-      "targets": [
         {
           "expr": "(max(ml_dependency_health{dependency=\"mlflow\"}) or vector(0)) * on() group_left() (max(up{job=\"ml-pipeline-api-service\"}) or vector(0))",
-          "refId": "A"
-        }
-      ],
-      "options": {
-        "colorMode": "background",
-        "graphMode": "none"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "mappings": [
-            {
-              "type": "value",
-              "options": {
-                "1": {
-                  "text": "Healthy",
-                  "color": "green"
-                },
-                "0": {
-                  "text": "Down",
-                  "color": "red"
-                }
-              }
-            }
-          ],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "red",
-                "value": null
-              },
-              {
-                "color": "green",
-                "value": 1
-              }
-            ]
-          }
+          "legendFormat": "MLflow",
+          "refId": "B"
         },
-        "overrides": []
-      }
-    },
-    {
-      "type": "stat",
-      "title": "Redis Status",
-      "gridPos": {
-        "x": 12,
-        "y": 0,
-        "w": 6,
-        "h": 6
-      },
-      "targets": [
         {
           "expr": "(max(ml_dependency_health{dependency=\"redis\"}) or vector(0)) * on() group_left() (max(up{job=\"ml-pipeline-api-service\"}) or vector(0))",
-          "refId": "A"
+          "legendFormat": "Redis",
+          "refId": "C"
         }
       ],
       "options": {
-        "colorMode": "background",
-        "graphMode": "none"
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
       },
       "fieldConfig": {
         "defaults": {
-          "mappings": [
-            {
-              "type": "value",
-              "options": {
-                "1": {
-                  "text": "Healthy",
-                  "color": "green"
-                },
-                "0": {
-                  "text": "Down",
-                  "color": "red"
-                }
-              }
-            }
-          ],
+          "min": 0,
+          "max": 1,
+          "decimals": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 2,
+            "fillOpacity": 20,
+            "showPoints": "never"
+          },
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -156,6 +58,9 @@
                 "value": 1
               }
             ]
+          },
+          "color": {
+            "mode": "thresholds"
           }
         },
         "overrides": []
@@ -166,7 +71,7 @@
       "title": "API Uptime (24h%)",
       "gridPos": {
         "x": 0,
-        "y": 6,
+        "y": 8,
         "w": 6,
         "h": 6
       },
@@ -212,7 +117,7 @@
       "title": "API Time Since Boot",
       "gridPos": {
         "x": 6,
-        "y": 6,
+        "y": 8,
         "w": 6,
         "h": 6
       },
