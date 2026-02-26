@@ -14,8 +14,23 @@
       "targets": [
         {
           "expr": "sum(rate(ml_predictions_total{status=\"error\"}[5m]))",
-          "legendFormat": "Errors/sec",
+          "legendFormat": "Prediction Errors",
           "refId": "A"
+        },
+        {
+          "expr": "sum(rate(ml_batch_predictions_total{status=\"error\"}[5m]))",
+          "legendFormat": "Batch Prediction Errors",
+          "refId": "B"
+        },
+        {
+          "expr": "sum(rate(ml_model_loads_total{status=\"error\"}[5m]))",
+          "legendFormat": "Model Load Errors",
+          "refId": "C"
+        },
+        {
+          "expr": "sum(rate(ml_api_requests_total{status=~\"5..\"}[5m]))",
+          "legendFormat": "HTTP 5xx Errors",
+          "refId": "D"
         }
       ],
       "options": {
