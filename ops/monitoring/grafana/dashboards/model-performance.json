@@ -93,15 +93,18 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(ml_predictions_total{status=\"success\"}[5m]))",
+          "expr": "sum(increase(ml_predictions_total{status=\"success\"}[1h])) or vector(0)",
           "legendFormat": "Success"
         },
         {
-          "expr": "sum(rate(ml_predictions_total{status=\"error\"}[5m]))",
+          "expr": "sum(increase(ml_predictions_total{status=\"error\"}[1h])) or vector(0)",
           "legendFormat": "Error"
         }
       ],
       "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"]
+        },
         "pieType": "pie",
         "tooltip": {
           "mode": "single",

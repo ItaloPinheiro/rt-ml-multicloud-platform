@@ -73,10 +73,10 @@ model_perf = create_dashboard(
             "title": "Success vs Error",
             "gridPos": {"x": 0, "y": 8, "w": 8, "h": 8},
             "targets": [
-                {"expr": 'sum(rate(ml_predictions_total{status="success"}[5m]))', "legendFormat": "Success"},
-                {"expr": 'sum(rate(ml_predictions_total{status="error"}[5m]))', "legendFormat": "Error"}
+                {"expr": 'sum(increase(ml_predictions_total{status="success"}[1h])) or vector(0)', "legendFormat": "Success"},
+                {"expr": 'sum(increase(ml_predictions_total{status="error"}[1h])) or vector(0)', "legendFormat": "Error"}
             ],
-            "options": {"pieType": "pie", "tooltip": {"mode": "single", "sort": "none"}}
+            "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "pieType": "pie", "tooltip": {"mode": "single", "sort": "none"}}
         },
         stat_panel("Models Loaded", 8, 8, 'sum(ml_model_loads_total)'),
     ]
@@ -123,7 +123,12 @@ data_ingestion = create_dashboard(
 error_tracking = create_dashboard(
     "error-tracking", "5. Error Tracking",
     [
-        timeseries_panel("Error Rate Trend", 0, 0, [{"expr": 'sum(rate(ml_predictions_total{status="error"}[5m]))', "legend": "Errors/sec"}], w=24)
+        timeseries_panel("Error Rate Trend", 0, 0, [
+            {"expr": 'sum(rate(ml_predictions_total{status="error"}[5m]))', "legend": "Prediction Errors"},
+            {"expr": 'sum(rate(ml_batch_predictions_total{status="error"}[5m]))', "legend": "Batch Prediction Errors"},
+            {"expr": 'sum(rate(ml_model_loads_total{status="error"}[5m]))', "legend": "Model Load Errors"},
+            {"expr": 'sum(rate(ml_api_requests_total{status=~"5.."}[5m]))', "legend": "HTTP 5xx Errors"},
+        ], w=24)
     ]
 )
 
