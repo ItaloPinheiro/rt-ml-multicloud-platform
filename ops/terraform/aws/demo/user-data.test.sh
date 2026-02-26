@@ -228,7 +228,7 @@ echo "[7/7] Deploying to Kubernetes..."
 
 # Apply the AWS Demo overlay (which expects the secret to exist)
 cd /home/ubuntu/rt-ml-multicloud-platform
-k3s kubectl apply -k ops/k8s/overlays/aws-demo
+k3s kubectl kustomize ops/k8s/overlays/aws-demo --load-restrictor LoadRestrictionsNone | k3s kubectl apply -f -
 
 # Wait for pods to be ready (with timeout)
 echo "Waiting for pods to start (this may take several minutes)..."
