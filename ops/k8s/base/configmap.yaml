@@ -21,3 +21,4 @@ data:
   PRELOAD_MODELS: "fraud_detector:production"
   MODEL_AUTO_UPDATE: "true"
   MODEL_UPDATE_INTERVAL: "10"
+  TRAINING_DATA_BUCKET: ""

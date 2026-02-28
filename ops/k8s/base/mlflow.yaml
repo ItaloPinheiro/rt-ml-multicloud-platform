@@ -31,7 +31,11 @@ spec:
         - "--port"
         - "5000"
         - "--allowed-hosts"
-        - "all"
+        - "*"
+        - "--cors-allowed-origins"
+        - "*"
+        - "--expose-prometheus"
+        - "/tmp/prometheus"
         env:
         - name: DATABASE_USER
           valueFrom:
@@ -61,7 +65,7 @@ spec:
             memory: "1Gi"
             cpu: "250m"
           limits:
-            memory: "1536Mi"
+            memory: "2Gi"
             cpu: "1"
         livenessProbe:
           httpGet:

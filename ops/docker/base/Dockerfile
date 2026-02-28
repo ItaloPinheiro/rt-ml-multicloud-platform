@@ -5,7 +5,8 @@ FROM python:3.13-slim
 
 LABEL maintainer="ML Pipeline Platform Team"
 LABEL description="Main ML Pipeline Platform application container"
-LABEL version="1.0.0"
+ARG APP_VERSION=dev
+LABEL version="${APP_VERSION}"
 
 # Set working directory
 WORKDIR /app
@@ -26,7 +27,7 @@ ENV POETRY_CACHE_DIR="/opt/poetry/cache"
 ENV POETRY_VENV_IN_PROJECT=1
 ENV POETRY_NO_interaction=1
 
-RUN pip install --no-cache-dir poetry==1.7.1
+RUN pip install --no-cache-dir poetry==1.8.5
 
 # Copy dependency files
 COPY pyproject.toml poetry.lock ./

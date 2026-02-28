@@ -5,7 +5,44 @@ namespace: ml-pipeline
 resources:
   - ../../base
 
+# Prometheus and Grafana configs - generated from monitoring source files.
+# Paths use ../../../ because this file is at ops/k8s/overlays/aws-demo/
+# and monitoring files are at ops/monitoring/ (3 levels up from here).
+configMapGenerator:
+  - name: prometheus-config
+    files:
+      - ../../../monitoring/prometheus/prometheus.yml
+      - ../../../monitoring/prometheus/alerts/alert_rules.yml
+      - ../../../monitoring/prometheus/rules/recording_rules.yml
+  - name: grafana-config
+    files:
+      - ../../../monitoring/grafana/datasources/datasources.yaml
+      - ../../../monitoring/grafana/dashboards/dashboards.yaml
+  - name: grafana-dashboards
+    files:
+      - ../../../monitoring/grafana/dashboards/model-performance.json
+      - ../../../monitoring/grafana/dashboards/feature-store.json
+      - ../../../monitoring/grafana/dashboards/system-resources.json
+      - ../../../monitoring/grafana/dashboards/data-ingestion.json
+      - ../../../monitoring/grafana/dashboards/error-tracking.json
+      - ../../../monitoring/grafana/dashboards/apps-uptime.json
+
+generatorOptions:
+  disableNameSuffixHash: true
+
 patches:
+  # Set the S3 training data bucket for the aws-demo environment
+  - target:
+      kind: ConfigMap
+      name: ml-pipeline-config
+    patch: |-
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: ml-pipeline-config
+      data:
+        TRAINING_DATA_BUCKET: "rt-ml-platform-training-data-demo"
+
   # Remove the base secret because we create it manually from Secrets Manager
   - target:
       kind: Secret
@@ -93,12 +130,18 @@ patches:
               - "0.0.0.0"
               - "--port"
               - "5000"
+              - "--expose-prometheus"
+              - "/tmp/prometheus"
+              - "--allowed-hosts"
+              - "*"
+              - "--cors-allowed-origins"
+              - "*"
               resources:
                 requests:
                   memory: "512Mi"
                   cpu: "250m"
                 limits:
-                  memory: "1536Mi"
+                  memory: "2Gi"
                   cpu: "1000m"
               livenessProbe:
                 httpGet:
@@ -291,3 +334,69 @@ patches:
                 limits:
                   memory: "128Mi"
                   cpu: "100m"
+
+  # PVC sizes - fit within 30Gi EC2 root volume (total: ~15Gi)
+  - target:
+      kind: PersistentVolumeClaim
+      name: prometheus-pvc
+    patch: |-
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: prometheus-pvc
+      spec:
+        resources:
+          requests:
+            storage: "5Gi"
+
+  - target:
+      kind: PersistentVolumeClaim
+      name: grafana-pvc
+    patch: |-
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: grafana-pvc
+      spec:
+        resources:
+          requests:
+            storage: "1Gi"
+
+  - target:
+      kind: PersistentVolumeClaim
+      name: mlflow-pvc
+    patch: |-
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: mlflow-pvc
+      spec:
+        resources:
+          requests:
+            storage: "5Gi"
+
+  - target:
+      kind: PersistentVolumeClaim
+      name: postgres-pvc
+    patch: |-
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: postgres-pvc
+      spec:
+        resources:
+          requests:
+            storage: "3Gi"
+
+  - target:
+      kind: PersistentVolumeClaim
+      name: redis-pvc
+    patch: |-
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: redis-pvc
+      spec:
+        resources:
+          requests:
+            storage: "1Gi"

@@ -1,0 +1,33 @@
+name: Destroy Demo Infrastructure
+
+on:
+  schedule:
+    - cron: '30 10 * * *'
+  workflow_dispatch:
+
+jobs:
+  terraform-destroy:
+    name: Terraform Destroy Demo
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ops/terraform/aws/demo
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: us-east-1
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.0"
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Destroy
+        run: terraform destroy -auto-approve -var="key_name=${{ secrets.AWS_KEY_NAME }}"

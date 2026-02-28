@@ -47,7 +47,7 @@ The training script (`scripts/demo/demo-aws/train.py`) implements a Scikit-Learn
 The training process is fully tracked by MLflow:
 
 ### Tracking
-*   **Experiment Name**: `fraud_detection_local_v3`
+*   **Experiment Name**: `fraud_detection_local`
 *   **Parameters Logged**:
     *   `model_type`: "random_forest_pipeline"
     *   `n_estimators`: (e.g., 100 or 200)

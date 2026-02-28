@@ -20,13 +20,13 @@ variable "aws_region" {
 # -----------------------------------------------------------------------------
 
 variable "instance_type" {
-  description = "EC2 instance type. t3.medium (4GB) recommended for zero-downtime rolling updates"
+  description = "EC2 instance type. t3.large (8GB) recommended for zero-downtime rolling updates"
   type        = string
-  default     = "t3.medium"
+  default     = "t3.large"
 
   validation {
-    condition     = can(regex("^t[23]\\.(micro|small|medium)$", var.instance_type))
-    error_message = "Instance type must be t2.micro, t2.small, t2.medium, t3.micro, t3.small, or t3.medium for demo."
+    condition     = can(regex("^t[23]\\.(micro|small|medium|large)$", var.instance_type))
+    error_message = "Instance type must be t2.micro, t2.small, t2.medium, t3.micro, t3.small, t3.medium, or t3.large for demo."
   }
 }
 

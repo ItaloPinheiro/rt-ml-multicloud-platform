@@ -32,7 +32,7 @@ Get the Public IP of the running demo instance
 INSTANCE_IP=$(aws ec2 describe-instances \
     --filters "Name=tag:Name,Values=rt-ml-platform-demo-instance" "Name=instance-state-name,Values=running" \
     --query "Reservations[*].Instances[*].PublicIpAddress" \
-    --output text)
+    --output text) && echo $INSTANCE_IP
 ```
 
 Verify IP was found
@@ -70,59 +70,99 @@ ssh -i ml-pipeline-debug.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl get pods -n m
 ```
 *   You should see `ml-pipeline-api` and `ml-pipeline-mlflow` with status `Running`.
 
-### 4. Train Model Version 1 (Baseline)
+### 4. Upload Training Data to S3
 
-Run the training script locally. It will:
-1.  Train a Random Forest model on your machine.
-2.  Upload the model artifacts to the **remote** MLflow server (backed by S3/MinIO).
-3.  Register the model as `fraud_detector` (Version 1).
-4.  Promote it to "Production".
+Upload the demo dataset to the S3 training bucket (created by Terraform):
 
 ```bash
-python scripts/demo/demo-aws/train.py
+aws s3 cp data/sample/demo/datasets/fraud_detection.csv \
+  s3://rt-ml-platform-training-data-demo/datasets/fraud_detection.csv
 ```
 
+Verify the upload:
+```bash
+aws s3 ls s3://rt-ml-platform-training-data-demo/datasets/
+```
+
+### 5. Train Model Version 1 (Baseline)
+
+Training now runs as a **K8s Job inside the cluster**, not on your laptop.
+The training Job downloads data from S3, trains, and registers the model in MLflow.
+The evaluation gate then compares it against the current champion and promotes only if it's better.
+
+We start with a **weak baseline** model: few estimators and shallow trees (max depth 1). This model will have decent accuracy (~80%) but poor fraud detection (f1 near 0) because the shallow trees can't learn complex fraud patterns.
+
+```bash
+export EC2_IP=$INSTANCE_IP
+./scripts/demo/demo-aws/trigger-training.sh --n-estimators 10 --max-depth 1 --auto-promote
+```
+
+> We use `--auto-promote` for v1 since there is no champion to compare against yet.
+
+**Other training options:**
+- **GitHub Actions (CI/CD path):** Actions -> "Train Model" -> Run workflow
+- **Legacy local training:** `python scripts/demo/demo-aws/train.py`
+
 **What to expect:**
-*   The script should output `Model logged with run_id: ...`
-*   It automatically attempts to verify the API using the `$Env:API_URL` you set.
+*   Training Job runs inside the cluster (~1-2 minutes)
+*   Model v1 is promoted as the first champion (no prior model to compare against)
+*   API auto-detects the new production model within 10 seconds
 
-### 5. Verify API Prediction (Version 1)
+### 6. Verify API Prediction (Version 1)
 
-Manually send a prediction request to the remote API to confirm it is serving Version 1.
+Send a prediction request to the remote API to confirm it is serving the model:
 
 ```bash
 curl -X POST "$API_URL/predict" \
   -H "Content-Type: application/json" \
-  -d @data/sample/demo/requests/baseline_prediction_request.json
+  -d @data/sample/demo/requests/baseline_prediction_request.json | python -m json.tool
 ```
 
 *   **Success Criteria**: Response contains `"model_version": "1"`.
 
-### 6. Train & Upgrade Model (Version 2)
+### 7. Train & Upgrade Model (Version 2 — Improved)
 
-Simulate a model improvement cycle by training with different hyperparameters (e.g., more trees).
+Now train a **stronger model** with more estimators and unlimited tree depth:
 
 ```bash
-python scripts/demo/demo-aws/train.py --n-estimators 200
+./scripts/demo/demo-aws/trigger-training.sh --n-estimators 200
 ```
 
-1.  Trains a new model (Version 2).
-2.  Logs/Registers it to remote MLflow.
-3.  Promotes Version 2 to "Production".
+**What happens:**
+1.  Training Job runs with 200 estimators and unlimited depth (vs 10 trees at depth 1 in v1).
+2.  Evaluation gate compares v2 against v1 champion on **accuracy** and **f1_score**.
+3.  v2 will have better accuracy (~82% vs ~81%) and much better f1 (~0.40 vs ~0.00), so it gets promoted.
 
-### 7. Verify Auto-Promotion (Zero-Downtime Deployment)
+> **Tip:** You can also try `--class-weight balanced` to tell the classifier to pay more attention to the minority fraud class, trading some accuracy for better recall.
 
-The remote API polls MLflow every **60 seconds** for changes to the "Production" alias. 
+> **How the evaluation gate decides:** The challenger must meet a minimum accuracy threshold (0.80) AND beat the champion on both accuracy and f1_score. See `src/models/evaluation/evaluate_and_promote.py` for details.
 
-Wait ~60 seconds, then check the model version again:
+### 8. Verify Auto-Promotion (Zero-Downtime Deployment)
 
+The API polls MLflow every **10 seconds** for changes to the "production" alias.
+
+Check the model version:
 ```bash
 curl -X POST "$API_URL/predict" \
   -H "Content-Type: application/json" \
-  -d @data/sample/demo/requests/improved_prediction_request.json
+  -d @data/sample/demo/requests/baseline_prediction_request.json | python -m json.tool
 ```
 
-*   **Success Criteria**: Response usually switches from `"model_version": "1"` to `"model_version": "2"` without any downtime.
+*   **Success Criteria**: Response switches to `"model_version": "2"` without any downtime.
+
+### Training Pipeline Architecture
+
+```
+[S3 Bucket] --> [Init Container: download data] --> [Training Job: train model]
+                                                          |
+                                                   [Register in MLflow]
+                                                          |
+                                               [Evaluation Job: compare vs champion]
+                                                          |
+                                                   [Promote if better]
+                                                          |
+                                               [API auto-detects new model]
+```
 
 ---
 
@@ -137,6 +177,54 @@ You can monitor the platform status via these URLs (replace hardcoded IPs with t
 | **Prometheus**| `30900` | http://$INSTANCE_IP:30900 |
 | **API Docs** | `30800` | http://$INSTANCE_IP:30800/docs |
 
+### Navigating MLflow 3.x UI
+
+MLflow 3.x introduces a redesigned UI with two top-level tabs: **GenAI** and **Model training**.
+
+- **Model training** tab is the correct view for this demo. Click it to see experiments, runs, metrics, and the model registry for sklearn training runs.
+- **GenAI** tab (with "Usage", "Quality", "Tool calls" sub-tabs) is designed for LLM/GenAI workloads that use MLflow Tracing. These tabs will always appear empty for traditional ML training runs — this is expected behavior, not a bug.
+
+**Common navigation:**
+1. **View experiment runs**: Click "Model training" -> select the `fraud_detection` experiment -> see all runs with metrics
+2. **View model registry**: Click "Models" in the left sidebar -> see registered models, versions, and aliases
+3. **Compare runs**: Select multiple runs from the experiment table -> click "Compare"
+
+> **Note:** If you see "Failed to load chart data" on the GenAI Overview page, this is because the GenAI-specific database tables have no data for traditional ML experiments. Switch to the "Model training" tab. If errors persist on the Model training tab, run `mlflow db upgrade <backend-store-uri>` against the PostgreSQL instance to apply any pending schema migrations.
+
+### Grafana
+
+Access Grafana at `http://$INSTANCE_IP:30300`.
+
+- **Default credentials**: `admin` / `admin` (you will be prompted to change on first login)
+- **Dashboards**: Navigate to Dashboards -> Browse to find the pre-provisioned dashboards:
+  - Applications Uptime and Health
+  - Model Performance Monitoring
+  - Feature Store Performance
+  - Resource Utilization
+  - Error Tracking and Alerts
+  - ML Pipeline Overview
+
+**Example dashboard URL** (replace `$INSTANCE_IP`):
+```
+http://$INSTANCE_IP:30300/d/apps-uptime/applications-uptime-and-health?orgId=1&refresh=1m
+```
+
+### Prometheus
+
+Access Prometheus at `http://$INSTANCE_IP:30900`.
+
+**Key metrics to query:**
+- `up{job="ml-pipeline-api-service"}` — API availability (1 = up, 0 = down)
+- `ml_predictions_total` — Total prediction requests served
+- `ml_prediction_latency_seconds` — Prediction latency histogram
+- `ml_dependency_health{dependency="mlflow"}` — MLflow connectivity (1 = healthy)
+- `ml_dependency_health{dependency="redis"}` — Redis connectivity (1 = healthy)
+
+**Example graph URL** (replace `$INSTANCE_IP`):
+```
+http://$INSTANCE_IP:30900/graph?g0.expr=up{job="ml-pipeline-api-service"}&g0.range_input=2h
+```
+
 ## Troubleshooting
 
 *   **Connection Refused**: Ensure the security group allows traffic on ports 30300-30900 from your IP.
@@ -146,6 +234,30 @@ You can monitor the platform status via these URLs (replace hardcoded IPs with t
     *   Ensure the model was actually promoted to "Production" in the MLflow UI.
 
 ## Cleanup
+
+### Reset MLflow (Re-run Demo)
+
+To reset the model registry and re-run the v1 vs v2 demo without destroying the cluster:
+
+```bash
+export MLFLOW_TRACKING_URI="http://$INSTANCE_IP:30500"
+python scripts/demo/utilities/cleanup_models.py --all --force
+```
+
+This deletes all registered models and experiments from MLflow. The API will temporarily have no model to serve, then auto-loads the new one within 10 seconds after you re-train and promote v1.
+
+> **Important:** After cleanup, you must restore the soft-deleted experiment before retraining:
+> ```bash
+> python -c "
+> import mlflow
+> mlflow.set_tracking_uri('$MLFLOW_TRACKING_URI')
+> client = mlflow.MlflowClient()
+> for exp in client.search_experiments(view_type=mlflow.entities.ViewType.DELETED_ONLY):
+>     client.restore_experiment(exp.experiment_id)
+>     print(f'Restored: {exp.name}')
+> "
+> ```
+> MLflow's `delete_experiment` is a soft-delete — the experiment stays in "deleted" state and blocks re-creation with the same name. Restoring it makes it usable again.
 
 ### Destroy Infrastructure & Secrets
 
@@ -158,6 +270,112 @@ terraform destroy -auto-approve
 
 > **Note**: You do not need to manually delete secrets using the script. Terraform manages their lifecycle.
 
+## Cheatsheet
+
+Quick reference for common commands. All assume `$INSTANCE_IP` and env vars are set (see step 2).
+
+### SSH & Cluster
+
+```bash
+# SSH into the instance
+ssh -i ml-pipeline-debug.pem ubuntu@$INSTANCE_IP
+
+# List all pods
+ssh -i ml-pipeline-debug.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl get pods -n ml-pipeline"
+
+# Pod logs (replace <pod-name>)
+ssh -i ml-pipeline-debug.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl logs <pod-name> -n ml-pipeline --tail 100"
+
+# Logs by label
+ssh -i ml-pipeline-debug.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl logs -l app=ml-pipeline-api -n ml-pipeline --tail 50"
+ssh -i ml-pipeline-debug.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl logs -l app=mlflow -n ml-pipeline --tail 50"
+
+# Training job logs
+ssh -i ml-pipeline-debug.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl logs job/model-training -n ml-pipeline -c train"
+
+# Evaluation job logs
+ssh -i ml-pipeline-debug.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl logs job/model-evaluation -n ml-pipeline"
+
+# Restart a deployment (e.g. after config change)
+ssh -i ml-pipeline-debug.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl rollout restart deployment/ml-pipeline-api -n ml-pipeline"
+
+# Delete completed/failed jobs
+ssh -i ml-pipeline-debug.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl delete job model-training model-evaluation -n ml-pipeline --ignore-not-found"
+
+# Re-apply kustomize manifests
+ssh -i ml-pipeline-debug.pem ubuntu@$INSTANCE_IP "cd /opt/ml-platform && sudo k3s kubectl kustomize ops/k8s/overlays/aws-demo --load-restrictor LoadRestrictionsNone | sudo k3s kubectl apply -f -"
+```
+
+### MLflow & Models
+
+```bash
+# List registered models, versions, and experiments
+export MLFLOW_TRACKING_URI="http://$INSTANCE_IP:30500"
+python scripts/demo/utilities/list_models.py
+
+# Compare models and find the best across experiments
+python scripts/demo/utilities/compare_models.py
+
+# Clean up all models and experiments (reset for re-demo)
+python scripts/demo/utilities/cleanup_models.py --all --force
+
+# Restore soft-deleted experiments (required after cleanup before retraining)
+python -c "
+import mlflow
+mlflow.set_tracking_uri('$MLFLOW_TRACKING_URI')
+client = mlflow.MlflowClient()
+for exp in client.search_experiments(view_type=mlflow.entities.ViewType.DELETED_ONLY):
+    client.restore_experiment(exp.experiment_id)
+    print(f'Restored: {exp.name}')
+"
+```
+
+### Training
+
+```bash
+export EC2_IP=$INSTANCE_IP
+
+# Train with defaults (100 estimators)
+./scripts/demo/demo-aws/trigger-training.sh
+
+# Train weak baseline (for v1 demo)
+./scripts/demo/demo-aws/trigger-training.sh --n-estimators 10 --max-depth 1 --auto-promote
+
+# Train improved model (for v2 demo)
+./scripts/demo/demo-aws/trigger-training.sh --n-estimators 200
+
+# Train with class weighting (better fraud recall)
+./scripts/demo/demo-aws/trigger-training.sh --n-estimators 200 --class-weight balanced
+```
+
+### API
+
+```bash
+# Health check
+curl -s "$API_URL/health" | python -m json.tool
+
+# Prediction request
+curl -s -X POST "$API_URL/predict" \
+  -H "Content-Type: application/json" \
+  -d @data/sample/demo/requests/baseline_prediction_request.json | python -m json.tool
+
+# API docs (open in browser)
+echo "$API_URL/docs"
+```
+
+### S3 Data
+
+```bash
+# Upload training data
+aws s3 cp data/sample/demo/datasets/fraud_detection.csv \
+  s3://rt-ml-platform-training-data-demo/datasets/fraud_detection.csv
+
+# List uploaded data
+aws s3 ls s3://rt-ml-platform-training-data-demo/datasets/
+```
+
+---
+
 ## Automated Deployment (CD Pipeline)
 
 When code is merged to `main`, the CD pipeline automatically:
@@ -168,3 +386,41 @@ When code is merged to `main`, the CD pipeline automatically:
 This requires:
 - **`ENABLE_DEMO_DEPLOY`** repo variable set to `true` (GitHub → Settings → Variables → Actions).
 - **`EC2_SSH_KEY`** repo secret containing the SSH private key for the EC2 instance.
+
+---
+
+## Architecture Decisions
+
+This section explains the rationale behind the technology choices for the AWS demo, and why certain managed services are intentionally not used.
+
+### Why EC2 + K3s instead of EKS
+
+| | EC2 + K3s (Current) | EKS Lite | EKS Production |
+|---|---|---|---|
+| **Monthly Cost** | ~$30 | ~$164 | ~$473 |
+| **Control Plane** | K3s self-managed | AWS-managed, HA | AWS-managed, HA |
+| **Nodes** | 1x t3.medium | 2x t3.medium Spot | 3x m5.large |
+
+The EKS control plane alone costs $73/month with no application running. For a single-node demo workload, EC2 + K3s provides the same Kubernetes API surface at a fraction of the cost.
+
+**Migration readiness:** The K8s manifests use Kustomize base + overlay structure (`ops/k8s/base/`, `ops/k8s/overlays/`). Migrating to EKS requires a new overlay (`ops/k8s/overlays/eks-demo/`) and Terraform modules for VPC/EKS/RDS — the application code and base manifests remain unchanged. See `local/next_steps/ec2-to-eks-migration.md` for the full phased migration plan.
+
+### Why Self-Hosted MLflow instead of SageMaker
+
+The platform is designed to be **cloud-agnostic**, ingesting from Kafka, Kinesis, and Pub/Sub. MLflow is open-source and portable across any infrastructure — the same tracking server runs on local Docker Compose, K3s on EC2, or EKS.
+
+SageMaker Model Registry ties the model lifecycle to AWS, creating vendor lock-in across experiment tracking, model versioning, and serving endpoints. By self-hosting MLflow, the model registry API (`mlflow.MlflowClient`), alias-based promotion (`production` alias), and artifact storage are all portable.
+
+**Future plan:** SageMaker Training Jobs are planned for compute-only (offloading heavy training to managed GPU instances), while experiment tracking and model registry remain on MLflow. See `local/next_steps/aws-training-migration.md`.
+
+### Why No Apache Beam Ingestion Pipeline in the Demo
+
+Apache Beam pipelines are implemented in `src/feature_engineering/` and tested via the `--profile beam` Docker Compose profile in the local demo (`scripts/demo/demo-local/demo-local.sh`).
+
+The AWS demo focuses on the **training-to-serving loop**: `[S3] -> [K8s Training Job] -> [MLflow] -> [Evaluation Gate] -> [API Auto-Promotion]`. Adding Beam to this demo would require standing up a streaming source (Kafka cluster or Kinesis stream), increasing infrastructure complexity and cost without demonstrating additional ML pipeline value.
+
+### Why K8s Jobs for Training instead of SageMaker Training
+
+Training runs as K8s Jobs inside the same K3s cluster as the serving API. This keeps the entire pipeline within one infrastructure boundary — no cross-VPC networking, no additional AWS service costs, and the same Job YAML runs identically on K3s, EKS, GKE, or any conformant Kubernetes cluster.
+
+SageMaker Training is the planned next step for when training datasets grow beyond what a t3.medium can handle, or when GPU instances are needed. The migration path involves creating a `submit_job.py` script using the SageMaker Python SDK while keeping MLflow as the experiment tracker. See `local/next_steps/aws-training-migration.md` for the implementation plan.

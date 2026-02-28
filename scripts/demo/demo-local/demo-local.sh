@@ -172,7 +172,7 @@ main() {
         docker exec ml-beam-runner sh -c "python -m src.models.training.train \
             --data-path /app/${DEMO_DATASET} \
             --mlflow-uri http://mlflow-server:5000 \
-            --experiment fraud_detection \
+            --experiment fraud_detection_local \
             --model-name fraud_detector"
         print_success "Model version 1 trained and registered!"
     else

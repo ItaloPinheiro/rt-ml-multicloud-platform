@@ -16,6 +16,7 @@ try:
     from fastapi.middleware.cors import CORSMiddleware
     from fastapi.middleware.gzip import GZipMiddleware
     from fastapi.responses import JSONResponse
+    from starlette.concurrency import run_in_threadpool
 except ImportError:
     raise ImportError("fastapi is required. Install with: pip install fastapi")
 
@@ -44,6 +45,7 @@ import numpy as np
 import pandas as pd
 import structlog
 
+from src import __version__
 from src.api.model_updater import ModelUpdateManager, handle_model_webhook
 from src.api.schemas import (
     BatchPredictionRequest,
@@ -108,6 +110,11 @@ if Counter is not None:
     api_requests_counter = Counter(
         "ml_api_requests_total", "Total API requests", ["endpoint", "method", "status"]
     )
+    dependency_health_gauge = Gauge(
+        "ml_dependency_health",
+        "Health status of dependencies (1=Healthy, 0=Unhealthy)",
+        ["dependency"],
+    )
 else:
     # Create dummy metrics if Prometheus is not available
     class DummyMetric:
@@ -135,7 +142,11 @@ class ModelManager:
     """Manage ML models with caching and lifecycle management."""
 
     def __init__(
-        self, mlflow_uri: str, cache_host: str = "redis", cache_port: int = 6379
+        self,
+        mlflow_uri: str,
+        cache_host: str = "redis",
+        cache_port: int = 6379,
+        cache_password: str | None = None,
     ):
         """Initialize model manager.
 
@@ -143,6 +154,7 @@ class ModelManager:
             mlflow_uri: MLflow tracking server URI
             cache_host: Redis cache host
             cache_port: Redis cache port
+            cache_password: Redis cache password
         """
         self.mlflow_uri = mlflow_uri
         self.models: Dict[str, Any] = {}
@@ -155,6 +167,7 @@ class ModelManager:
                 self.cache = redis.StrictRedis(
                     host=cache_host,
                     port=cache_port,
+                    password=cache_password,
                     decode_responses=True,
                     socket_timeout=5,
                     socket_connect_timeout=5,
@@ -284,7 +297,7 @@ class ModelManager:
 
             logger.info(f"Loading model from URI: {model_uri}")
             # Load the model - run synchronously in executor to avoid blocking
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             model = await loop.run_in_executor(
                 None, mlflow.pyfunc.load_model, model_uri
             )
@@ -351,11 +364,19 @@ class ModelManager:
         start_time = time.time()
 
         try:
-            # Generate cache key for prediction
+            # Generate cache key for prediction.
+            # Resolve aliases ("latest", "production") to the actual in-memory version so
+            # the cache key is version-specific. Without this, stale results from a previous
+            # model version are returned after a hot-swap until the key expires.
             features_hash = hashlib.md5(
                 json.dumps(features, sort_keys=True).encode(), usedforsecurity=False
             ).hexdigest()
-            cache_key = f"pred:{model_name}:{version}:{features_hash}"
+            resolved_version = version
+            if version in ("latest", "production", "staging"):
+                meta = self.model_metadata.get(f"model:{model_name}:{version}")
+                if meta:
+                    resolved_version = meta.get("version", version)
+            cache_key = f"pred:{model_name}:{resolved_version}:{features_hash}"
 
             # Check cache first
             cached_result = None
@@ -626,8 +647,9 @@ async def lifespan(app: FastAPI):
     mlflow_uri = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
     redis_host = os.getenv("REDIS_HOST", "localhost")
     redis_port = int(os.getenv("REDIS_PORT", "6379"))
+    redis_password = os.getenv("REDIS_PASSWORD")
 
-    model_manager = ModelManager(mlflow_uri, redis_host, redis_port)
+    model_manager = ModelManager(mlflow_uri, redis_host, redis_port, redis_password)
 
     # Preload default models
     try:
@@ -666,6 +688,12 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning("Failed to start model update manager", error=str(e))
 
+    # Initialize dependency health task
+    health_task = None
+    if dependency_health_gauge is not None:
+        health_task = asyncio.create_task(update_dependency_health())
+        logger.info("Dependency health monitoring enabled")
+
     logger.info("ML Model API startup completed")
 
     yield
@@ -673,6 +701,8 @@ async def lifespan(app: FastAPI):
     # Shutdown
     if update_task:
         update_task.cancel()
+    if health_task:
+        health_task.cancel()
         try:
             await update_task
         except asyncio.CancelledError:
@@ -685,7 +715,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="ML Model Serving API",
     description="Production-ready ML model serving with real-time predictions",
-    version="1.0.0",
+    version=__version__,
     lifespan=lifespan,
     docs_url="/docs",
     redoc_url="/redoc",
@@ -709,7 +739,7 @@ if simple_predict_router:
 
 # Mount Prometheus metrics if available
 if make_asgi_app is not None:
-    metrics_app = make_asgi_app()
+    metrics_app = make_asgi_app(disable_compression=True)
     app.mount("/metrics", metrics_app)
 
 
@@ -750,6 +780,48 @@ async def track_requests(request: Request, call_next):
         return response
 
 
+if dependency_health_gauge is not None:
+
+    async def update_dependency_health():
+        """Background task to update dependency health metrics."""
+        while True:
+            try:
+                # Check MLflow
+                mlflow_status = 0
+                if model_manager and model_manager.client:
+                    try:
+                        # Use a light operation to check connectivity
+                        await asyncio.wait_for(
+                            run_in_threadpool(model_manager.client.search_experiments, max_results=1),
+                            timeout=2.0
+                        )
+                        mlflow_status = 1
+                    except Exception:
+                        pass
+                dependency_health_gauge.labels(dependency="mlflow").set(mlflow_status)
+
+                # Check Redis
+                redis_status = 0
+                if model_manager and model_manager.cache:
+                    try:
+                        await asyncio.wait_for(
+                            run_in_threadpool(model_manager.cache.ping),
+                            timeout=2.0
+                        )
+                        redis_status = 1
+                    except Exception:
+                        pass
+                dependency_health_gauge.labels(dependency="redis").set(redis_status)
+
+            except Exception as e:
+                if logger:
+                    logger.error(
+                        "Failed to update dependency health metrics", error=str(e)
+                    )
+
+            await asyncio.sleep(5)
+
+
 # Health check endpoints
 @app.get("/", response_model=HealthCheck)
 @app.get("/health", response_model=HealthCheck)
@@ -760,7 +832,10 @@ async def health_check():
     # Check MLflow connection
     if model_manager and model_manager.client:
         try:
-            model_manager.client.search_experiments(max_results=1)
+            await asyncio.wait_for(
+                run_in_threadpool(model_manager.client.search_experiments, max_results=1),
+                timeout=2.0
+            )
             checks["mlflow"] = "healthy"
         except Exception:
             checks["mlflow"] = "unhealthy"
@@ -770,7 +845,10 @@ async def health_check():
     # Check Redis connection
     if model_manager and model_manager.cache:
         try:
-            model_manager.cache.ping()
+            await asyncio.wait_for(
+                run_in_threadpool(model_manager.cache.ping),
+                timeout=2.0
+            )
             checks["redis"] = "healthy"
         except Exception:
             checks["redis"] = "unhealthy"
@@ -786,7 +864,7 @@ async def health_check():
     return HealthCheck(
         status=overall_status,
         timestamp=datetime.now(timezone.utc),
-        version="1.0.0",
+        version=__version__,
         checks=checks,
     )
 
@@ -967,19 +1045,21 @@ async def log_prediction(model_name: str, features: Dict[str, Any], prediction: 
     """Log prediction for monitoring and analytics."""
     try:
         if model_manager and model_manager.cache:
-            prediction_data = {
-                "model_name": model_name,
-                "features": features,
-                "prediction": prediction,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-            }
+            # Redis xadd requires all field values to be scalars (str/bytes/int/float).
+            # Serialize features dict and coerce prediction (may be numpy type) to str.
+            def _xadd():
+                model_manager.cache.xadd(
+                    f"predictions:{model_name}",
+                    {
+                        "model_name": model_name,
+                        "features": json.dumps(features),
+                        "prediction": str(prediction),
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    },
+                    maxlen=10000,  # Keep last 10k predictions
+                )
 
-            # Store in Redis stream for real-time monitoring
-            model_manager.cache.xadd(
-                f"predictions:{model_name}",
-                prediction_data,
-                maxlen=10000,  # Keep last 10k predictions
-            )
+            await run_in_threadpool(_xadd)
     except Exception as e:
         logger.error("Failed to log prediction", error=str(e))
 

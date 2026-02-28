@@ -135,6 +135,7 @@ class ModelTrainer:
         model_name: str = "fraud_detector",
         test_size: float = 0.2,
         model_params: Dict[str, Any] = None,
+        auto_promote: bool = True,
     ):
         """Complete training pipeline with MLflow logging."""
         # Load data
@@ -196,9 +197,9 @@ class ModelTrainer:
             signature = mlflow.models.infer_signature(X_test, y_pred)
 
             # Use explicit parameter name to avoid deprecation warning
-            mlflow.sklearn.log_model(
+            model_info = mlflow.sklearn.log_model(
                 sk_model=pipeline,
-                name="model",  # MLflow 2.9+ uses 'name' instead of 'artifact_path'
+                name="model",  # MLflow 3.x prefers 'name' instead of 'artifact_path'
                 signature=signature,
             )
 
@@ -206,15 +207,18 @@ class ModelTrainer:
 
             # Register model if specified
             if model_name:
-                self.register_model(run.info.run_id, model_name)
+                self.register_model(
+                    run.info.run_id, model_info.model_uri, model_name, auto_promote
+                )
 
             return run.info.run_id, metrics
 
-    def register_model(self, run_id: str, model_name: str, auto_promote: bool = True):
+    def register_model(self, run_id: str, model_uri: str, model_name: str, auto_promote: bool = True):
         """Register model in MLflow Model Registry and optionally promote to production.
 
         Args:
             run_id: MLflow run ID
+            model_uri: The actual model URI returned by log_model
             model_name: Name for registered model
             auto_promote: If True, promote to production if metrics are better
         """
@@ -231,9 +235,9 @@ class ModelTrainer:
             except Exception:
                 logger.info(f"Registered model {model_name} already exists")
 
-            # Create model version
+            # Create model version using the actual model_uri
             model_version = client.create_model_version(
-                name=model_name, source=f"runs:/{run_id}/model", run_id=run_id
+                name=model_name, source=model_uri, run_id=run_id
             )
 
             logger.info(f"Registered model version: {model_version.version}")
@@ -324,6 +328,25 @@ def main():
     parser.add_argument(
         "--n-estimators", type=int, default=100, help="Number of trees in Random Forest"
     )
+    parser.add_argument(
+        "--auto-promote",
+        action="store_true",
+        default=False,
+        help="Automatically promote model to production (skip evaluation gate)",
+    )
+    parser.add_argument(
+        "--class-weight",
+        type=str,
+        default=None,
+        choices=["balanced", "balanced_subsample"],
+        help="Class weight strategy for handling imbalanced datasets",
+    )
+    parser.add_argument(
+        "--max-depth",
+        type=int,
+        default=None,
+        help="Maximum depth of trees (None for unlimited)",
+    )
 
     args = parser.parse_args()
 
@@ -334,12 +357,17 @@ def main():
 
     # Train model
     model_params = {"n_estimators": args.n_estimators, "random_state": 42, "n_jobs": -1}
+    if args.class_weight:
+        model_params["class_weight"] = args.class_weight
+    if args.max_depth is not None:
+        model_params["max_depth"] = args.max_depth
 
     try:
         run_id, metrics = trainer.train_and_log(
             data_path=args.data_path,
             model_name=args.model_name,
             model_params=model_params,
+            auto_promote=args.auto_promote,
         )
 
         logger.info("Training completed successfully!")

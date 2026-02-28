@@ -1,0 +1,15 @@
+groups:
+- name: ml_pipeline_recording_rules
+  interval: 30s
+  rules:
+  - record: job:prediction_success_rate:5m
+    expr: sum by (model_name) (rate(ml_predictions_total{status="success"}[5m])) /
+      sum by (model_name) (rate(ml_predictions_total[5m]))
+  - record: job:prediction_latency_p95:5m
+    expr: histogram_quantile(0.95, sum by (model_name, le) (rate(ml_prediction_duration_seconds_bucket[5m])))
+  - record: job:prediction_latency_p99:5m
+    expr: histogram_quantile(0.99, sum by (model_name, le) (rate(ml_prediction_duration_seconds_bucket[5m])))
+  - record: job:prediction_throughput:1m
+    expr: sum(rate(ml_predictions_total[1m])) * 60
+  - record: job:cache_hit_rate:5m
+    expr: sum(ml_predictions_total{status="cache_hit"}) / sum(ml_predictions_total)

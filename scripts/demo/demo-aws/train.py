@@ -79,7 +79,7 @@ def main():
     print(f"Accuracy: {accuracy:.3f}")
 
     # Create or get experiment (Use Default Artifact Root from Server)
-    experiment_name = "fraud_detection_local_v3"
+    experiment_name = "fraud_detection_aws"
     try:
         experiment = mlflow.get_experiment_by_name(experiment_name)
         if experiment is None:
@@ -190,32 +190,32 @@ def main():
 
                 if str(served_version) == str(latest_version):
                     print(
-                        f"✅ Success! API is serving the expected version {latest_version}"
+                        f"OK: API is serving the expected version {latest_version}"
                     )
 
                     # Verify Latency SLA (e.g., < 200ms) - Note: First hit might be slower due to loading
                     if i > 0 and latency < 200:
-                        print("✅ Latency within acceptable limits (<200ms)")
+                        print("OK: Latency within acceptable limits (<200ms)")
                     elif i == 0:
-                        print(f"⚠️ First hit latency: {latency:.2f}ms (Cold start)")
+                        print(f"INFO: First hit latency: {latency:.2f}ms (Cold start)")
                     else:
-                        print(f"⚠️ High latency detected: {latency:.2f}ms")
+                        print(f"WARN: High latency detected: {latency:.2f}ms")
 
                     break
                 else:
                     print(
-                        f"⏳ Waiting for version update (Current: {served_version}, Expected: {latest_version})..."
+                        f"WAIT: Waiting for version update (Current: {served_version}, Expected: {latest_version})..."
                     )
             else:
-                print(f"❌ API Error {response.status_code}: {response.text}")
+                print(f"ERROR: API Error {response.status_code}: {response.text}")
 
         except Exception as e:
-            print(f"❌ Connection Error: {e}")
+            print(f"ERROR: Connection Error: {e}")
 
         time.sleep(retry_delay)
     else:
         print(
-            f"❌ Timeout: API did not update to version {latest_version} within {max_retries * retry_delay} seconds."
+            f"TIMEOUT: API did not update to version {latest_version} within {max_retries * retry_delay} seconds."
         )
         sys.exit(1)
 

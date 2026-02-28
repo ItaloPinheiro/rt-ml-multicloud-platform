@@ -183,9 +183,6 @@ APP_SECRETS=$(aws secretsmanager get-secret-value --secret-id $APP_SECRET_ID --r
 
 if [ -z "$APP_SECRETS" ]; then
     echo "ERROR: Failed to retrieve App Secrets from Secrets Manager."
-    # Fallback to demo defaults if secret missing (for safety in demo)
-    echo "WARNING: Using fallback demo secrets!"
-    APP_SECRETS='{"DATABASE_USER":"mlflow","DATABASE_PASSWORD":"mlflow123secret","DATABASE_NAME":"mlflow","DATABASE_HOST":"postgres-service","REDIS_HOST":"redis-service","REDIS_PORT":"6379","REDIS_PASSWORD":"redis123secret","MLFLOW_TRACKING_URI":"http://mlflow-service:5000"}'
 fi
 
 # 6.3 Create GHCR Pull Secret (for K3s to pull images directly from GHCR)
@@ -208,6 +205,8 @@ k3s kubectl create secret generic ml-pipeline-secrets -n ml-pipeline \
   --from-literal=REDIS_PORT="$(echo $APP_SECRETS | jq -r '.REDIS_PORT')" \
   --from-literal=REDIS_PASSWORD="$(echo $APP_SECRETS | jq -r '.REDIS_PASSWORD')" \
   --from-literal=MLFLOW_TRACKING_URI="$(echo $APP_SECRETS | jq -r '.MLFLOW_TRACKING_URI')" \
+  --from-literal=GRAFANA_ADMIN_USER="$(echo $APP_SECRETS | jq -r '.GRAFANA_ADMIN_USER')" \
+  --from-literal=GRAFANA_ADMIN_PASSWORD="$(echo $APP_SECRETS | jq -r '.GRAFANA_ADMIN_PASSWORD')" \
   --dry-run=client -o yaml | k3s kubectl apply -f -
 
 # =============================================================================
@@ -218,7 +217,7 @@ echo "[7/7] Deploying to Kubernetes..."
 # Apply the AWS Demo overlay (which expects the secret to exist)
 # Using aws-demo overlay which does NOT generate secrets (separation of concerns)
 cd /home/ubuntu/rt-ml-multicloud-platform
-k3s kubectl apply -k ops/k8s/overlays/aws-demo
+k3s kubectl kustomize ops/k8s/overlays/aws-demo --load-restrictor LoadRestrictionsNone | k3s kubectl apply -f -
 
 # Wait for pods to be ready (with timeout)
 echo "Waiting for pods to start (this may take several minutes)..."
