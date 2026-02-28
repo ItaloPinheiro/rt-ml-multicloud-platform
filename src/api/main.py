@@ -45,6 +45,7 @@ import numpy as np
 import pandas as pd
 import structlog
 
+from src import __version__
 from src.api.model_updater import ModelUpdateManager, handle_model_webhook
 from src.api.schemas import (
     BatchPredictionRequest,
@@ -293,7 +294,7 @@ class ModelManager:
 
             logger.info(f"Loading model from URI: {model_uri}")
             # Load the model - run synchronously in executor to avoid blocking
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             model = await loop.run_in_executor(
                 None, mlflow.pyfunc.load_model, model_uri
             )
@@ -711,7 +712,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="ML Model Serving API",
     description="Production-ready ML model serving with real-time predictions",
-    version="1.0.0",
+    version=__version__,
     lifespan=lifespan,
     docs_url="/docs",
     redoc_url="/redoc",
@@ -860,7 +861,7 @@ async def health_check():
     return HealthCheck(
         status=overall_status,
         timestamp=datetime.now(timezone.utc),
-        version="1.0.0",
+        version=__version__,
         checks=checks,
     )
 

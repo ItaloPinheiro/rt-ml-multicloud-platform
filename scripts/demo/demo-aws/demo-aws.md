@@ -177,10 +177,53 @@ You can monitor the platform status via these URLs (replace hardcoded IPs with t
 | **Prometheus**| `30900` | http://$INSTANCE_IP:30900 |
 | **API Docs** | `30800` | http://$INSTANCE_IP:30800/docs |
 
-## Links (EC2 Instance Pods)
-http://44.211.86.208:30300/d/apps-uptime/applications-uptime-and-health?orgId=1&refresh=1m
-http://44.211.86.208:30900/graph?g0.expr=up%7Bjob%3D%22ml-pipeline-api-service%22%7D&g0.tab=0&g0.stacked=0&g0.show_exemplars=0&g0.range_input=2h&g1.expr=ml_dependency_health%7Bdependency%3D%22mlflow%22%7D&g1.tab=0&g1.stacked=0&g1.show_exemplars=0&g1.range_input=2h&g2.expr=ml_dependency_health%7Bdependency%3D%22redis%22%7D&g2.tab=0&g2.stacked=0&g2.show_exemplars=0&g2.range_input=2h
-http://44.211.86.208:30500
+### Navigating MLflow 3.x UI
+
+MLflow 3.x introduces a redesigned UI with two top-level tabs: **GenAI** and **Model training**.
+
+- **Model training** tab is the correct view for this demo. Click it to see experiments, runs, metrics, and the model registry for sklearn training runs.
+- **GenAI** tab (with "Usage", "Quality", "Tool calls" sub-tabs) is designed for LLM/GenAI workloads that use MLflow Tracing. These tabs will always appear empty for traditional ML training runs — this is expected behavior, not a bug.
+
+**Common navigation:**
+1. **View experiment runs**: Click "Model training" -> select the `fraud_detection` experiment -> see all runs with metrics
+2. **View model registry**: Click "Models" in the left sidebar -> see registered models, versions, and aliases
+3. **Compare runs**: Select multiple runs from the experiment table -> click "Compare"
+
+> **Note:** If you see "Failed to load chart data" on the GenAI Overview page, this is because the GenAI-specific database tables have no data for traditional ML experiments. Switch to the "Model training" tab. If errors persist on the Model training tab, run `mlflow db upgrade <backend-store-uri>` against the PostgreSQL instance to apply any pending schema migrations.
+
+### Grafana
+
+Access Grafana at `http://$INSTANCE_IP:30300`.
+
+- **Default credentials**: `admin` / `admin` (you will be prompted to change on first login)
+- **Dashboards**: Navigate to Dashboards -> Browse to find the pre-provisioned dashboards:
+  - Applications Uptime and Health
+  - Model Performance Monitoring
+  - Feature Store Performance
+  - Resource Utilization
+  - Error Tracking and Alerts
+  - ML Pipeline Overview
+
+**Example dashboard URL** (replace `$INSTANCE_IP`):
+```
+http://$INSTANCE_IP:30300/d/apps-uptime/applications-uptime-and-health?orgId=1&refresh=1m
+```
+
+### Prometheus
+
+Access Prometheus at `http://$INSTANCE_IP:30900`.
+
+**Key metrics to query:**
+- `up{job="ml-pipeline-api-service"}` — API availability (1 = up, 0 = down)
+- `ml_predictions_total` — Total prediction requests served
+- `ml_prediction_latency_seconds` — Prediction latency histogram
+- `ml_dependency_health{dependency="mlflow"}` — MLflow connectivity (1 = healthy)
+- `ml_dependency_health{dependency="redis"}` — Redis connectivity (1 = healthy)
+
+**Example graph URL** (replace `$INSTANCE_IP`):
+```
+http://$INSTANCE_IP:30900/graph?g0.expr=up{job="ml-pipeline-api-service"}&g0.range_input=2h
+```
 
 ## Troubleshooting
 
@@ -344,4 +387,40 @@ This requires:
 - **`ENABLE_DEMO_DEPLOY`** repo variable set to `true` (GitHub → Settings → Variables → Actions).
 - **`EC2_SSH_KEY`** repo secret containing the SSH private key for the EC2 instance.
 
+---
 
+## Architecture Decisions
+
+This section explains the rationale behind the technology choices for the AWS demo, and why certain managed services are intentionally not used.
+
+### Why EC2 + K3s instead of EKS
+
+| | EC2 + K3s (Current) | EKS Lite | EKS Production |
+|---|---|---|---|
+| **Monthly Cost** | ~$30 | ~$164 | ~$473 |
+| **Control Plane** | K3s self-managed | AWS-managed, HA | AWS-managed, HA |
+| **Nodes** | 1x t3.medium | 2x t3.medium Spot | 3x m5.large |
+
+The EKS control plane alone costs $73/month with no application running. For a single-node demo workload, EC2 + K3s provides the same Kubernetes API surface at a fraction of the cost.
+
+**Migration readiness:** The K8s manifests use Kustomize base + overlay structure (`ops/k8s/base/`, `ops/k8s/overlays/`). Migrating to EKS requires a new overlay (`ops/k8s/overlays/eks-demo/`) and Terraform modules for VPC/EKS/RDS — the application code and base manifests remain unchanged. See `local/next_steps/ec2-to-eks-migration.md` for the full phased migration plan.
+
+### Why Self-Hosted MLflow instead of SageMaker
+
+The platform is designed to be **cloud-agnostic**, ingesting from Kafka, Kinesis, and Pub/Sub. MLflow is open-source and portable across any infrastructure — the same tracking server runs on local Docker Compose, K3s on EC2, or EKS.
+
+SageMaker Model Registry ties the model lifecycle to AWS, creating vendor lock-in across experiment tracking, model versioning, and serving endpoints. By self-hosting MLflow, the model registry API (`mlflow.MlflowClient`), alias-based promotion (`production` alias), and artifact storage are all portable.
+
+**Future plan:** SageMaker Training Jobs are planned for compute-only (offloading heavy training to managed GPU instances), while experiment tracking and model registry remain on MLflow. See `local/next_steps/aws-training-migration.md`.
+
+### Why No Apache Beam Ingestion Pipeline in the Demo
+
+Apache Beam pipelines are implemented in `src/feature_engineering/` and tested via the `--profile beam` Docker Compose profile in the local demo (`scripts/demo/demo-local/demo-local.sh`).
+
+The AWS demo focuses on the **training-to-serving loop**: `[S3] -> [K8s Training Job] -> [MLflow] -> [Evaluation Gate] -> [API Auto-Promotion]`. Adding Beam to this demo would require standing up a streaming source (Kafka cluster or Kinesis stream), increasing infrastructure complexity and cost without demonstrating additional ML pipeline value.
+
+### Why K8s Jobs for Training instead of SageMaker Training
+
+Training runs as K8s Jobs inside the same K3s cluster as the serving API. This keeps the entire pipeline within one infrastructure boundary — no cross-VPC networking, no additional AWS service costs, and the same Job YAML runs identically on K3s, EKS, GKE, or any conformant Kubernetes cluster.
+
+SageMaker Training is the planned next step for when training datasets grow beyond what a t3.medium can handle, or when GPU instances are needed. The migration path involves creating a `submit_job.py` script using the SageMaker Python SDK while keeping MLflow as the experiment tracker. See `local/next_steps/aws-training-migration.md` for the implementation plan.
