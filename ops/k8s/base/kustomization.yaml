@@ -8,8 +8,6 @@ resources:
 - redis.yaml
 - mlflow.yaml
 - api.yaml
-- training-job.yaml
-- evaluation-job.yaml
 - monitoring.yaml
 - exporters.yaml
 labels:
