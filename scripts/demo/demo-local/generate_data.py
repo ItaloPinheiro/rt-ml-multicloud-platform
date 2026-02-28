@@ -189,13 +189,18 @@ def create_sample_request_file(transactions: List[Dict[str, Any]]) -> None:
     """Create a sample request file for API testing."""
     sample_transaction = random.choice(transactions)
 
-    # Prepare features matching training data
-    features = sample_transaction["features"].copy()
-    features["amount"] = sample_transaction["amount"]
-    features["merchant_category_encoded"] = (
+    # Prepare features matching training data.
+    # All numeric values must be float to satisfy MLflow's schema enforcement
+    # (the model signature uses float64/double for all numeric columns).
+    features = {k: float(v) if isinstance(v, int) else v
+                for k, v in sample_transaction["features"].items()}
+    features["amount"] = float(sample_transaction["amount"])
+    features["merchant_category_encoded"] = float(
         hash(sample_transaction["merchant_category"]) % 100
     )
-    features["payment_method_encoded"] = hash(sample_transaction["payment_method"]) % 10
+    features["payment_method_encoded"] = float(
+        hash(sample_transaction["payment_method"]) % 10
+    )
 
     sample_request = {
         "features": features,
