@@ -36,6 +36,7 @@ spec:
           command: ["sh", "-c"]
           args:
             - |
+              set -e
               echo "Downloading training data from S3..."
               aws s3 cp "s3://${TRAINING_DATA_BUCKET}/datasets/fraud_detection.csv" /data/fraud_detection.csv
               echo "Download complete. File size: $(wc -c < /data/fraud_detection.csv) bytes"
