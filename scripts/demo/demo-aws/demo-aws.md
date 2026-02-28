@@ -70,25 +70,48 @@ ssh -i ml-pipeline-debug.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl get pods -n m
 ```
 *   You should see `ml-pipeline-api` and `ml-pipeline-mlflow` with status `Running`.
 
-### 4. Train Model Version 1 (Baseline)
+### 4. Upload Training Data to S3
 
-Run the training script locally. It will:
-1.  Train a Random Forest model on your machine.
-2.  Upload the model artifacts to the **remote** MLflow server (backed by S3/MinIO).
-3.  Register the model as `fraud_detector` (Version 1).
-4.  Promote it to "Production".
+Upload the demo dataset to the S3 training bucket (created by Terraform):
 
+```bash
+aws s3 cp data/sample/demo/datasets/fraud_detection.csv \
+  s3://rt-ml-platform-training-data-demo/datasets/fraud_detection.csv
+```
+
+Verify the upload:
+```bash
+aws s3 ls s3://rt-ml-platform-training-data-demo/datasets/
+```
+
+### 5. Train Model Version 1 (Cloud-Side Training)
+
+Training now runs as a **K8s Job inside the cluster**, not on your laptop.
+The training Job downloads data from S3, trains, and registers the model in MLflow.
+The evaluation gate then compares it against the current champion and promotes only if it's better.
+
+**Option A: Using the trigger script (recommended for live demo)**
+```bash
+export EC2_IP=$INSTANCE_IP
+./scripts/demo/demo-aws/trigger-training.sh
+```
+
+**Option B: Using GitHub Actions (CI/CD path)**
+Trigger via the GitHub UI: Actions -> "Train Model" -> Run workflow.
+
+**Option C: Legacy local training (still supported)**
 ```bash
 python scripts/demo/demo-aws/train.py
 ```
 
 **What to expect:**
-*   The script should output `Model logged with run_id: ...`
-*   It automatically attempts to verify the API using the `$Env:API_URL` you set.
+*   Training Job runs inside the cluster (~1-2 minutes)
+*   Evaluation gate compares against current champion (or promotes first model unconditionally)
+*   API auto-detects the new production model within 10 seconds
 
-### 5. Verify API Prediction (Version 1)
+### 6. Verify API Prediction (Version 1)
 
-Manually send a prediction request to the remote API to confirm it is serving Version 1.
+Send a prediction request to the remote API to confirm it is serving the model:
 
 ```bash
 curl -X POST "$API_URL/predict" \
@@ -98,31 +121,44 @@ curl -X POST "$API_URL/predict" \
 
 *   **Success Criteria**: Response contains `"model_version": "1"`.
 
-### 6. Train & Upgrade Model (Version 2)
+### 7. Train & Upgrade Model (Version 2)
 
-Simulate a model improvement cycle by training with different hyperparameters (e.g., more trees).
+Simulate a model improvement cycle by training with more estimators:
 
 ```bash
-python scripts/demo/demo-aws/train.py --n-estimators 200
+./scripts/demo/demo-aws/trigger-training.sh --n-estimators 200
 ```
 
-1.  Trains a new model (Version 2).
-2.  Logs/Registers it to remote MLflow.
-3.  Promotes Version 2 to "Production".
+1.  Training Job runs with 200 estimators (vs 100 in v1).
+2.  Evaluation gate compares v2 accuracy/F1 against v1 champion.
+3.  If v2 is better, it gets promoted automatically.
 
-### 7. Verify Auto-Promotion (Zero-Downtime Deployment)
+### 8. Verify Auto-Promotion (Zero-Downtime Deployment)
 
-The remote API polls MLflow every **60 seconds** for changes to the "Production" alias. 
+The API polls MLflow every **10 seconds** for changes to the "production" alias.
 
-Wait ~60 seconds, then check the model version again:
-
+Check the model version:
 ```bash
 curl -X POST "$API_URL/predict" \
   -H "Content-Type: application/json" \
-  -d @data/sample/demo/requests/improved_prediction_request.json
+  -d @data/sample/demo/requests/baseline_prediction_request.json
 ```
 
-*   **Success Criteria**: Response usually switches from `"model_version": "1"` to `"model_version": "2"` without any downtime.
+*   **Success Criteria**: Response switches to `"model_version": "2"` without any downtime.
+
+### Training Pipeline Architecture
+
+```
+[S3 Bucket] --> [Init Container: download data] --> [Training Job: train model]
+                                                          |
+                                                   [Register in MLflow]
+                                                          |
+                                               [Evaluation Job: compare vs champion]
+                                                          |
+                                                   [Promote if better]
+                                                          |
+                                               [API auto-detects new model]
+```
 
 ---
 
@@ -136,6 +172,11 @@ You can monitor the platform status via these URLs (replace hardcoded IPs with t
 | **Grafana** | `30300` | http://$INSTANCE_IP:30300 |
 | **Prometheus**| `30900` | http://$INSTANCE_IP:30900 |
 | **API Docs** | `30800` | http://$INSTANCE_IP:30800/docs |
+
+## Links (EC2 Instance Pods)
+http://44.211.86.208:30300/d/apps-uptime/applications-uptime-and-health?orgId=1&refresh=1m
+http://44.211.86.208:30900/graph?g0.expr=up%7Bjob%3D%22ml-pipeline-api-service%22%7D&g0.tab=0&g0.stacked=0&g0.show_exemplars=0&g0.range_input=2h&g1.expr=ml_dependency_health%7Bdependency%3D%22mlflow%22%7D&g1.tab=0&g1.stacked=0&g1.show_exemplars=0&g1.range_input=2h&g2.expr=ml_dependency_health%7Bdependency%3D%22redis%22%7D&g2.tab=0&g2.stacked=0&g2.show_exemplars=0&g2.range_input=2h
+http://44.211.86.208:30500
 
 ## Troubleshooting
 
@@ -168,3 +209,5 @@ When code is merged to `main`, the CD pipeline automatically:
 This requires:
 - **`ENABLE_DEMO_DEPLOY`** repo variable set to `true` (GitHub → Settings → Variables → Actions).
 - **`EC2_SSH_KEY`** repo secret containing the SSH private key for the EC2 instance.
+
+

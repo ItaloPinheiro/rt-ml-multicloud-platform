@@ -1,0 +1,251 @@
+name: Train Model
+
+on:
+  workflow_dispatch:
+    inputs:
+      n_estimators:
+        description: 'Number of estimators for RandomForest'
+        required: false
+        default: '100'
+        type: string
+      experiment_name:
+        description: 'MLflow experiment name'
+        required: false
+        default: 'fraud_detection'
+        type: string
+      auto_promote:
+        description: 'Skip evaluation gate and auto-promote'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  train:
+    name: Train & Evaluate Model
+    runs-on: ubuntu-latest
+    if: vars.ENABLE_DEMO_DEPLOY == 'true'
+
+    steps:
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-1
+
+    - name: Get EC2 instance IP
+      id: ec2
+      run: |
+        INSTANCE_IP=$(aws ec2 describe-instances \
+          --filters "Name=tag:Name,Values=rt-ml-platform-demo-instance" \
+                    "Name=instance-state-name,Values=running" \
+          --query "Reservations[*].Instances[*].PublicIpAddress" \
+          --output text)
+        if [ -z "$INSTANCE_IP" ]; then
+          echo "::error::No running demo instance found"
+          exit 1
+        fi
+        echo "ip=$INSTANCE_IP" >> $GITHUB_OUTPUT
+        echo "Found demo instance at $INSTANCE_IP"
+
+    - name: Run training Job
+      id: train
+      uses: appleboy/ssh-action@v1
+      with:
+        host: ${{ steps.ec2.outputs.ip }}
+        username: ubuntu
+        key: ${{ secrets.EC2_SSH_KEY }}
+        command_timeout: 15m
+        script: |
+          set -e
+          TIMESTAMP=$(date +%s)
+          NAMESPACE="ml-pipeline"
+          N_ESTIMATORS="${{ inputs.n_estimators }}"
+          EXPERIMENT="${{ inputs.experiment_name }}"
+          AUTO_PROMOTE="${{ inputs.auto_promote }}"
+
+          echo "=== Training Configuration ==="
+          echo "  n_estimators: $N_ESTIMATORS"
+          echo "  experiment: $EXPERIMENT"
+          echo "  auto_promote: $AUTO_PROMOTE"
+
+          # Build training args
+          TRAIN_ARGS="--data-path=/data/fraud_detection.csv"
+          TRAIN_ARGS="$TRAIN_ARGS --mlflow-uri=http://mlflow-service:5000"
+          TRAIN_ARGS="$TRAIN_ARGS --experiment=$EXPERIMENT"
+          TRAIN_ARGS="$TRAIN_ARGS --model-name=fraud_detector"
+          TRAIN_ARGS="$TRAIN_ARGS --n-estimators=$N_ESTIMATORS"
+          if [ "$AUTO_PROMOTE" = "true" ]; then
+            TRAIN_ARGS="$TRAIN_ARGS --auto-promote"
+          fi
+
+          # Delete previous job if it exists (Jobs are immutable)
+          sudo k3s kubectl delete job model-training -n $NAMESPACE --ignore-not-found=true
+
+          # Get the current API image tag for consistency
+          API_IMAGE=$(sudo k3s kubectl get deployment ml-pipeline-api -n $NAMESPACE -o jsonpath='{.spec.template.spec.containers[0].image}')
+          echo "Using image: $API_IMAGE"
+
+          # Get training data bucket from configmap (if set)
+          BUCKET=$(sudo k3s kubectl get configmap ml-pipeline-config -n $NAMESPACE -o jsonpath='{.data.TRAINING_DATA_BUCKET}' 2>/dev/null || echo "")
+
+          # Create the training job with overrides
+          cat <<EOF | sudo k3s kubectl apply -f -
+          apiVersion: batch/v1
+          kind: Job
+          metadata:
+            name: model-training
+            namespace: $NAMESPACE
+            labels:
+              app.kubernetes.io/name: model-training
+              app.kubernetes.io/component: training
+          spec:
+            backoffLimit: 2
+            activeDeadlineSeconds: 600
+            ttlSecondsAfterFinished: 3600
+            template:
+              spec:
+                restartPolicy: Never
+                initContainers:
+                - name: download-data
+                  image: amazon/aws-cli:latest
+                  command: ["sh", "-c"]
+                  args:
+                  - |
+                    if [ -n "$BUCKET" ]; then
+                      echo "Downloading from S3: s3://${BUCKET}/datasets/fraud_detection.csv"
+                      aws s3 cp "s3://${BUCKET}/datasets/fraud_detection.csv" /data/fraud_detection.csv
+                    else
+                      echo "No S3 bucket configured, using baked-in sample data"
+                      cp /fallback/fraud_detection.csv /data/fraud_detection.csv 2>/dev/null || \
+                        echo "ERROR: No data source available" && exit 1
+                    fi
+                  volumeMounts:
+                  - name: training-data
+                    mountPath: /data
+                  resources:
+                    requests:
+                      memory: "64Mi"
+                      cpu: "50m"
+                    limits:
+                      memory: "128Mi"
+                      cpu: "100m"
+                containers:
+                - name: train
+                  image: $API_IMAGE
+                  command: ["python", "-m", "src.models.training.train"]
+                  args: [$(echo $TRAIN_ARGS | sed 's/ /", "/g' | sed 's/^/"/;s/$/"/')]
+                  envFrom:
+                  - configMapRef:
+                      name: ml-pipeline-config
+                  - secretRef:
+                      name: ml-pipeline-secrets
+                  volumeMounts:
+                  - name: training-data
+                    mountPath: /data
+                  resources:
+                    requests:
+                      memory: "1Gi"
+                      cpu: "500m"
+                    limits:
+                      memory: "2Gi"
+                      cpu: "1000m"
+                volumes:
+                - name: training-data
+                  emptyDir: {}
+          EOF
+
+          echo "=== Waiting for training job to complete ==="
+          sudo k3s kubectl wait --for=condition=complete job/model-training \
+            -n $NAMESPACE --timeout=600s || {
+            echo "Training job failed. Logs:"
+            sudo k3s kubectl logs job/model-training -n $NAMESPACE --all-containers
+            exit 1
+          }
+
+          echo "=== Training Job Logs ==="
+          sudo k3s kubectl logs job/model-training -n $NAMESPACE -c train
+
+    - name: Run evaluation gate
+      if: inputs.auto_promote == false
+      uses: appleboy/ssh-action@v1
+      with:
+        host: ${{ steps.ec2.outputs.ip }}
+        username: ubuntu
+        key: ${{ secrets.EC2_SSH_KEY }}
+        command_timeout: 5m
+        script: |
+          set -e
+          NAMESPACE="ml-pipeline"
+
+          # Get the current API image
+          API_IMAGE=$(sudo k3s kubectl get deployment ml-pipeline-api -n $NAMESPACE -o jsonpath='{.spec.template.spec.containers[0].image}')
+
+          # Delete previous evaluation job if it exists
+          sudo k3s kubectl delete job model-evaluation -n $NAMESPACE --ignore-not-found=true
+
+          cat <<EOF | sudo k3s kubectl apply -f -
+          apiVersion: batch/v1
+          kind: Job
+          metadata:
+            name: model-evaluation
+            namespace: $NAMESPACE
+            labels:
+              app.kubernetes.io/name: model-evaluation
+              app.kubernetes.io/component: evaluation
+          spec:
+            backoffLimit: 1
+            activeDeadlineSeconds: 120
+            ttlSecondsAfterFinished: 3600
+            template:
+              spec:
+                restartPolicy: Never
+                containers:
+                - name: evaluate
+                  image: $API_IMAGE
+                  command: ["python", "-m", "src.models.evaluation.evaluate_and_promote"]
+                  args:
+                  - "--mlflow-uri=http://mlflow-service:5000"
+                  - "--model-name=fraud_detector"
+                  - "--min-accuracy=0.80"
+                  envFrom:
+                  - configMapRef:
+                      name: ml-pipeline-config
+                  - secretRef:
+                      name: ml-pipeline-secrets
+                  resources:
+                    requests:
+                      memory: "512Mi"
+                      cpu: "250m"
+                    limits:
+                      memory: "1Gi"
+                      cpu: "500m"
+          EOF
+
+          echo "=== Waiting for evaluation to complete ==="
+          sudo k3s kubectl wait --for=condition=complete job/model-evaluation \
+            -n $NAMESPACE --timeout=120s || {
+            echo "Evaluation gate result: REJECTED (or failed)"
+            sudo k3s kubectl logs job/model-evaluation -n $NAMESPACE
+            exit 1
+          }
+
+          echo "=== Evaluation Gate Logs ==="
+          sudo k3s kubectl logs job/model-evaluation -n $NAMESPACE
+
+    - name: Summary
+      if: always()
+      run: |
+        echo "## Model Training Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Parameter | Value |" >> $GITHUB_STEP_SUMMARY
+        echo "|-----------|-------|" >> $GITHUB_STEP_SUMMARY
+        echo "| Instance | ${{ steps.ec2.outputs.ip }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Estimators | ${{ inputs.n_estimators }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Experiment | ${{ inputs.experiment_name }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Auto-promote | ${{ inputs.auto_promote }} |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Service URLs" >> $GITHUB_STEP_SUMMARY
+        echo "- MLflow: http://${{ steps.ec2.outputs.ip }}:30500" >> $GITHUB_STEP_SUMMARY
+        echo "- API: http://${{ steps.ec2.outputs.ip }}:30800/docs" >> $GITHUB_STEP_SUMMARY
+        echo "- Grafana: http://${{ steps.ec2.outputs.ip }}:30300" >> $GITHUB_STEP_SUMMARY

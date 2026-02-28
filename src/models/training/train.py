@@ -135,6 +135,7 @@ class ModelTrainer:
         model_name: str = "fraud_detector",
         test_size: float = 0.2,
         model_params: Dict[str, Any] = None,
+        auto_promote: bool = True,
     ):
         """Complete training pipeline with MLflow logging."""
         # Load data
@@ -206,7 +207,9 @@ class ModelTrainer:
 
             # Register model if specified
             if model_name:
-                self.register_model(run.info.run_id, model_info.model_uri, model_name)
+                self.register_model(
+                    run.info.run_id, model_info.model_uri, model_name, auto_promote
+                )
 
             return run.info.run_id, metrics
 
@@ -325,6 +328,12 @@ def main():
     parser.add_argument(
         "--n-estimators", type=int, default=100, help="Number of trees in Random Forest"
     )
+    parser.add_argument(
+        "--auto-promote",
+        action="store_true",
+        default=False,
+        help="Automatically promote model to production (skip evaluation gate)",
+    )
 
     args = parser.parse_args()
 
@@ -341,6 +350,7 @@ def main():
             data_path=args.data_path,
             model_name=args.model_name,
             model_params=model_params,
+            auto_promote=args.auto_promote,
         )
 
         logger.info("Training completed successfully!")

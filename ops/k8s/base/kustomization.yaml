@@ -8,14 +8,18 @@ resources:
 - redis.yaml
 - mlflow.yaml
 - api.yaml
+- training-job.yaml
+- evaluation-job.yaml
 - monitoring.yaml
 - exporters.yaml
-commonLabels:
-  app.kubernetes.io/name: ml-pipeline
-  app.kubernetes.io/instance: ml-pipeline-platform
-  app.kubernetes.io/version: v1.0.0
-  app.kubernetes.io/component: ml-platform
-  app.kubernetes.io/part-of: ml-pipeline-platform
+labels:
+- pairs:
+    app.kubernetes.io/name: ml-pipeline
+    app.kubernetes.io/instance: ml-pipeline-platform
+    app.kubernetes.io/version: v1.0.0
+    app.kubernetes.io/component: ml-platform
+    app.kubernetes.io/part-of: ml-pipeline-platform
+  includeSelectors: true
 namespace: ml-pipeline
 images:
 - name: ml-pipeline/api

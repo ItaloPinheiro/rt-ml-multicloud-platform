@@ -31,6 +31,56 @@ generatorOptions:
   disableNameSuffixHash: true
 
 patches:
+  # Set the S3 training data bucket for the aws-demo environment
+  - target:
+      kind: ConfigMap
+      name: ml-pipeline-config
+    patch: |-
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: ml-pipeline-config
+      data:
+        TRAINING_DATA_BUCKET: "rt-ml-platform-training-data-demo"
+
+  # Training Job - use GHCR image and pull secrets
+  - target:
+      kind: Job
+      name: model-training
+    patch: |-
+      apiVersion: batch/v1
+      kind: Job
+      metadata:
+        name: model-training
+      spec:
+        template:
+          spec:
+            imagePullSecrets:
+            - name: ghcr-pull-secret
+            containers:
+            - name: train
+              image: ghcr.io/italopinheiro/rt-ml-multicloud-platform/api:main
+              imagePullPolicy: Always
+
+  # Evaluation Job - use GHCR image and pull secrets
+  - target:
+      kind: Job
+      name: model-evaluation
+    patch: |-
+      apiVersion: batch/v1
+      kind: Job
+      metadata:
+        name: model-evaluation
+      spec:
+        template:
+          spec:
+            imagePullSecrets:
+            - name: ghcr-pull-secret
+            containers:
+            - name: evaluate
+              image: ghcr.io/italopinheiro/rt-ml-multicloud-platform/api:main
+              imagePullPolicy: Always
+
   # Remove the base secret because we create it manually from Secrets Manager
   - target:
       kind: Secret
