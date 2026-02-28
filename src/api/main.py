@@ -792,8 +792,10 @@ if dependency_health_gauge is not None:
                     try:
                         # Use a light operation to check connectivity
                         await asyncio.wait_for(
-                            run_in_threadpool(model_manager.client.search_experiments, max_results=1),
-                            timeout=2.0
+                            run_in_threadpool(
+                                model_manager.client.search_experiments, max_results=1
+                            ),
+                            timeout=2.0,
                         )
                         mlflow_status = 1
                     except Exception:
@@ -805,8 +807,7 @@ if dependency_health_gauge is not None:
                 if model_manager and model_manager.cache:
                     try:
                         await asyncio.wait_for(
-                            run_in_threadpool(model_manager.cache.ping),
-                            timeout=2.0
+                            run_in_threadpool(model_manager.cache.ping), timeout=2.0
                         )
                         redis_status = 1
                     except Exception:
@@ -833,8 +834,10 @@ async def health_check():
     if model_manager and model_manager.client:
         try:
             await asyncio.wait_for(
-                run_in_threadpool(model_manager.client.search_experiments, max_results=1),
-                timeout=2.0
+                run_in_threadpool(
+                    model_manager.client.search_experiments, max_results=1
+                ),
+                timeout=2.0,
             )
             checks["mlflow"] = "healthy"
         except Exception:
@@ -846,8 +849,7 @@ async def health_check():
     if model_manager and model_manager.cache:
         try:
             await asyncio.wait_for(
-                run_in_threadpool(model_manager.cache.ping),
-                timeout=2.0
+                run_in_threadpool(model_manager.cache.ping), timeout=2.0
             )
             checks["redis"] = "healthy"
         except Exception:

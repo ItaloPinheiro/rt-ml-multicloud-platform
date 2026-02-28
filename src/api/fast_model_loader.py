@@ -189,5 +189,6 @@ if __name__ == "__main__":
     # Test cached load
     start2 = time.time()
     cached_model = loader.load_model("fraud_detector", "12")
-    print(f"Cached load: {time.time()-start2:.2f}s (type: {type(cached_model).__name__})")
-
+    print(
+        f"Cached load: {time.time()-start2:.2f}s (type: {type(cached_model).__name__})"
+    )

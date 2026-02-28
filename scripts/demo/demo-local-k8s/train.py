@@ -193,9 +193,7 @@ def main():
                 )
 
                 if str(served_version) == str(latest_version):
-                    print(
-                        f"OK: API is serving the expected version {latest_version}"
-                    )
+                    print(f"OK: API is serving the expected version {latest_version}")
 
                     # Verify Latency SLA (e.g., < 200ms) - Note: First hit might be slower due to loading
                     if i > 0 and latency < 200:

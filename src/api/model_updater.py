@@ -91,9 +91,11 @@ class ModelUpdateManager:
             # Get the latest version (which should be our production model)
             def _search():
                 return self.mlflow_client.search_model_versions(
-                    f"name='{model_name}'", order_by=["version_number DESC"], max_results=1
+                    f"name='{model_name}'",
+                    order_by=["version_number DESC"],
+                    max_results=1,
                 )
-            
+
             versions = await run_in_threadpool(_search)
 
             if versions:
@@ -111,13 +113,15 @@ class ModelUpdateManager:
                     from mlflow import MlflowClient
 
                     client = MlflowClient()
-                    
+
                     def _get_by_alias():
-                        return client.get_model_version_by_alias(model_name, "production")
-                        
+                        return client.get_model_version_by_alias(
+                            model_name, "production"
+                        )
+
                     # Try the new alias-based API (MLflow 2.9+)
                     model_version = await run_in_threadpool(_get_by_alias)
-                    
+
                     if model_version:
                         logger.debug(
                             f"Found model with 'production' alias: version {model_version.version}"

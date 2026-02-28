@@ -44,7 +44,9 @@ class ModelMetrics:
     recall: float
 
 
-def get_model_metrics(client: mlflow.MlflowClient, model_name: str, version: str) -> Optional[ModelMetrics]:
+def get_model_metrics(
+    client: mlflow.MlflowClient, model_name: str, version: str
+) -> Optional[ModelMetrics]:
     """Fetch metrics for a specific model version from its MLflow run."""
     try:
         model_version = client.get_model_version(model_name, version)
@@ -60,7 +62,9 @@ def get_model_metrics(client: mlflow.MlflowClient, model_name: str, version: str
             recall=metrics.get("recall", 0.0),
         )
     except Exception as e:
-        logger.error("Failed to fetch metrics for model %s v%s: %s", model_name, version, e)
+        logger.error(
+            "Failed to fetch metrics for model %s v%s: %s", model_name, version, e
+        )
         return None
 
 
@@ -184,8 +188,11 @@ def evaluate_and_promote(
 
     logger.info(
         "Challenger v%s - accuracy: %.4f, f1: %.4f, precision: %.4f, recall: %.4f",
-        challenger.version, challenger.accuracy, challenger.f1_score,
-        challenger.precision, challenger.recall,
+        challenger.version,
+        challenger.accuracy,
+        challenger.f1_score,
+        challenger.precision,
+        challenger.recall,
     )
 
     # Check minimum accuracy threshold
@@ -202,7 +209,10 @@ def evaluate_and_promote(
 
     if not champion_version:
         # No champion yet - promote the first model
-        logger.info("No existing champion found. Promoting challenger v%s as first champion", challenger.version)
+        logger.info(
+            "No existing champion found. Promoting challenger v%s as first champion",
+            challenger.version,
+        )
         if promote_model(client, model_name, challenger.version):
             result["decision"] = "promoted"
             result["reason"] = "First model promoted (no existing champion)"
@@ -232,8 +242,11 @@ def evaluate_and_promote(
 
     logger.info(
         "Champion v%s - accuracy: %.4f, f1: %.4f, precision: %.4f, recall: %.4f",
-        champion.version, champion.accuracy, champion.f1_score,
-        champion.precision, champion.recall,
+        champion.version,
+        champion.accuracy,
+        champion.f1_score,
+        champion.precision,
+        champion.recall,
     )
 
     # Compare: challenger must be >= champion on both accuracy and f1
@@ -243,9 +256,12 @@ def evaluate_and_promote(
     if accuracy_ok and f1_ok:
         logger.info(
             "Challenger v%s beats champion v%s (accuracy: %.4f >= %.4f, f1: %.4f >= %.4f)",
-            challenger.version, champion.version,
-            challenger.accuracy, champion.accuracy,
-            challenger.f1_score, champion.f1_score,
+            challenger.version,
+            champion.version,
+            challenger.accuracy,
+            champion.accuracy,
+            challenger.f1_score,
+            champion.f1_score,
         )
         if promote_model(client, model_name, challenger.version):
             result["decision"] = "promoted"
@@ -264,7 +280,9 @@ def evaluate_and_promote(
             reasons.append(
                 f"f1_score {challenger.f1_score:.4f} < {champion.f1_score:.4f}"
             )
-        result["reason"] = f"Challenger v{challenger.version} rejected: {', '.join(reasons)}"
+        result["reason"] = (
+            f"Challenger v{challenger.version} rejected: {', '.join(reasons)}"
+        )
         logger.warning(result["reason"])
 
     return result
@@ -312,16 +330,20 @@ def main():
     logger.info("Reason: %s", result["reason"])
 
     if result["champion"]:
-        logger.info("Champion: v%s (accuracy=%.4f, f1=%.4f)",
-                     result["champion"]["version"],
-                     result["champion"]["accuracy"],
-                     result["champion"]["f1_score"])
+        logger.info(
+            "Champion: v%s (accuracy=%.4f, f1=%.4f)",
+            result["champion"]["version"],
+            result["champion"]["accuracy"],
+            result["champion"]["f1_score"],
+        )
 
     if result["challenger"]:
-        logger.info("Challenger: v%s (accuracy=%.4f, f1=%.4f)",
-                     result["challenger"]["version"],
-                     result["challenger"]["accuracy"],
-                     result["challenger"]["f1_score"])
+        logger.info(
+            "Challenger: v%s (accuracy=%.4f, f1=%.4f)",
+            result["challenger"]["version"],
+            result["challenger"]["accuracy"],
+            result["challenger"]["f1_score"],
+        )
 
     # Exit with non-zero if rejected (useful for CI/CD pipelines)
     if result["decision"] == "rejected":

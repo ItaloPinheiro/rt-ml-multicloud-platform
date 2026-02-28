@@ -20,7 +20,9 @@ DEMO_DATASETS_DIR = os.path.join(DEMO_DIR, "datasets")
 DEMO_REQUESTS_DIR = os.path.join(DEMO_DIR, "requests")
 NUM_TRANSACTIONS = 1000
 NUM_USERS = 100
-FRAUD_RATE = float(os.getenv("FRAUD_RATE", "0.70"))  # Cap on fraud probability per transaction
+FRAUD_RATE = float(
+    os.getenv("FRAUD_RATE", "0.70")
+)  # Cap on fraud probability per transaction
 
 # Merchant categories with fraud likelihood
 MERCHANT_CATEGORIES = {
@@ -136,7 +138,9 @@ def generate_transactions(users: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         risk_score = min(risk_factors + user["risk_profile"]["risk_score"], 1.0)
 
         # Determine if fraudulent (base risk from merchant + situational factors, capped by FRAUD_RATE)
-        fraud_probability = min(MERCHANT_CATEGORIES[merchant_category] + risk_factors, 1.0)
+        fraud_probability = min(
+            MERCHANT_CATEGORIES[merchant_category] + risk_factors, 1.0
+        )
         is_fraud = random.random() < fraud_probability and random.random() < FRAUD_RATE
 
         # Generate city info
@@ -192,8 +196,10 @@ def create_sample_request_file(transactions: List[Dict[str, Any]]) -> None:
     # Prepare features matching training data.
     # All numeric values must be float to satisfy MLflow's schema enforcement
     # (the model signature uses float64/double for all numeric columns).
-    features = {k: float(v) if isinstance(v, int) else v
-                for k, v in sample_transaction["features"].items()}
+    features = {
+        k: float(v) if isinstance(v, int) else v
+        for k, v in sample_transaction["features"].items()
+    }
     features["amount"] = float(sample_transaction["amount"])
     features["merchant_category_encoded"] = float(
         hash(sample_transaction["merchant_category"]) % 100
