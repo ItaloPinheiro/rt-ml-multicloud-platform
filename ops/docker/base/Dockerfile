@@ -21,6 +21,9 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
+# Upgrade pip to address CVE-2026-1703
+RUN pip install --no-cache-dir --upgrade pip
+
 # Install Poetry for dependency management
 ENV POETRY_HOME="/opt/poetry"
 ENV POETRY_CACHE_DIR="/opt/poetry/cache"

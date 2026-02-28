@@ -9,12 +9,11 @@ from datetime import datetime
 from typing import Any, Dict, Generator, List
 
 try:
-    from confluent_kafka import Consumer, KafkaError, KafkaException
+    from confluent_kafka import Consumer, KafkaError
     from confluent_kafka.admin import AdminClient
 except ImportError:
     Consumer = None
     KafkaError = None
-    KafkaException = None
     AdminClient = None
 
 import structlog
