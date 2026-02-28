@@ -137,6 +137,8 @@ patches:
               - "/tmp/prometheus"
               - "--allowed-hosts"
               - "*"
+              - "--cors-allowed-origins"
+              - "*"
               resources:
                 requests:
                   memory: "512Mi"

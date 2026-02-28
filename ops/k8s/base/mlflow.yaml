@@ -32,6 +32,8 @@ spec:
         - "5000"
         - "--allowed-hosts"
         - "*"
+        - "--cors-allowed-origins"
+        - "*"
         - "--expose-prometheus"
         - "/tmp/prometheus"
         env:
