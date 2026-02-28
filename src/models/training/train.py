@@ -213,7 +213,9 @@ class ModelTrainer:
 
             return run.info.run_id, metrics
 
-    def register_model(self, run_id: str, model_uri: str, model_name: str, auto_promote: bool = True):
+    def register_model(
+        self, run_id: str, model_uri: str, model_name: str, auto_promote: bool = True
+    ):
         """Register model in MLflow Model Registry and optionally promote to production.
 
         Args:

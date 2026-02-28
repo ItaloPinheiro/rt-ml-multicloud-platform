@@ -170,7 +170,7 @@ class FastModelLoader:
                 pickle.dump(model._model_impl, f)
             logger.info(f"Cached model to {model_file}")
         except Exception:
-            pass  # Not all models can be pickled
+            pass  # Not all models can be pickled; caching is best-effort
 
         return model
 
@@ -182,11 +182,13 @@ if __name__ == "__main__":
     loader = FastModelLoader()
 
     # Test loading
-    start = time.time()
-    model = loader.load_model("fraud_detector", "12")
-    print(f"First load: {time.time()-start:.2f}s")
+    start1 = time.time()
+    first_model = loader.load_model("fraud_detector", "12")
+    print(f"First load: {time.time()-start1:.2f}s (type: {type(first_model).__name__})")
 
     # Test cached load
-    start = time.time()
-    model = loader.load_model("fraud_detector", "12")
-    print(f"Cached load: {time.time()-start:.2f}s")
+    start2 = time.time()
+    cached_model = loader.load_model("fraud_detector", "12")
+    print(
+        f"Cached load: {time.time()-start2:.2f}s (type: {type(cached_model).__name__})"
+    )

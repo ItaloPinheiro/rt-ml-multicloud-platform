@@ -255,7 +255,7 @@ def mock_mlflow_client():
 @pytest.fixture
 def feature_store_client(test_config, mock_redis, test_database):
     """Feature store client for tests."""
-    import src.database.session as session_module
+    from src.database import session as session_module
     from src.feature_store.client import FeatureStoreClient
     from src.feature_store.store import FeatureStore
 

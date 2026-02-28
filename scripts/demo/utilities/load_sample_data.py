@@ -141,8 +141,7 @@ def load_to_feature_store(
 
         except Exception as e:
             logger.warning(f"Direct Redis failed, trying FeatureStoreClient: {e}")
-            # Fall back to FeatureStoreClient
-            pass
+            # Fall through to FeatureStoreClient approach below
 
         # Initialize feature store client
         try:

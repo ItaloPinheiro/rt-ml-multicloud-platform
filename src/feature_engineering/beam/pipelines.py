@@ -288,6 +288,10 @@ class FeatureEngineeringPipeline:
                     | "DecodeTopicMessages" >> beam.Map(lambda x: x.decode("utf-8"))
                     | "ParseTopicJSON" >> beam.Map(self._parse_json_safely)
                 )
+            else:
+                raise ValueError(
+                    "PubSub input requires either 'subscription' or 'topic' in config"
+                )
 
         elif source_type == "kafka":
             bootstrap_servers = input_config.get("bootstrap_servers")

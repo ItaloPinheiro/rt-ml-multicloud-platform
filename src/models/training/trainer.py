@@ -42,7 +42,12 @@ try:
     )
 
 except ImportError:
-    pass
+    # sklearn is optional but required for model training
+    accuracy_score = precision_score = recall_score = f1_score = roc_auc_score = None
+    mean_squared_error = mean_absolute_error = r2_score = None
+    train_test_split = cross_val_score = RandomizedSearchCV = None
+    RandomForestClassifier = RandomForestRegressor = None
+    LogisticRegression = LinearRegression = None
 
 try:
     import xgboost as xgb

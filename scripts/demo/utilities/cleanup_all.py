@@ -192,7 +192,7 @@ COMMIT;
                 try:
                     os.unlink(temp_sql_file)
                 except Exception:
-                    pass
+                    pass  # Non-critical: temp file cleanup failure is acceptable
 
         except Exception as e:
             print(f"Error during database cleanup: {e}")

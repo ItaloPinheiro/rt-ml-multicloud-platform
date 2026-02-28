@@ -104,7 +104,8 @@ def extract_features(transaction: Dict[str, Any]) -> Dict[str, Any]:
         "avg_amount_30d": features.get("avg_amount_30d", 0.0),
         "risk_score": features.get("risk_score", 0.0),
         "amount": transaction.get("amount", 0.0),
-        "merchant_category_encoded": hash(transaction.get("merchant_category", "")) % 100,
+        "merchant_category_encoded": hash(transaction.get("merchant_category", ""))
+        % 100,
         "payment_method_encoded": hash(transaction.get("payment_method", "")) % 10,
         "label": transaction.get("label", 0),
     }
@@ -129,7 +130,10 @@ def prepare_training_data(input_path: str, output_path: str) -> pd.DataFrame:
     fraud_rate = fraud_count / len(df) * 100 if len(df) > 0 else 0
     logger.info(
         "Dataset stats: %d rows, %d fraud (%.1f%%), %d features",
-        len(df), fraud_count, fraud_rate, len(FEATURE_COLUMNS) - 1,
+        len(df),
+        fraud_count,
+        fraud_rate,
+        len(FEATURE_COLUMNS) - 1,
     )
 
     write_csv(df, output_path)
