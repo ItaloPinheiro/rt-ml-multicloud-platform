@@ -19,8 +19,8 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
-# Install Poetry
-RUN pip install poetry==1.8.5
+# Install Poetry (with upgraded pip)
+RUN pip install --no-cache-dir --upgrade pip && pip install poetry==1.8.5
 
 # Copy dependency files
 COPY pyproject.toml poetry.lock ./

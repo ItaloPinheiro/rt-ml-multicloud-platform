@@ -219,8 +219,9 @@ class ModelManager:
             start_time = time.time()
             logger.info(f"Loading model from MLflow: {model_name}:{version}")
 
-            # Initialize model_version to avoid uninitialized variable
+            # Initialize model_version and model_uri to avoid uninitialized variable
             model_version = version
+            model_uri = f"models:/{model_name}/{version}"
 
             # Load model from MLflow
             if version in ["latest", "production", "staging"]:
@@ -799,7 +800,7 @@ if dependency_health_gauge is not None:
                         )
                         mlflow_status = 1
                     except Exception:
-                        pass
+                        pass  # Non-critical: MLflow health probe failure is expected during transient connectivity issues
                 dependency_health_gauge.labels(dependency="mlflow").set(mlflow_status)
 
                 # Check Redis
@@ -811,7 +812,7 @@ if dependency_health_gauge is not None:
                         )
                         redis_status = 1
                     except Exception:
-                        pass
+                        pass  # Non-critical: Redis health probe failure is expected during transient connectivity issues
                 dependency_health_gauge.labels(dependency="redis").set(redis_status)
 
             except Exception as e:

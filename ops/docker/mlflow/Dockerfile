@@ -42,6 +42,9 @@ RUN apt-get update && apt-get install -y \
     libpq5 \
     && rm -rf /var/lib/apt/lists/*
 
+# Upgrade pip to address CVE-2026-1703
+RUN pip install --no-cache-dir --upgrade pip
+
 # Copy virtual environment from builder
 COPY --from=builder /app/.venv /app/.venv
 
