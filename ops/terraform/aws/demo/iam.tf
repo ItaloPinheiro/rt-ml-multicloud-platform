@@ -59,3 +59,32 @@ resource "aws_iam_role_policy_attachment" "ssm_attach" {
   role       = aws_iam_role.ec2_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
+
+# 6. Policy for S3 training data access (read-only, scoped to training bucket)
+resource "aws_iam_policy" "training_data_policy" {
+  name        = "${local.name_prefix}-training-data-policy"
+  description = "Allow EC2 (and K8s Jobs) to read training data from S3"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:ListBucket"
+        ]
+        Resource = [
+          aws_s3_bucket.training_data.arn,
+          "${aws_s3_bucket.training_data.arn}/*"
+        ]
+      }
+    ]
+  })
+}
+
+# 7. Attach S3 training data policy to EC2 role
+resource "aws_iam_role_policy_attachment" "training_data_attach" {
+  role       = aws_iam_role.ec2_role.name
+  policy_arn = aws_iam_policy.training_data_policy.arn
+}
