@@ -23,6 +23,8 @@ NAMESPACE="ml-pipeline"
 N_ESTIMATORS=100
 EXPERIMENT="fraud_detection"
 AUTO_PROMOTE=false
+CLASS_WEIGHT=""
+MAX_DEPTH=""
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -30,8 +32,10 @@ while [[ $# -gt 0 ]]; do
     --n-estimators) N_ESTIMATORS="$2"; shift 2 ;;
     --experiment)   EXPERIMENT="$2"; shift 2 ;;
     --auto-promote) AUTO_PROMOTE=true; shift ;;
+    --class-weight) CLASS_WEIGHT="$2"; shift 2 ;;
+    --max-depth)    MAX_DEPTH="$2"; shift 2 ;;
     -h|--help)
-      echo "Usage: $0 [--n-estimators N] [--experiment NAME] [--auto-promote]"
+      echo "Usage: $0 [--n-estimators N] [--max-depth N] [--class-weight balanced] [--experiment NAME] [--auto-promote]"
       exit 0
       ;;
     *) echo "Unknown option: $1"; exit 1 ;;
@@ -58,6 +62,8 @@ echo "  Training Pipeline - AWS Demo"
 echo "============================================"
 echo "  Instance:     $EC2_IP"
 echo "  Estimators:   $N_ESTIMATORS"
+echo "  Class weight: ${CLASS_WEIGHT:-none}"
+echo "  Max depth:    ${MAX_DEPTH:-unlimited}"
 echo "  Experiment:   $EXPERIMENT"
 echo "  Auto-promote: $AUTO_PROMOTE"
 echo "============================================"
@@ -70,6 +76,12 @@ TRAIN_ARGS="$TRAIN_ARGS --model-name=fraud_detector"
 TRAIN_ARGS="$TRAIN_ARGS --n-estimators=$N_ESTIMATORS"
 if [ "$AUTO_PROMOTE" = "true" ]; then
   TRAIN_ARGS="$TRAIN_ARGS --auto-promote"
+fi
+if [ -n "$CLASS_WEIGHT" ]; then
+  TRAIN_ARGS="$TRAIN_ARGS --class-weight=$CLASS_WEIGHT"
+fi
+if [ -n "$MAX_DEPTH" ]; then
+  TRAIN_ARGS="$TRAIN_ARGS --max-depth=$MAX_DEPTH"
 fi
 
 # ---------------------------------------------------------------------------
@@ -135,7 +147,7 @@ spec:
       - name: train
         image: $API_IMAGE
         command: [\"python\", \"-m\", \"src.models.training.train\"]
-        args: [\"--data-path=/data/fraud_detection.csv\", \"--mlflow-uri=http://mlflow-service:5000\", \"--experiment=$EXPERIMENT\", \"--model-name=fraud_detector\", \"--n-estimators=$N_ESTIMATORS\"]
+        args: [\"--data-path=/data/fraud_detection.csv\", \"--mlflow-uri=http://mlflow-service:5000\", \"--experiment=$EXPERIMENT\", \"--model-name=fraud_detector\", \"--n-estimators=$N_ESTIMATORS\"$([ -n "$CLASS_WEIGHT" ] && echo ", \"--class-weight=$CLASS_WEIGHT\"")$([ -n "$MAX_DEPTH" ] && echo ", \"--max-depth=$MAX_DEPTH\"")]
         envFrom:
         - configMapRef:
             name: ml-pipeline-config

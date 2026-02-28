@@ -32,7 +32,7 @@ Get the Public IP of the running demo instance
 INSTANCE_IP=$(aws ec2 describe-instances \
     --filters "Name=tag:Name,Values=rt-ml-platform-demo-instance" "Name=instance-state-name,Values=running" \
     --query "Reservations[*].Instances[*].PublicIpAddress" \
-    --output text)
+    --output text) && echo $INSTANCE_IP
 ```
 
 Verify IP was found
@@ -84,29 +84,28 @@ Verify the upload:
 aws s3 ls s3://rt-ml-platform-training-data-demo/datasets/
 ```
 
-### 5. Train Model Version 1 (Cloud-Side Training)
+### 5. Train Model Version 1 (Baseline)
 
 Training now runs as a **K8s Job inside the cluster**, not on your laptop.
 The training Job downloads data from S3, trains, and registers the model in MLflow.
 The evaluation gate then compares it against the current champion and promotes only if it's better.
 
-**Option A: Using the trigger script (recommended for live demo)**
+We start with a **weak baseline** model: few estimators and shallow trees (max depth 1). This model will have decent accuracy (~80%) but poor fraud detection (f1 near 0) because the shallow trees can't learn complex fraud patterns.
+
 ```bash
 export EC2_IP=$INSTANCE_IP
-./scripts/demo/demo-aws/trigger-training.sh
+./scripts/demo/demo-aws/trigger-training.sh --n-estimators 10 --max-depth 1 --auto-promote
 ```
 
-**Option B: Using GitHub Actions (CI/CD path)**
-Trigger via the GitHub UI: Actions -> "Train Model" -> Run workflow.
+> We use `--auto-promote` for v1 since there is no champion to compare against yet.
 
-**Option C: Legacy local training (still supported)**
-```bash
-python scripts/demo/demo-aws/train.py
-```
+**Other training options:**
+- **GitHub Actions (CI/CD path):** Actions -> "Train Model" -> Run workflow
+- **Legacy local training:** `python scripts/demo/demo-aws/train.py`
 
 **What to expect:**
 *   Training Job runs inside the cluster (~1-2 minutes)
-*   Evaluation gate compares against current champion (or promotes first model unconditionally)
+*   Model v1 is promoted as the first champion (no prior model to compare against)
 *   API auto-detects the new production model within 10 seconds
 
 ### 6. Verify API Prediction (Version 1)
@@ -116,22 +115,27 @@ Send a prediction request to the remote API to confirm it is serving the model:
 ```bash
 curl -X POST "$API_URL/predict" \
   -H "Content-Type: application/json" \
-  -d @data/sample/demo/requests/baseline_prediction_request.json
+  -d @data/sample/demo/requests/baseline_prediction_request.json | python -m json.tool
 ```
 
 *   **Success Criteria**: Response contains `"model_version": "1"`.
 
-### 7. Train & Upgrade Model (Version 2)
+### 7. Train & Upgrade Model (Version 2 — Improved)
 
-Simulate a model improvement cycle by training with more estimators:
+Now train a **stronger model** with more estimators and unlimited tree depth:
 
 ```bash
 ./scripts/demo/demo-aws/trigger-training.sh --n-estimators 200
 ```
 
-1.  Training Job runs with 200 estimators (vs 100 in v1).
-2.  Evaluation gate compares v2 accuracy/F1 against v1 champion.
-3.  If v2 is better, it gets promoted automatically.
+**What happens:**
+1.  Training Job runs with 200 estimators and unlimited depth (vs 10 trees at depth 1 in v1).
+2.  Evaluation gate compares v2 against v1 champion on **accuracy** and **f1_score**.
+3.  v2 will have better accuracy (~82% vs ~81%) and much better f1 (~0.40 vs ~0.00), so it gets promoted.
+
+> **Tip:** You can also try `--class-weight balanced` to tell the classifier to pay more attention to the minority fraud class, trading some accuracy for better recall.
+
+> **How the evaluation gate decides:** The challenger must meet a minimum accuracy threshold (0.80) AND beat the champion on both accuracy and f1_score. See `src/models/evaluation/evaluate_and_promote.py` for details.
 
 ### 8. Verify Auto-Promotion (Zero-Downtime Deployment)
 
@@ -141,7 +145,7 @@ Check the model version:
 ```bash
 curl -X POST "$API_URL/predict" \
   -H "Content-Type: application/json" \
-  -d @data/sample/demo/requests/baseline_prediction_request.json
+  -d @data/sample/demo/requests/baseline_prediction_request.json | python -m json.tool
 ```
 
 *   **Success Criteria**: Response switches to `"model_version": "2"` without any downtime.
@@ -187,6 +191,30 @@ http://44.211.86.208:30500
     *   Ensure the model was actually promoted to "Production" in the MLflow UI.
 
 ## Cleanup
+
+### Reset MLflow (Re-run Demo)
+
+To reset the model registry and re-run the v1 vs v2 demo without destroying the cluster:
+
+```bash
+export MLFLOW_TRACKING_URI="http://$INSTANCE_IP:30500"
+python scripts/demo/utilities/cleanup_models.py --all --force
+```
+
+This deletes all registered models and experiments from MLflow. The API will temporarily have no model to serve, then auto-loads the new one within 10 seconds after you re-train and promote v1.
+
+> **Important:** After cleanup, you must restore the soft-deleted experiment before retraining:
+> ```bash
+> python -c "
+> import mlflow
+> mlflow.set_tracking_uri('$MLFLOW_TRACKING_URI')
+> client = mlflow.MlflowClient()
+> for exp in client.search_experiments(view_type=mlflow.entities.ViewType.DELETED_ONLY):
+>     client.restore_experiment(exp.experiment_id)
+>     print(f'Restored: {exp.name}')
+> "
+> ```
+> MLflow's `delete_experiment` is a soft-delete — the experiment stays in "deleted" state and blocks re-creation with the same name. Restoring it makes it usable again.
 
 ### Destroy Infrastructure & Secrets
 
