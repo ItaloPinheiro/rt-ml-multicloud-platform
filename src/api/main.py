@@ -206,6 +206,9 @@ class ModelManager:
             start_time = time.time()
             logger.info(f"Loading model from MLflow: {model_name}:{version}")
 
+            # Initialize model_version to avoid uninitialized variable
+            model_version = version
+
             # Load model from MLflow
             if version in ["latest", "production", "staging"]:
                 if version == "latest":
@@ -673,7 +676,7 @@ async def lifespan(app: FastAPI):
         try:
             await update_task
         except asyncio.CancelledError:
-            pass
+            pass  # Expected when cancelling the update task during shutdown
 
     logger.info("Shutting down ML Model API")
 

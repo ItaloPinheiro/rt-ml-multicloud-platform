@@ -13,10 +13,8 @@ import numpy as np
 try:
     import apache_beam as beam
     from apache_beam.pvalue import TaggedOutput
-    from apache_beam.transforms.window import TimestampedValue
 except ImportError:
     beam = None
-    TimestampedValue = None
     TaggedOutput = None
 
 import structlog

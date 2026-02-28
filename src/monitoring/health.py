@@ -205,7 +205,7 @@ class HealthChecker:
             try:
                 await self.check_task
             except asyncio.CancelledError:
-                pass
+                pass  # Expected when cancelling the health check loop
 
         self.logger.info("Health checker stopped")
 

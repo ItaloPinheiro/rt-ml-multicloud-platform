@@ -40,7 +40,7 @@ def list_models():
 
         if not models:
             print("No registered models found.")
-            return
+            return 0
 
         print(f"Found {len(models)} registered model(s):\n")
 

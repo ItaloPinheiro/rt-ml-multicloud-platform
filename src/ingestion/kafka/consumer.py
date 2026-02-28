@@ -10,13 +10,12 @@ from typing import Any, Dict, Generator, List
 
 try:
     from confluent_kafka import Consumer, KafkaError, KafkaException
-    from confluent_kafka.admin import AdminClient, ConfigResource
+    from confluent_kafka.admin import AdminClient
 except ImportError:
     Consumer = None
     KafkaError = None
     KafkaException = None
     AdminClient = None
-    ConfigResource = None
 
 import structlog
 
@@ -134,7 +133,7 @@ class KafkaConsumer(StreamIngestion):
                 topic_partitions=len(metadata.topics[self.topic].partitions),
             )
 
-        except (KafkaException, Exception) as e:
+        except Exception as e:
             self._connected = False
             error_msg = f"Failed to connect to Kafka: {str(e)}"
             self.logger.error("Kafka connection failed", error=str(e))
@@ -231,7 +230,7 @@ class KafkaConsumer(StreamIngestion):
                         error=str(e),
                     )
 
-        except (KafkaException, Exception) as e:
+        except Exception as e:
             self._increment_error_count()
             error_msg = f"Failed to consume from Kafka: {str(e)}"
             self.logger.error("Kafka consumption failed", error=str(e))
@@ -265,7 +264,7 @@ class KafkaConsumer(StreamIngestion):
             # Clear pending messages
             self._pending_messages = []
 
-        except (KafkaException, Exception) as e:
+        except Exception as e:
             self.logger.error(
                 "Failed to commit Kafka offsets",
                 count=len(self._pending_messages),
@@ -368,7 +367,7 @@ class KafkaConsumer(StreamIngestion):
                 "error": topic_metadata.error.str() if topic_metadata.error else None,
             }
 
-        except (KafkaException, Exception) as e:
+        except Exception as e:
             raise ConnectionError(f"Failed to get topic info: {str(e)}") from e
 
     def get_consumer_group_info(self) -> Dict[str, Any]:
@@ -425,7 +424,7 @@ class KafkaConsumer(StreamIngestion):
                 ),
             }
 
-        except (KafkaException, Exception) as e:
+        except Exception as e:
             raise ConnectionError(f"Failed to get consumer group info: {str(e)}") from e
 
     def seek_to_beginning(self) -> None:
@@ -445,7 +444,7 @@ class KafkaConsumer(StreamIngestion):
             else:
                 self.logger.warning("No partitions assigned, cannot seek")
 
-        except (KafkaException, Exception) as e:
+        except Exception as e:
             raise ConnectionError(f"Failed to seek to beginning: {str(e)}") from e
 
     def seek_to_end(self) -> None:
@@ -465,5 +464,5 @@ class KafkaConsumer(StreamIngestion):
             else:
                 self.logger.warning("No partitions assigned, cannot seek")
 
-        except (KafkaException, Exception) as e:
+        except Exception as e:
             raise ConnectionError(f"Failed to seek to end: {str(e)}") from e

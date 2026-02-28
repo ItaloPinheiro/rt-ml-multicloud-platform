@@ -329,7 +329,7 @@ class ModelUpdateManager:
                             self.current_versions[model_name] = version
                             break
             except Exception:
-                pass
+                pass  # Version lookup may fail during init; will be populated on first update check
 
         while True:
             try:

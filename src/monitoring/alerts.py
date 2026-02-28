@@ -470,7 +470,7 @@ class AlertManager:
             try:
                 await self.evaluation_task
             except asyncio.CancelledError:
-                pass
+                pass  # Expected when cancelling the evaluation task
 
         self.logger.info("Alert manager stopped")
 
