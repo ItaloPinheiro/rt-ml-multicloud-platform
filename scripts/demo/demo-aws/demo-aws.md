@@ -227,6 +227,112 @@ terraform destroy -auto-approve
 
 > **Note**: You do not need to manually delete secrets using the script. Terraform manages their lifecycle.
 
+## Cheatsheet
+
+Quick reference for common commands. All assume `$INSTANCE_IP` and env vars are set (see step 2).
+
+### SSH & Cluster
+
+```bash
+# SSH into the instance
+ssh -i ml-pipeline-debug.pem ubuntu@$INSTANCE_IP
+
+# List all pods
+ssh -i ml-pipeline-debug.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl get pods -n ml-pipeline"
+
+# Pod logs (replace <pod-name>)
+ssh -i ml-pipeline-debug.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl logs <pod-name> -n ml-pipeline --tail 100"
+
+# Logs by label
+ssh -i ml-pipeline-debug.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl logs -l app=ml-pipeline-api -n ml-pipeline --tail 50"
+ssh -i ml-pipeline-debug.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl logs -l app=mlflow -n ml-pipeline --tail 50"
+
+# Training job logs
+ssh -i ml-pipeline-debug.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl logs job/model-training -n ml-pipeline -c train"
+
+# Evaluation job logs
+ssh -i ml-pipeline-debug.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl logs job/model-evaluation -n ml-pipeline"
+
+# Restart a deployment (e.g. after config change)
+ssh -i ml-pipeline-debug.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl rollout restart deployment/ml-pipeline-api -n ml-pipeline"
+
+# Delete completed/failed jobs
+ssh -i ml-pipeline-debug.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl delete job model-training model-evaluation -n ml-pipeline --ignore-not-found"
+
+# Re-apply kustomize manifests
+ssh -i ml-pipeline-debug.pem ubuntu@$INSTANCE_IP "cd /opt/ml-platform && sudo k3s kubectl kustomize ops/k8s/overlays/aws-demo --load-restrictor LoadRestrictionsNone | sudo k3s kubectl apply -f -"
+```
+
+### MLflow & Models
+
+```bash
+# List registered models, versions, and experiments
+export MLFLOW_TRACKING_URI="http://$INSTANCE_IP:30500"
+python scripts/demo/utilities/list_models.py
+
+# Compare models and find the best across experiments
+python scripts/demo/utilities/compare_models.py
+
+# Clean up all models and experiments (reset for re-demo)
+python scripts/demo/utilities/cleanup_models.py --all --force
+
+# Restore soft-deleted experiments (required after cleanup before retraining)
+python -c "
+import mlflow
+mlflow.set_tracking_uri('$MLFLOW_TRACKING_URI')
+client = mlflow.MlflowClient()
+for exp in client.search_experiments(view_type=mlflow.entities.ViewType.DELETED_ONLY):
+    client.restore_experiment(exp.experiment_id)
+    print(f'Restored: {exp.name}')
+"
+```
+
+### Training
+
+```bash
+export EC2_IP=$INSTANCE_IP
+
+# Train with defaults (100 estimators)
+./scripts/demo/demo-aws/trigger-training.sh
+
+# Train weak baseline (for v1 demo)
+./scripts/demo/demo-aws/trigger-training.sh --n-estimators 10 --max-depth 1 --auto-promote
+
+# Train improved model (for v2 demo)
+./scripts/demo/demo-aws/trigger-training.sh --n-estimators 200
+
+# Train with class weighting (better fraud recall)
+./scripts/demo/demo-aws/trigger-training.sh --n-estimators 200 --class-weight balanced
+```
+
+### API
+
+```bash
+# Health check
+curl -s "$API_URL/health" | python -m json.tool
+
+# Prediction request
+curl -s -X POST "$API_URL/predict" \
+  -H "Content-Type: application/json" \
+  -d @data/sample/demo/requests/baseline_prediction_request.json | python -m json.tool
+
+# API docs (open in browser)
+echo "$API_URL/docs"
+```
+
+### S3 Data
+
+```bash
+# Upload training data
+aws s3 cp data/sample/demo/datasets/fraud_detection.csv \
+  s3://rt-ml-platform-training-data-demo/datasets/fraud_detection.csv
+
+# List uploaded data
+aws s3 ls s3://rt-ml-platform-training-data-demo/datasets/
+```
+
+---
+
 ## Automated Deployment (CD Pipeline)
 
 When code is merged to `main`, the CD pipeline automatically:
