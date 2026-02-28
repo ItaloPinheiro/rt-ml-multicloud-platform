@@ -210,7 +210,7 @@ jobs:
           IMAGE_TAG="sha-${{ github.sha }}"
           REGISTRY="ghcr.io/italopinheiro/rt-ml-multicloud-platform"
 
-          echo "� Pulling latest infrastructure manifests..."
+          echo "Pulling latest infrastructure manifests..."
           cd /home/ubuntu/rt-ml-multicloud-platform
           git fetch origin main
           git reset --hard origin/main
@@ -218,7 +218,7 @@ jobs:
           echo "Applying latest Kubernetes configuration..."
           sudo k3s kubectl kustomize ops/k8s/overlays/aws-demo --load-restrictor LoadRestrictionsNone | sudo k3s kubectl apply -f -
 
-          echo "�🚀 Deploying images with tag: ${IMAGE_TAG}"
+          echo "Deploying images with tag: ${IMAGE_TAG}"
 
           sudo k3s kubectl set image deployment/ml-pipeline-api \
             api=${REGISTRY}/api:${IMAGE_TAG} -n ml-pipeline
@@ -232,7 +232,7 @@ jobs:
           sudo k3s kubectl rollout status deployment/ml-pipeline-api \
             -n ml-pipeline --timeout=600s
 
-          echo "✅ Deployment complete"
+          echo "Deployment complete"
 
     - name: Verify deployment
       uses: appleboy/ssh-action@v1
@@ -246,10 +246,10 @@ jobs:
           sudo k3s kubectl get pods -n ml-pipeline
           echo ""
           echo "=== API Health Check ==="
-          curl -sf http://localhost:30800/health || echo "⚠️ API not healthy yet (may still be starting)"
+          curl -sf http://localhost:30800/health || echo "WARNING: API not healthy yet (may still be starting)"
           echo ""
           echo "=== MLflow Health Check ==="
-          curl -sf http://localhost:30500/health || echo "⚠️ MLflow not healthy yet (may still be starting)"
+          curl -sf http://localhost:30500/health || echo "WARNING: MLflow not healthy yet (may still be starting)"
 
   # ==========================================================================
   # VALIDATE STAGING - Always runs (no cluster needed)
@@ -270,14 +270,14 @@ jobs:
     - name: Validate staging manifests
       run: |
         kustomize build ops/k8s/overlays/staging > /tmp/staging-manifests.yaml
-        echo "✅ Staging manifests validated successfully"
-        echo "📦 Manifest size: $(wc -l < /tmp/staging-manifests.yaml) lines"
+        echo "Staging manifests validated successfully"
+        echo "Manifest size: $(wc -l < /tmp/staging-manifests.yaml) lines"
         
     - name: Update image tag for validation
       run: |
         cd ops/k8s/overlays/staging
         kustomize edit set image ml-pipeline/api=ghcr.io/italopinheiro/rt-ml-multicloud-platform:main
-        echo "✅ Image tag updated"
+        echo "Image tag updated"
 
     - name: Show rendered manifests (preview)
       run: |
@@ -367,7 +367,7 @@ jobs:
     steps:
     - name: Clean up old images
       run: |
-        echo "🧹 Cleaning up old images..."
+        echo "Cleaning up old images..."
         # Note: In GHCR, packages pushed to user/repo/image become namespaced packages.
         # We must URL encode the slash as %2f for the API path.
         
@@ -382,7 +382,7 @@ jobs:
             | tail -n +6 \
             | xargs -I {} gh api --method DELETE "users/${{ github.repository_owner }}/packages/container/${PKG}/versions/{}" || true
         done
-        echo "✅ Cleanup complete"
+        echo "Cleanup complete"
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       continue-on-error: true
@@ -481,7 +481,7 @@ jobs:
     steps:
     - name: Generate summary
       run: |
-        echo "## 📊 Deployment Summary" >> $GITHUB_STEP_SUMMARY
+        echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "| Stage | Status |" >> $GITHUB_STEP_SUMMARY
         echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
@@ -494,7 +494,7 @@ jobs:
         echo "| Deploy Production | ${{ needs.deploy-production.result || 'skipped (ENABLE_PRODUCTION_DEPLOY=false)' }} |" >> $GITHUB_STEP_SUMMARY
         echo "| Cleanup | ${{ needs.cleanup.result }} |" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### 🔧 Feature Flags" >> $GITHUB_STEP_SUMMARY
+        echo "### Feature Flags" >> $GITHUB_STEP_SUMMARY
         echo "- \`ENABLE_DEMO_DEPLOY\`: Set in repo variables to enable demo instance deployment" >> $GITHUB_STEP_SUMMARY
         echo "- \`ENABLE_STAGING_DEPLOY\`: Set in repo variables to enable staging deployment" >> $GITHUB_STEP_SUMMARY
         echo "- \`ENABLE_PRODUCTION_DEPLOY\`: Set in repo variables to enable production deployment" >> $GITHUB_STEP_SUMMARY
