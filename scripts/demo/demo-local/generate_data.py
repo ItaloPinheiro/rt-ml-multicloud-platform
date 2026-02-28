@@ -20,7 +20,7 @@ DEMO_DATASETS_DIR = os.path.join(DEMO_DIR, "datasets")
 DEMO_REQUESTS_DIR = os.path.join(DEMO_DIR, "requests")
 NUM_TRANSACTIONS = 1000
 NUM_USERS = 100
-FRAUD_RATE = 0.05  # 5% of transactions are fraudulent
+FRAUD_RATE = float(os.getenv("FRAUD_RATE", "0.70"))  # Cap on fraud probability per transaction
 
 # Merchant categories with fraud likelihood
 MERCHANT_CATEGORIES = {
@@ -135,8 +135,8 @@ def generate_transactions(users: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 
         risk_score = min(risk_factors + user["risk_profile"]["risk_score"], 1.0)
 
-        # Determine if fraudulent
-        fraud_probability = MERCHANT_CATEGORIES[merchant_category] + risk_factors
+        # Determine if fraudulent (base risk from merchant + situational factors, capped by FRAUD_RATE)
+        fraud_probability = min(MERCHANT_CATEGORIES[merchant_category] + risk_factors, 1.0)
         is_fraud = random.random() < fraud_probability and random.random() < FRAUD_RATE
 
         # Generate city info
@@ -215,6 +215,8 @@ def create_sample_request_file(transactions: List[Dict[str, Any]]) -> None:
 
 def main():
     """Generate all sample data files."""
+    seed = int(os.getenv("RANDOM_SEED", "1"))
+    random.seed(seed)
     print("Generating sample data for ML pipeline demo...")
 
     # Ensure all directories exist

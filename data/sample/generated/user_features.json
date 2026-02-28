@@ -2,166 +2,29 @@
   {
     "user_id": "user_000",
     "demographics": {
-      "age": 38,
-      "income": 79759,
-      "credit_score": 467,
-      "account_age_months": 40
-    },
-    "location": {
-      "city": "San Diego",
-      "state": "TX",
-      "country": "US",
-      "zip_code": "19101"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 17,
-      "preferred_categories": [
-        "electronics",
-        "travel",
-        "online_retail"
-      ],
-      "typical_amount_range": [
-        62.44,
-        914.22
-      ],
-      "active_hours": [
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 2,
-      "suspicious_activity_flags": 0,
-      "risk_score": 0.583
-    }
-  },
-  {
-    "user_id": "user_001",
-    "demographics": {
-      "age": 25,
-      "income": 112746,
-      "credit_score": 471,
-      "account_age_months": 75
+      "age": 26,
+      "income": 99606,
+      "credit_score": 364,
+      "account_age_months": 33
     },
     "location": {
       "city": "Los Angeles",
-      "state": "NY",
-      "country": "US",
-      "zip_code": "78201"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 14,
-      "preferred_categories": [
-        "online_retail",
-        "restaurant",
-        "gas_station"
-      ],
-      "typical_amount_range": [
-        69.67,
-        528.78
-      ],
-      "active_hours": [
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 2,
-      "suspicious_activity_flags": 1,
-      "risk_score": 0.314
-    }
-  },
-  {
-    "user_id": "user_002",
-    "demographics": {
-      "age": 76,
-      "income": 30580,
-      "credit_score": 313,
-      "account_age_months": 7
-    },
-    "location": {
-      "city": "San Diego",
-      "state": "PA",
-      "country": "US",
-      "zip_code": "85001"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 12,
-      "preferred_categories": [
-        "gas_station",
-        "travel",
-        "grocery"
-      ],
-      "typical_amount_range": [
-        61.01,
-        911.87
-      ],
-      "active_hours": [
-        6,
-        7,
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 2,
-      "suspicious_activity_flags": 2,
-      "risk_score": 0.437
-    }
-  },
-  {
-    "user_id": "user_003",
-    "demographics": {
-      "age": 70,
-      "income": 122817,
-      "credit_score": 704,
-      "account_age_months": 100
-    },
-    "location": {
-      "city": "Houston",
       "state": "CA",
       "country": "US",
       "zip_code": "92101"
     },
     "behavior": {
-      "avg_monthly_transactions": 23,
+      "avg_monthly_transactions": 35,
       "preferred_categories": [
+        "online_retail",
         "electronics",
-        "cash_advance",
-        "restaurant"
+        "gas_station"
       ],
       "typical_amount_range": [
-        92.03,
-        110.19
+        53.91,
+        903.99
       ],
       "active_hours": [
-        8,
         9,
         10,
         11,
@@ -177,35 +40,35 @@
       ]
     },
     "risk_profile": {
-      "historical_fraud_reports": 0,
+      "historical_fraud_reports": 2,
       "suspicious_activity_flags": 0,
-      "risk_score": 0.25
+      "risk_score": 0.696
     }
   },
   {
-    "user_id": "user_004",
+    "user_id": "user_001",
     "demographics": {
-      "age": 21,
-      "income": 50715,
-      "credit_score": 700,
-      "account_age_months": 94
+      "age": 35,
+      "income": 119573,
+      "credit_score": 534,
+      "account_age_months": 76
     },
     "location": {
-      "city": "Dallas",
-      "state": "CA",
+      "city": "Los Angeles",
+      "state": "PA",
       "country": "US",
-      "zip_code": "78201"
+      "zip_code": "10001"
     },
     "behavior": {
-      "avg_monthly_transactions": 35,
+      "avg_monthly_transactions": 6,
       "preferred_categories": [
-        "cash_advance",
-        "online_retail",
-        "gas_station"
+        "grocery",
+        "clothing",
+        "travel"
       ],
       "typical_amount_range": [
-        85.07,
-        914.64
+        94.52,
+        443.08
       ],
       "active_hours": [
         7,
@@ -227,267 +90,33 @@
     "risk_profile": {
       "historical_fraud_reports": 2,
       "suspicious_activity_flags": 0,
-      "risk_score": 0.713
+      "risk_score": 0.528
     }
   },
   {
-    "user_id": "user_005",
+    "user_id": "user_002",
     "demographics": {
-      "age": 60,
-      "income": 54868,
-      "credit_score": 691,
-      "account_age_months": 48
+      "age": 66,
+      "income": 82394,
+      "credit_score": 807,
+      "account_age_months": 71
     },
     "location": {
       "city": "Houston",
-      "state": "TX",
-      "country": "US",
-      "zip_code": "60601"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 15,
-      "preferred_categories": [
-        "pharmacy",
-        "grocery",
-        "cash_advance"
-      ],
-      "typical_amount_range": [
-        17.16,
-        900.0
-      ],
-      "active_hours": [
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19,
-        20,
-        21
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 1,
-      "suspicious_activity_flags": 0,
-      "risk_score": 0.838
-    }
-  },
-  {
-    "user_id": "user_006",
-    "demographics": {
-      "age": 21,
-      "income": 123570,
-      "credit_score": 720,
-      "account_age_months": 51
-    },
-    "location": {
-      "city": "San Antonio",
-      "state": "AZ",
-      "country": "US",
-      "zip_code": "85001"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 19,
-      "preferred_categories": [
-        "grocery",
-        "gas_station",
-        "online_retail"
-      ],
-      "typical_amount_range": [
-        64.91,
-        753.02
-      ],
-      "active_hours": [
-        7,
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 1,
-      "suspicious_activity_flags": 0,
-      "risk_score": 0.333
-    }
-  },
-  {
-    "user_id": "user_007",
-    "demographics": {
-      "age": 69,
-      "income": 57388,
-      "credit_score": 430,
-      "account_age_months": 94
-    },
-    "location": {
-      "city": "San Antonio",
       "state": "PA",
       "country": "US",
       "zip_code": "77001"
     },
     "behavior": {
-      "avg_monthly_transactions": 25,
-      "preferred_categories": [
-        "clothing",
-        "online_retail",
-        "cash_advance"
-      ],
-      "typical_amount_range": [
-        55.34,
-        859.19
-      ],
-      "active_hours": [
-        7,
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 1,
-      "suspicious_activity_flags": 2,
-      "risk_score": 0.647
-    }
-  },
-  {
-    "user_id": "user_008",
-    "demographics": {
-      "age": 73,
-      "income": 37453,
-      "credit_score": 497,
-      "account_age_months": 20
-    },
-    "location": {
-      "city": "San Diego",
-      "state": "CA",
-      "country": "US",
-      "zip_code": "19101"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 10,
-      "preferred_categories": [
-        "online_retail",
-        "jewelry",
-        "grocery"
-      ],
-      "typical_amount_range": [
-        79.17,
-        667.86
-      ],
-      "active_hours": [
-        7,
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 2,
-      "suspicious_activity_flags": 0,
-      "risk_score": 0.99
-    }
-  },
-  {
-    "user_id": "user_009",
-    "demographics": {
-      "age": 38,
-      "income": 75976,
-      "credit_score": 326,
-      "account_age_months": 66
-    },
-    "location": {
-      "city": "New York",
-      "state": "PA",
-      "country": "US",
-      "zip_code": "19101"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 32,
+      "avg_monthly_transactions": 48,
       "preferred_categories": [
         "electronics",
-        "cash_advance",
-        "clothing"
+        "pharmacy",
+        "jewelry"
       ],
       "typical_amount_range": [
-        24.77,
-        574.38
-      ],
-      "active_hours": [
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 1,
-      "suspicious_activity_flags": 0,
-      "risk_score": 0.556
-    }
-  },
-  {
-    "user_id": "user_010",
-    "demographics": {
-      "age": 62,
-      "income": 126330,
-      "credit_score": 671,
-      "account_age_months": 32
-    },
-    "location": {
-      "city": "New York",
-      "state": "CA",
-      "country": "US",
-      "zip_code": "10001"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 32,
-      "preferred_categories": [
-        "online_retail",
-        "travel",
-        "electronics"
-      ],
-      "typical_amount_range": [
-        38.78,
-        992.56
+        93.39,
+        474.56
       ],
       "active_hours": [
         6,
@@ -507,37 +136,36 @@
     },
     "risk_profile": {
       "historical_fraud_reports": 2,
-      "suspicious_activity_flags": 3,
-      "risk_score": 0.97
+      "suspicious_activity_flags": 2,
+      "risk_score": 0.121
     }
   },
   {
-    "user_id": "user_011",
+    "user_id": "user_003",
     "demographics": {
-      "age": 64,
-      "income": 62729,
-      "credit_score": 355,
-      "account_age_months": 76
+      "age": 39,
+      "income": 142384,
+      "credit_score": 812,
+      "account_age_months": 120
     },
     "location": {
-      "city": "Los Angeles",
+      "city": "San Antonio",
       "state": "TX",
       "country": "US",
-      "zip_code": "90210"
+      "zip_code": "77001"
     },
     "behavior": {
       "avg_monthly_transactions": 24,
       "preferred_categories": [
-        "travel",
         "jewelry",
-        "clothing"
+        "pharmacy",
+        "online_retail"
       ],
       "typical_amount_range": [
-        87.63,
-        428.36
+        63.01,
+        131.07
       ],
       "active_hours": [
-        6,
         7,
         8,
         9,
@@ -558,34 +186,221 @@
     },
     "risk_profile": {
       "historical_fraud_reports": 1,
-      "suspicious_activity_flags": 1,
-      "risk_score": 0.68
+      "suspicious_activity_flags": 3,
+      "risk_score": 0.665
     }
   },
   {
-    "user_id": "user_012",
+    "user_id": "user_004",
     "demographics": {
-      "age": 22,
-      "income": 32830,
-      "credit_score": 534,
-      "account_age_months": 89
+      "age": 41,
+      "income": 96932,
+      "credit_score": 683,
+      "account_age_months": 12
     },
     "location": {
-      "city": "Philadelphia",
+      "city": "San Diego",
       "state": "TX",
       "country": "US",
-      "zip_code": "78201"
+      "zip_code": "90210"
     },
     "behavior": {
-      "avg_monthly_transactions": 14,
+      "avg_monthly_transactions": 15,
       "preferred_categories": [
-        "restaurant",
-        "gas_station",
-        "online_retail"
+        "clothing",
+        "online_retail",
+        "cash_advance"
       ],
       "typical_amount_range": [
-        59.48,
-        521.01
+        54.07,
+        126.62
+      ],
+      "active_hours": [
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 2,
+      "suspicious_activity_flags": 3,
+      "risk_score": 0.647
+    }
+  },
+  {
+    "user_id": "user_005",
+    "demographics": {
+      "age": 28,
+      "income": 90829,
+      "credit_score": 532,
+      "account_age_months": 2
+    },
+    "location": {
+      "city": "Houston",
+      "state": "TX",
+      "country": "US",
+      "zip_code": "75201"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 19,
+      "preferred_categories": [
+        "online_retail",
+        "clothing",
+        "cash_advance"
+      ],
+      "typical_amount_range": [
+        95.72,
+        620.02
+      ],
+      "active_hours": [
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 2,
+      "suspicious_activity_flags": 0,
+      "risk_score": 0.384
+    }
+  },
+  {
+    "user_id": "user_006",
+    "demographics": {
+      "age": 72,
+      "income": 132542,
+      "credit_score": 824,
+      "account_age_months": 104
+    },
+    "location": {
+      "city": "Chicago",
+      "state": "TX",
+      "country": "US",
+      "zip_code": "75201"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 18,
+      "preferred_categories": [
+        "online_retail",
+        "grocery",
+        "pharmacy"
+      ],
+      "typical_amount_range": [
+        88.3,
+        613.0
+      ],
+      "active_hours": [
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 1,
+      "suspicious_activity_flags": 3,
+      "risk_score": 0.813
+    }
+  },
+  {
+    "user_id": "user_007",
+    "demographics": {
+      "age": 44,
+      "income": 70361,
+      "credit_score": 301,
+      "account_age_months": 69
+    },
+    "location": {
+      "city": "Dallas",
+      "state": "CA",
+      "country": "US",
+      "zip_code": "95101"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 26,
+      "preferred_categories": [
+        "pharmacy",
+        "grocery",
+        "electronics"
+      ],
+      "typical_amount_range": [
+        67.18,
+        595.68
+      ],
+      "active_hours": [
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 2,
+      "suspicious_activity_flags": 2,
+      "risk_score": 0.032
+    }
+  },
+  {
+    "user_id": "user_008",
+    "demographics": {
+      "age": 78,
+      "income": 113226,
+      "credit_score": 372,
+      "account_age_months": 11
+    },
+    "location": {
+      "city": "New York",
+      "state": "CA",
+      "country": "US",
+      "zip_code": "10001"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 22,
+      "preferred_categories": [
+        "electronics",
+        "jewelry",
+        "gas_station"
+      ],
+      "typical_amount_range": [
+        81.76,
+        266.15
       ],
       "active_hours": [
         8,
@@ -597,40 +412,86 @@
         14,
         15,
         16,
-        17,
-        18
+        17
       ]
     },
     "risk_profile": {
       "historical_fraud_reports": 0,
-      "suspicious_activity_flags": 3,
-      "risk_score": 0.378
+      "suspicious_activity_flags": 1,
+      "risk_score": 0.255
     }
   },
   {
-    "user_id": "user_013",
+    "user_id": "user_009",
     "demographics": {
-      "age": 59,
-      "income": 49236,
-      "credit_score": 356,
-      "account_age_months": 67
+      "age": 78,
+      "income": 47039,
+      "credit_score": 579,
+      "account_age_months": 83
+    },
+    "location": {
+      "city": "Phoenix",
+      "state": "CA",
+      "country": "US",
+      "zip_code": "19101"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 36,
+      "preferred_categories": [
+        "pharmacy",
+        "gas_station",
+        "grocery"
+      ],
+      "typical_amount_range": [
+        38.08,
+        409.01
+      ],
+      "active_hours": [
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 0,
+      "suspicious_activity_flags": 2,
+      "risk_score": 0.9
+    }
+  },
+  {
+    "user_id": "user_010",
+    "demographics": {
+      "age": 50,
+      "income": 52405,
+      "credit_score": 742,
+      "account_age_months": 105
     },
     "location": {
       "city": "New York",
-      "state": "IL",
+      "state": "TX",
       "country": "US",
-      "zip_code": "92101"
+      "zip_code": "10001"
     },
     "behavior": {
-      "avg_monthly_transactions": 41,
+      "avg_monthly_transactions": 30,
       "preferred_categories": [
-        "gas_station",
-        "clothing",
-        "cash_advance"
+        "restaurant",
+        "grocery",
+        "travel"
       ],
       "typical_amount_range": [
-        42.3,
-        803.37
+        50.11,
+        555.68
       ],
       "active_hours": [
         9,
@@ -642,41 +503,93 @@
         15,
         16,
         17,
-        18
+        18,
+        19,
+        20,
+        21
       ]
     },
     "risk_profile": {
       "historical_fraud_reports": 0,
       "suspicious_activity_flags": 3,
-      "risk_score": 0.315
+      "risk_score": 0.223
     }
   },
   {
-    "user_id": "user_014",
+    "user_id": "user_011",
     "demographics": {
-      "age": 76,
-      "income": 62956,
-      "credit_score": 795,
-      "account_age_months": 107
+      "age": 59,
+      "income": 29023,
+      "credit_score": 704,
+      "account_age_months": 87
     },
     "location": {
-      "city": "Houston",
-      "state": "TX",
+      "city": "San Jose",
+      "state": "PA",
+      "country": "US",
+      "zip_code": "78201"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 8,
+      "preferred_categories": [
+        "jewelry",
+        "restaurant",
+        "electronics"
+      ],
+      "typical_amount_range": [
+        88.8,
+        375.75
+      ],
+      "active_hours": [
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 1,
+      "suspicious_activity_flags": 1,
+      "risk_score": 0.416
+    }
+  },
+  {
+    "user_id": "user_012",
+    "demographics": {
+      "age": 34,
+      "income": 42090,
+      "credit_score": 308,
+      "account_age_months": 72
+    },
+    "location": {
+      "city": "New York",
+      "state": "CA",
       "country": "US",
       "zip_code": "77001"
     },
     "behavior": {
-      "avg_monthly_transactions": 30,
+      "avg_monthly_transactions": 41,
       "preferred_categories": [
-        "jewelry",
-        "cash_advance",
+        "pharmacy",
+        "restaurant",
         "grocery"
       ],
       "typical_amount_range": [
-        49.04,
-        670.48
+        44.02,
+        412.24
       ],
       "active_hours": [
+        7,
         8,
         9,
         10,
@@ -696,329 +609,2786 @@
     "risk_profile": {
       "historical_fraud_reports": 2,
       "suspicious_activity_flags": 3,
-      "risk_score": 0.977
+      "risk_score": 0.591
+    }
+  },
+  {
+    "user_id": "user_013",
+    "demographics": {
+      "age": 49,
+      "income": 38687,
+      "credit_score": 699,
+      "account_age_months": 38
+    },
+    "location": {
+      "city": "Dallas",
+      "state": "CA",
+      "country": "US",
+      "zip_code": "10001"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 25,
+      "preferred_categories": [
+        "travel",
+        "online_retail",
+        "jewelry"
+      ],
+      "typical_amount_range": [
+        11.63,
+        280.77
+      ],
+      "active_hours": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 0,
+      "suspicious_activity_flags": 2,
+      "risk_score": 0.429
+    }
+  },
+  {
+    "user_id": "user_014",
+    "demographics": {
+      "age": 35,
+      "income": 113402,
+      "credit_score": 398,
+      "account_age_months": 108
+    },
+    "location": {
+      "city": "San Antonio",
+      "state": "TX",
+      "country": "US",
+      "zip_code": "19101"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 48,
+      "preferred_categories": [
+        "clothing",
+        "pharmacy",
+        "electronics"
+      ],
+      "typical_amount_range": [
+        15.88,
+        136.36
+      ],
+      "active_hours": [
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 0,
+      "suspicious_activity_flags": 1,
+      "risk_score": 0.268
     }
   },
   {
     "user_id": "user_015",
     "demographics": {
+      "age": 39,
+      "income": 103670,
+      "credit_score": 818,
+      "account_age_months": 108
+    },
+    "location": {
+      "city": "Phoenix",
+      "state": "PA",
+      "country": "US",
+      "zip_code": "19101"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 26,
+      "preferred_categories": [
+        "gas_station",
+        "jewelry",
+        "electronics"
+      ],
+      "typical_amount_range": [
+        88.07,
+        643.58
+      ],
+      "active_hours": [
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 2,
+      "suspicious_activity_flags": 0,
+      "risk_score": 0.321
+    }
+  },
+  {
+    "user_id": "user_016",
+    "demographics": {
+      "age": 44,
+      "income": 34593,
+      "credit_score": 689,
+      "account_age_months": 111
+    },
+    "location": {
+      "city": "Chicago",
+      "state": "IL",
+      "country": "US",
+      "zip_code": "19101"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 12,
+      "preferred_categories": [
+        "travel",
+        "online_retail",
+        "gas_station"
+      ],
+      "typical_amount_range": [
+        61.37,
+        301.34
+      ],
+      "active_hours": [
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 1,
+      "suspicious_activity_flags": 2,
+      "risk_score": 0.564
+    }
+  },
+  {
+    "user_id": "user_017",
+    "demographics": {
+      "age": 77,
+      "income": 39983,
+      "credit_score": 768,
+      "account_age_months": 115
+    },
+    "location": {
+      "city": "Phoenix",
+      "state": "CA",
+      "country": "US",
+      "zip_code": "10001"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 23,
+      "preferred_categories": [
+        "grocery",
+        "travel",
+        "gas_station"
+      ],
+      "typical_amount_range": [
+        47.22,
+        843.51
+      ],
+      "active_hours": [
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 0,
+      "suspicious_activity_flags": 3,
+      "risk_score": 0.162
+    }
+  },
+  {
+    "user_id": "user_018",
+    "demographics": {
+      "age": 46,
+      "income": 46939,
+      "credit_score": 547,
+      "account_age_months": 21
+    },
+    "location": {
+      "city": "Los Angeles",
+      "state": "TX",
+      "country": "US",
+      "zip_code": "78201"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 39,
+      "preferred_categories": [
+        "jewelry",
+        "clothing",
+        "travel"
+      ],
+      "typical_amount_range": [
+        74.04,
+        383.01
+      ],
+      "active_hours": [
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 1,
+      "suspicious_activity_flags": 0,
+      "risk_score": 0.027
+    }
+  },
+  {
+    "user_id": "user_019",
+    "demographics": {
+      "age": 68,
+      "income": 146320,
+      "credit_score": 602,
+      "account_age_months": 93
+    },
+    "location": {
+      "city": "San Jose",
+      "state": "PA",
+      "country": "US",
+      "zip_code": "92101"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 30,
+      "preferred_categories": [
+        "cash_advance",
+        "online_retail",
+        "gas_station"
+      ],
+      "typical_amount_range": [
+        15.78,
+        385.61
+      ],
+      "active_hours": [
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 1,
+      "suspicious_activity_flags": 1,
+      "risk_score": 0.785
+    }
+  },
+  {
+    "user_id": "user_020",
+    "demographics": {
+      "age": 67,
+      "income": 141812,
+      "credit_score": 780,
+      "account_age_months": 85
+    },
+    "location": {
+      "city": "Philadelphia",
+      "state": "AZ",
+      "country": "US",
+      "zip_code": "60601"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 39,
+      "preferred_categories": [
+        "electronics",
+        "jewelry",
+        "travel"
+      ],
+      "typical_amount_range": [
+        32.17,
+        173.23
+      ],
+      "active_hours": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 1,
+      "suspicious_activity_flags": 0,
+      "risk_score": 0.652
+    }
+  },
+  {
+    "user_id": "user_021",
+    "demographics": {
+      "age": 59,
+      "income": 69418,
+      "credit_score": 532,
+      "account_age_months": 50
+    },
+    "location": {
+      "city": "Phoenix",
+      "state": "NY",
+      "country": "US",
+      "zip_code": "19101"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 16,
+      "preferred_categories": [
+        "cash_advance",
+        "jewelry",
+        "electronics"
+      ],
+      "typical_amount_range": [
+        40.09,
+        589.8
+      ],
+      "active_hours": [
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 0,
+      "suspicious_activity_flags": 0,
+      "risk_score": 0.808
+    }
+  },
+  {
+    "user_id": "user_022",
+    "demographics": {
+      "age": 43,
+      "income": 34480,
+      "credit_score": 574,
+      "account_age_months": 71
+    },
+    "location": {
+      "city": "Los Angeles",
+      "state": "CA",
+      "country": "US",
+      "zip_code": "10001"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 45,
+      "preferred_categories": [
+        "grocery",
+        "jewelry",
+        "cash_advance"
+      ],
+      "typical_amount_range": [
+        54.39,
+        876.38
+      ],
+      "active_hours": [
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 2,
+      "suspicious_activity_flags": 2,
+      "risk_score": 0.077
+    }
+  },
+  {
+    "user_id": "user_023",
+    "demographics": {
+      "age": 78,
+      "income": 112195,
+      "credit_score": 477,
+      "account_age_months": 23
+    },
+    "location": {
+      "city": "Chicago",
+      "state": "IL",
+      "country": "US",
+      "zip_code": "19101"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 24,
+      "preferred_categories": [
+        "gas_station",
+        "clothing",
+        "jewelry"
+      ],
+      "typical_amount_range": [
+        21.37,
+        286.07
+      ],
+      "active_hours": [
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 2,
+      "suspicious_activity_flags": 1,
+      "risk_score": 0.178
+    }
+  },
+  {
+    "user_id": "user_024",
+    "demographics": {
+      "age": 45,
+      "income": 95450,
+      "credit_score": 461,
+      "account_age_months": 7
+    },
+    "location": {
+      "city": "Houston",
+      "state": "AZ",
+      "country": "US",
+      "zip_code": "90210"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 48,
+      "preferred_categories": [
+        "pharmacy",
+        "online_retail",
+        "jewelry"
+      ],
+      "typical_amount_range": [
+        58.72,
+        866.16
+      ],
+      "active_hours": [
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 1,
+      "suspicious_activity_flags": 2,
+      "risk_score": 0.172
+    }
+  },
+  {
+    "user_id": "user_025",
+    "demographics": {
+      "age": 49,
+      "income": 28199,
+      "credit_score": 726,
+      "account_age_months": 74
+    },
+    "location": {
+      "city": "New York",
+      "state": "NY",
+      "country": "US",
+      "zip_code": "19101"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 42,
+      "preferred_categories": [
+        "restaurant",
+        "travel",
+        "clothing"
+      ],
+      "typical_amount_range": [
+        33.32,
+        846.04
+      ],
+      "active_hours": [
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 1,
+      "suspicious_activity_flags": 1,
+      "risk_score": 0.612
+    }
+  },
+  {
+    "user_id": "user_026",
+    "demographics": {
       "age": 32,
-      "income": 55049,
-      "credit_score": 419,
-      "account_age_months": 96
+      "income": 88700,
+      "credit_score": 307,
+      "account_age_months": 23
+    },
+    "location": {
+      "city": "Dallas",
+      "state": "PA",
+      "country": "US",
+      "zip_code": "75201"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 46,
+      "preferred_categories": [
+        "pharmacy",
+        "electronics",
+        "clothing"
+      ],
+      "typical_amount_range": [
+        38.17,
+        718.25
+      ],
+      "active_hours": [
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 1,
+      "suspicious_activity_flags": 2,
+      "risk_score": 0.56
+    }
+  },
+  {
+    "user_id": "user_027",
+    "demographics": {
+      "age": 76,
+      "income": 120449,
+      "credit_score": 581,
+      "account_age_months": 83
+    },
+    "location": {
+      "city": "Houston",
+      "state": "NY",
+      "country": "US",
+      "zip_code": "90210"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 37,
+      "preferred_categories": [
+        "cash_advance",
+        "restaurant",
+        "electronics"
+      ],
+      "typical_amount_range": [
+        38.06,
+        723.3
+      ],
+      "active_hours": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 2,
+      "suspicious_activity_flags": 3,
+      "risk_score": 0.595
+    }
+  },
+  {
+    "user_id": "user_028",
+    "demographics": {
+      "age": 72,
+      "income": 41153,
+      "credit_score": 826,
+      "account_age_months": 74
+    },
+    "location": {
+      "city": "San Antonio",
+      "state": "IL",
+      "country": "US",
+      "zip_code": "60601"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 21,
+      "preferred_categories": [
+        "online_retail",
+        "electronics",
+        "grocery"
+      ],
+      "typical_amount_range": [
+        54.55,
+        454.25
+      ],
+      "active_hours": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 2,
+      "suspicious_activity_flags": 1,
+      "risk_score": 0.544
+    }
+  },
+  {
+    "user_id": "user_029",
+    "demographics": {
+      "age": 20,
+      "income": 93704,
+      "credit_score": 392,
+      "account_age_months": 104
+    },
+    "location": {
+      "city": "Phoenix",
+      "state": "CA",
+      "country": "US",
+      "zip_code": "85001"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 10,
+      "preferred_categories": [
+        "restaurant",
+        "gas_station",
+        "pharmacy"
+      ],
+      "typical_amount_range": [
+        86.59,
+        316.89
+      ],
+      "active_hours": [
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 1,
+      "suspicious_activity_flags": 1,
+      "risk_score": 0.91
+    }
+  },
+  {
+    "user_id": "user_030",
+    "demographics": {
+      "age": 46,
+      "income": 41558,
+      "credit_score": 799,
+      "account_age_months": 28
+    },
+    "location": {
+      "city": "Los Angeles",
+      "state": "TX",
+      "country": "US",
+      "zip_code": "95101"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 39,
+      "preferred_categories": [
+        "online_retail",
+        "gas_station",
+        "jewelry"
+      ],
+      "typical_amount_range": [
+        34.99,
+        440.96
+      ],
+      "active_hours": [
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 2,
+      "suspicious_activity_flags": 3,
+      "risk_score": 0.579
+    }
+  },
+  {
+    "user_id": "user_031",
+    "demographics": {
+      "age": 19,
+      "income": 107251,
+      "credit_score": 548,
+      "account_age_months": 107
+    },
+    "location": {
+      "city": "Phoenix",
+      "state": "TX",
+      "country": "US",
+      "zip_code": "60601"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 23,
+      "preferred_categories": [
+        "restaurant",
+        "clothing",
+        "electronics"
+      ],
+      "typical_amount_range": [
+        34.59,
+        627.16
+      ],
+      "active_hours": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 1,
+      "suspicious_activity_flags": 1,
+      "risk_score": 0.545
+    }
+  },
+  {
+    "user_id": "user_032",
+    "demographics": {
+      "age": 49,
+      "income": 80045,
+      "credit_score": 424,
+      "account_age_months": 99
+    },
+    "location": {
+      "city": "Houston",
+      "state": "CA",
+      "country": "US",
+      "zip_code": "78201"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 18,
+      "preferred_categories": [
+        "jewelry",
+        "gas_station",
+        "grocery"
+      ],
+      "typical_amount_range": [
+        20.63,
+        772.54
+      ],
+      "active_hours": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 2,
+      "suspicious_activity_flags": 1,
+      "risk_score": 0.075
+    }
+  },
+  {
+    "user_id": "user_033",
+    "demographics": {
+      "age": 41,
+      "income": 100048,
+      "credit_score": 618,
+      "account_age_months": 56
+    },
+    "location": {
+      "city": "Dallas",
+      "state": "PA",
+      "country": "US",
+      "zip_code": "75201"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 25,
+      "preferred_categories": [
+        "grocery",
+        "gas_station",
+        "pharmacy"
+      ],
+      "typical_amount_range": [
+        74.62,
+        415.19
+      ],
+      "active_hours": [
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 2,
+      "suspicious_activity_flags": 3,
+      "risk_score": 0.113
+    }
+  },
+  {
+    "user_id": "user_034",
+    "demographics": {
+      "age": 76,
+      "income": 74487,
+      "credit_score": 691,
+      "account_age_months": 27
+    },
+    "location": {
+      "city": "Dallas",
+      "state": "NY",
+      "country": "US",
+      "zip_code": "85001"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 45,
+      "preferred_categories": [
+        "travel",
+        "clothing",
+        "electronics"
+      ],
+      "typical_amount_range": [
+        98.83,
+        515.42
+      ],
+      "active_hours": [
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 2,
+      "suspicious_activity_flags": 2,
+      "risk_score": 0.703
+    }
+  },
+  {
+    "user_id": "user_035",
+    "demographics": {
+      "age": 46,
+      "income": 106269,
+      "credit_score": 843,
+      "account_age_months": 26
+    },
+    "location": {
+      "city": "Philadelphia",
+      "state": "TX",
+      "country": "US",
+      "zip_code": "10001"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 48,
+      "preferred_categories": [
+        "online_retail",
+        "travel",
+        "clothing"
+      ],
+      "typical_amount_range": [
+        40.24,
+        659.46
+      ],
+      "active_hours": [
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 2,
+      "suspicious_activity_flags": 1,
+      "risk_score": 0.64
+    }
+  },
+  {
+    "user_id": "user_036",
+    "demographics": {
+      "age": 59,
+      "income": 63127,
+      "credit_score": 321,
+      "account_age_months": 53
+    },
+    "location": {
+      "city": "Chicago",
+      "state": "TX",
+      "country": "US",
+      "zip_code": "85001"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 16,
+      "preferred_categories": [
+        "gas_station",
+        "grocery",
+        "cash_advance"
+      ],
+      "typical_amount_range": [
+        92.14,
+        818.47
+      ],
+      "active_hours": [
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 2,
+      "suspicious_activity_flags": 2,
+      "risk_score": 0.152
+    }
+  },
+  {
+    "user_id": "user_037",
+    "demographics": {
+      "age": 71,
+      "income": 58993,
+      "credit_score": 796,
+      "account_age_months": 22
+    },
+    "location": {
+      "city": "San Diego",
+      "state": "TX",
+      "country": "US",
+      "zip_code": "10001"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 22,
+      "preferred_categories": [
+        "clothing",
+        "gas_station",
+        "online_retail"
+      ],
+      "typical_amount_range": [
+        16.28,
+        160.3
+      ],
+      "active_hours": [
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 0,
+      "suspicious_activity_flags": 1,
+      "risk_score": 0.69
+    }
+  },
+  {
+    "user_id": "user_038",
+    "demographics": {
+      "age": 43,
+      "income": 108358,
+      "credit_score": 582,
+      "account_age_months": 78
+    },
+    "location": {
+      "city": "Phoenix",
+      "state": "TX",
+      "country": "US",
+      "zip_code": "75201"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 18,
+      "preferred_categories": [
+        "electronics",
+        "cash_advance",
+        "jewelry"
+      ],
+      "typical_amount_range": [
+        16.17,
+        729.28
+      ],
+      "active_hours": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 2,
+      "suspicious_activity_flags": 0,
+      "risk_score": 0.169
+    }
+  },
+  {
+    "user_id": "user_039",
+    "demographics": {
+      "age": 59,
+      "income": 121349,
+      "credit_score": 576,
+      "account_age_months": 46
+    },
+    "location": {
+      "city": "San Jose",
+      "state": "TX",
+      "country": "US",
+      "zip_code": "78201"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 40,
+      "preferred_categories": [
+        "online_retail",
+        "restaurant",
+        "pharmacy"
+      ],
+      "typical_amount_range": [
+        81.08,
+        880.05
+      ],
+      "active_hours": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 0,
+      "suspicious_activity_flags": 2,
+      "risk_score": 0.964
+    }
+  },
+  {
+    "user_id": "user_040",
+    "demographics": {
+      "age": 63,
+      "income": 57011,
+      "credit_score": 331,
+      "account_age_months": 110
+    },
+    "location": {
+      "city": "San Jose",
+      "state": "TX",
+      "country": "US",
+      "zip_code": "19101"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 32,
+      "preferred_categories": [
+        "electronics",
+        "jewelry",
+        "travel"
+      ],
+      "typical_amount_range": [
+        16.53,
+        759.09
+      ],
+      "active_hours": [
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 2,
+      "suspicious_activity_flags": 1,
+      "risk_score": 0.606
+    }
+  },
+  {
+    "user_id": "user_041",
+    "demographics": {
+      "age": 34,
+      "income": 85213,
+      "credit_score": 839,
+      "account_age_months": 21
+    },
+    "location": {
+      "city": "Chicago",
+      "state": "IL",
+      "country": "US",
+      "zip_code": "92101"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 28,
+      "preferred_categories": [
+        "jewelry",
+        "online_retail",
+        "electronics"
+      ],
+      "typical_amount_range": [
+        20.43,
+        285.57
+      ],
+      "active_hours": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 0,
+      "suspicious_activity_flags": 1,
+      "risk_score": 0.397
+    }
+  },
+  {
+    "user_id": "user_042",
+    "demographics": {
+      "age": 49,
+      "income": 146714,
+      "credit_score": 402,
+      "account_age_months": 24
+    },
+    "location": {
+      "city": "New York",
+      "state": "NY",
+      "country": "US",
+      "zip_code": "95101"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 6,
+      "preferred_categories": [
+        "electronics",
+        "grocery",
+        "pharmacy"
+      ],
+      "typical_amount_range": [
+        73.35,
+        833.42
+      ],
+      "active_hours": [
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 2,
+      "suspicious_activity_flags": 2,
+      "risk_score": 0.118
+    }
+  },
+  {
+    "user_id": "user_043",
+    "demographics": {
+      "age": 62,
+      "income": 47634,
+      "credit_score": 397,
+      "account_age_months": 29
     },
     "location": {
       "city": "San Antonio",
       "state": "TX",
+      "country": "US",
+      "zip_code": "92101"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 33,
+      "preferred_categories": [
+        "online_retail",
+        "restaurant",
+        "electronics"
+      ],
+      "typical_amount_range": [
+        31.22,
+        355.28
+      ],
+      "active_hours": [
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 1,
+      "suspicious_activity_flags": 2,
+      "risk_score": 0.33
+    }
+  },
+  {
+    "user_id": "user_044",
+    "demographics": {
+      "age": 55,
+      "income": 39541,
+      "credit_score": 518,
+      "account_age_months": 11
+    },
+    "location": {
+      "city": "New York",
+      "state": "NY",
+      "country": "US",
+      "zip_code": "10001"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 35,
+      "preferred_categories": [
+        "cash_advance",
+        "online_retail",
+        "jewelry"
+      ],
+      "typical_amount_range": [
+        92.7,
+        459.94
+      ],
+      "active_hours": [
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 0,
+      "suspicious_activity_flags": 3,
+      "risk_score": 0.145
+    }
+  },
+  {
+    "user_id": "user_045",
+    "demographics": {
+      "age": 60,
+      "income": 96116,
+      "credit_score": 358,
+      "account_age_months": 73
+    },
+    "location": {
+      "city": "San Antonio",
+      "state": "AZ",
+      "country": "US",
+      "zip_code": "60601"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 10,
+      "preferred_categories": [
+        "pharmacy",
+        "jewelry",
+        "grocery"
+      ],
+      "typical_amount_range": [
+        13.19,
+        154.77
+      ],
+      "active_hours": [
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 1,
+      "suspicious_activity_flags": 0,
+      "risk_score": 0.433
+    }
+  },
+  {
+    "user_id": "user_046",
+    "demographics": {
+      "age": 30,
+      "income": 28620,
+      "credit_score": 811,
+      "account_age_months": 82
+    },
+    "location": {
+      "city": "Chicago",
+      "state": "AZ",
+      "country": "US",
+      "zip_code": "77001"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 47,
+      "preferred_categories": [
+        "pharmacy",
+        "online_retail",
+        "cash_advance"
+      ],
+      "typical_amount_range": [
+        66.8,
+        972.64
+      ],
+      "active_hours": [
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 0,
+      "suspicious_activity_flags": 1,
+      "risk_score": 0.35
+    }
+  },
+  {
+    "user_id": "user_047",
+    "demographics": {
+      "age": 56,
+      "income": 116495,
+      "credit_score": 834,
+      "account_age_months": 8
+    },
+    "location": {
+      "city": "Philadelphia",
+      "state": "TX",
+      "country": "US",
+      "zip_code": "78201"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 39,
+      "preferred_categories": [
+        "electronics",
+        "clothing",
+        "online_retail"
+      ],
+      "typical_amount_range": [
+        92.79,
+        163.08
+      ],
+      "active_hours": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 2,
+      "suspicious_activity_flags": 0,
+      "risk_score": 0.252
+    }
+  },
+  {
+    "user_id": "user_048",
+    "demographics": {
+      "age": 80,
+      "income": 37657,
+      "credit_score": 454,
+      "account_age_months": 8
+    },
+    "location": {
+      "city": "Houston",
+      "state": "TX",
+      "country": "US",
+      "zip_code": "10001"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 8,
+      "preferred_categories": [
+        "gas_station",
+        "clothing",
+        "pharmacy"
+      ],
+      "typical_amount_range": [
+        55.1,
+        189.35
+      ],
+      "active_hours": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 0,
+      "suspicious_activity_flags": 0,
+      "risk_score": 0.443
+    }
+  },
+  {
+    "user_id": "user_049",
+    "demographics": {
+      "age": 26,
+      "income": 142363,
+      "credit_score": 704,
+      "account_age_months": 98
+    },
+    "location": {
+      "city": "San Diego",
+      "state": "NY",
+      "country": "US",
+      "zip_code": "75201"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 22,
+      "preferred_categories": [
+        "gas_station",
+        "jewelry",
+        "cash_advance"
+      ],
+      "typical_amount_range": [
+        17.72,
+        130.77
+      ],
+      "active_hours": [
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 2,
+      "suspicious_activity_flags": 2,
+      "risk_score": 0.313
+    }
+  },
+  {
+    "user_id": "user_050",
+    "demographics": {
+      "age": 26,
+      "income": 59118,
+      "credit_score": 689,
+      "account_age_months": 104
+    },
+    "location": {
+      "city": "Los Angeles",
+      "state": "AZ",
+      "country": "US",
+      "zip_code": "90210"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 32,
+      "preferred_categories": [
+        "electronics",
+        "clothing",
+        "travel"
+      ],
+      "typical_amount_range": [
+        39.71,
+        404.8
+      ],
+      "active_hours": [
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 1,
+      "suspicious_activity_flags": 0,
+      "risk_score": 0.13
+    }
+  },
+  {
+    "user_id": "user_051",
+    "demographics": {
+      "age": 70,
+      "income": 83800,
+      "credit_score": 836,
+      "account_age_months": 72
+    },
+    "location": {
+      "city": "San Jose",
+      "state": "TX",
+      "country": "US",
+      "zip_code": "75201"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 6,
+      "preferred_categories": [
+        "jewelry",
+        "restaurant",
+        "electronics"
+      ],
+      "typical_amount_range": [
+        43.33,
+        568.97
+      ],
+      "active_hours": [
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 1,
+      "suspicious_activity_flags": 1,
+      "risk_score": 0.575
+    }
+  },
+  {
+    "user_id": "user_052",
+    "demographics": {
+      "age": 20,
+      "income": 64386,
+      "credit_score": 846,
+      "account_age_months": 41
+    },
+    "location": {
+      "city": "San Antonio",
+      "state": "AZ",
+      "country": "US",
+      "zip_code": "19101"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 27,
+      "preferred_categories": [
+        "jewelry",
+        "cash_advance",
+        "grocery"
+      ],
+      "typical_amount_range": [
+        57.35,
+        233.88
+      ],
+      "active_hours": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 2,
+      "suspicious_activity_flags": 0,
+      "risk_score": 0.452
+    }
+  },
+  {
+    "user_id": "user_053",
+    "demographics": {
+      "age": 35,
+      "income": 87874,
+      "credit_score": 765,
+      "account_age_months": 117
+    },
+    "location": {
+      "city": "Philadelphia",
+      "state": "TX",
+      "country": "US",
+      "zip_code": "90210"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 42,
+      "preferred_categories": [
+        "grocery",
+        "restaurant",
+        "travel"
+      ],
+      "typical_amount_range": [
+        57.13,
+        618.04
+      ],
+      "active_hours": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 2,
+      "suspicious_activity_flags": 2,
+      "risk_score": 0.362
+    }
+  },
+  {
+    "user_id": "user_054",
+    "demographics": {
+      "age": 78,
+      "income": 129452,
+      "credit_score": 679,
+      "account_age_months": 52
+    },
+    "location": {
+      "city": "Phoenix",
+      "state": "CA",
+      "country": "US",
+      "zip_code": "95101"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 26,
+      "preferred_categories": [
+        "clothing",
+        "travel",
+        "restaurant"
+      ],
+      "typical_amount_range": [
+        12.62,
+        325.11
+      ],
+      "active_hours": [
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 0,
+      "suspicious_activity_flags": 0,
+      "risk_score": 0.185
+    }
+  },
+  {
+    "user_id": "user_055",
+    "demographics": {
+      "age": 44,
+      "income": 148102,
+      "credit_score": 351,
+      "account_age_months": 104
+    },
+    "location": {
+      "city": "Los Angeles",
+      "state": "TX",
+      "country": "US",
+      "zip_code": "85001"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 50,
+      "preferred_categories": [
+        "gas_station",
+        "electronics",
+        "jewelry"
+      ],
+      "typical_amount_range": [
+        16.01,
+        614.09
+      ],
+      "active_hours": [
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 0,
+      "suspicious_activity_flags": 1,
+      "risk_score": 0.511
+    }
+  },
+  {
+    "user_id": "user_056",
+    "demographics": {
+      "age": 45,
+      "income": 27863,
+      "credit_score": 676,
+      "account_age_months": 116
+    },
+    "location": {
+      "city": "San Diego",
+      "state": "AZ",
+      "country": "US",
+      "zip_code": "77001"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 17,
+      "preferred_categories": [
+        "travel",
+        "pharmacy",
+        "electronics"
+      ],
+      "typical_amount_range": [
+        48.29,
+        708.04
+      ],
+      "active_hours": [
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 2,
+      "suspicious_activity_flags": 0,
+      "risk_score": 0.814
+    }
+  },
+  {
+    "user_id": "user_057",
+    "demographics": {
+      "age": 80,
+      "income": 58627,
+      "credit_score": 717,
+      "account_age_months": 26
+    },
+    "location": {
+      "city": "New York",
+      "state": "TX",
+      "country": "US",
+      "zip_code": "78201"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 37,
+      "preferred_categories": [
+        "pharmacy",
+        "gas_station",
+        "online_retail"
+      ],
+      "typical_amount_range": [
+        65.43,
+        559.06
+      ],
+      "active_hours": [
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 1,
+      "suspicious_activity_flags": 3,
+      "risk_score": 0.006
+    }
+  },
+  {
+    "user_id": "user_058",
+    "demographics": {
+      "age": 79,
+      "income": 64236,
+      "credit_score": 305,
+      "account_age_months": 70
+    },
+    "location": {
+      "city": "Los Angeles",
+      "state": "AZ",
+      "country": "US",
+      "zip_code": "75201"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 25,
+      "preferred_categories": [
+        "clothing",
+        "travel",
+        "jewelry"
+      ],
+      "typical_amount_range": [
+        57.31,
+        587.84
+      ],
+      "active_hours": [
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 2,
+      "suspicious_activity_flags": 2,
+      "risk_score": 0.453
+    }
+  },
+  {
+    "user_id": "user_059",
+    "demographics": {
+      "age": 26,
+      "income": 91364,
+      "credit_score": 754,
+      "account_age_months": 76
+    },
+    "location": {
+      "city": "Chicago",
+      "state": "TX",
+      "country": "US",
+      "zip_code": "60601"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 21,
+      "preferred_categories": [
+        "grocery",
+        "online_retail",
+        "travel"
+      ],
+      "typical_amount_range": [
+        43.15,
+        461.92
+      ],
+      "active_hours": [
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 0,
+      "suspicious_activity_flags": 0,
+      "risk_score": 0.383
+    }
+  },
+  {
+    "user_id": "user_060",
+    "demographics": {
+      "age": 47,
+      "income": 60646,
+      "credit_score": 681,
+      "account_age_months": 82
+    },
+    "location": {
+      "city": "San Diego",
+      "state": "PA",
+      "country": "US",
+      "zip_code": "78201"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 34,
+      "preferred_categories": [
+        "gas_station",
+        "pharmacy",
+        "cash_advance"
+      ],
+      "typical_amount_range": [
+        23.02,
+        233.43
+      ],
+      "active_hours": [
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 1,
+      "suspicious_activity_flags": 1,
+      "risk_score": 0.59
+    }
+  },
+  {
+    "user_id": "user_061",
+    "demographics": {
+      "age": 36,
+      "income": 149469,
+      "credit_score": 722,
+      "account_age_months": 34
+    },
+    "location": {
+      "city": "Dallas",
+      "state": "AZ",
+      "country": "US",
+      "zip_code": "78201"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 49,
+      "preferred_categories": [
+        "jewelry",
+        "online_retail",
+        "cash_advance"
+      ],
+      "typical_amount_range": [
+        79.93,
+        537.21
+      ],
+      "active_hours": [
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 2,
+      "suspicious_activity_flags": 3,
+      "risk_score": 0.091
+    }
+  },
+  {
+    "user_id": "user_062",
+    "demographics": {
+      "age": 26,
+      "income": 52019,
+      "credit_score": 453,
+      "account_age_months": 30
+    },
+    "location": {
+      "city": "New York",
+      "state": "CA",
+      "country": "US",
+      "zip_code": "85001"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 14,
+      "preferred_categories": [
+        "pharmacy",
+        "gas_station",
+        "online_retail"
+      ],
+      "typical_amount_range": [
+        68.47,
+        268.69
+      ],
+      "active_hours": [
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 1,
+      "suspicious_activity_flags": 0,
+      "risk_score": 0.55
+    }
+  },
+  {
+    "user_id": "user_063",
+    "demographics": {
+      "age": 52,
+      "income": 80296,
+      "credit_score": 655,
+      "account_age_months": 7
+    },
+    "location": {
+      "city": "Los Angeles",
+      "state": "TX",
+      "country": "US",
+      "zip_code": "78201"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 47,
+      "preferred_categories": [
+        "gas_station",
+        "jewelry",
+        "clothing"
+      ],
+      "typical_amount_range": [
+        26.11,
+        824.61
+      ],
+      "active_hours": [
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 2,
+      "suspicious_activity_flags": 0,
+      "risk_score": 0.866
+    }
+  },
+  {
+    "user_id": "user_064",
+    "demographics": {
+      "age": 25,
+      "income": 112648,
+      "credit_score": 758,
+      "account_age_months": 38
+    },
+    "location": {
+      "city": "Dallas",
+      "state": "CA",
+      "country": "US",
+      "zip_code": "78201"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 12,
+      "preferred_categories": [
+        "travel",
+        "pharmacy",
+        "gas_station"
+      ],
+      "typical_amount_range": [
+        23.42,
+        652.27
+      ],
+      "active_hours": [
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 2,
+      "suspicious_activity_flags": 2,
+      "risk_score": 0.417
+    }
+  },
+  {
+    "user_id": "user_065",
+    "demographics": {
+      "age": 74,
+      "income": 147571,
+      "credit_score": 849,
+      "account_age_months": 37
+    },
+    "location": {
+      "city": "San Diego",
+      "state": "TX",
+      "country": "US",
+      "zip_code": "77001"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 44,
+      "preferred_categories": [
+        "cash_advance",
+        "pharmacy",
+        "gas_station"
+      ],
+      "typical_amount_range": [
+        10.77,
+        990.07
+      ],
+      "active_hours": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 1,
+      "suspicious_activity_flags": 0,
+      "risk_score": 0.541
+    }
+  },
+  {
+    "user_id": "user_066",
+    "demographics": {
+      "age": 46,
+      "income": 64303,
+      "credit_score": 403,
+      "account_age_months": 30
+    },
+    "location": {
+      "city": "Dallas",
+      "state": "AZ",
+      "country": "US",
+      "zip_code": "85001"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 50,
+      "preferred_categories": [
+        "electronics",
+        "online_retail",
+        "restaurant"
+      ],
+      "typical_amount_range": [
+        21.72,
+        275.78
+      ],
+      "active_hours": [
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 2,
+      "suspicious_activity_flags": 1,
+      "risk_score": 0.946
+    }
+  },
+  {
+    "user_id": "user_067",
+    "demographics": {
+      "age": 35,
+      "income": 61672,
+      "credit_score": 791,
+      "account_age_months": 90
+    },
+    "location": {
+      "city": "Phoenix",
+      "state": "AZ",
+      "country": "US",
+      "zip_code": "92101"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 18,
+      "preferred_categories": [
+        "pharmacy",
+        "cash_advance",
+        "travel"
+      ],
+      "typical_amount_range": [
+        31.75,
+        258.54
+      ],
+      "active_hours": [
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 2,
+      "suspicious_activity_flags": 3,
+      "risk_score": 0.535
+    }
+  },
+  {
+    "user_id": "user_068",
+    "demographics": {
+      "age": 21,
+      "income": 91053,
+      "credit_score": 633,
+      "account_age_months": 68
+    },
+    "location": {
+      "city": "Chicago",
+      "state": "TX",
+      "country": "US",
+      "zip_code": "19101"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 44,
+      "preferred_categories": [
+        "pharmacy",
+        "travel",
+        "cash_advance"
+      ],
+      "typical_amount_range": [
+        20.66,
+        898.53
+      ],
+      "active_hours": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 0,
+      "suspicious_activity_flags": 0,
+      "risk_score": 0.563
+    }
+  },
+  {
+    "user_id": "user_069",
+    "demographics": {
+      "age": 61,
+      "income": 40222,
+      "credit_score": 531,
+      "account_age_months": 73
+    },
+    "location": {
+      "city": "Houston",
+      "state": "TX",
+      "country": "US",
+      "zip_code": "95101"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 47,
+      "preferred_categories": [
+        "jewelry",
+        "online_retail",
+        "cash_advance"
+      ],
+      "typical_amount_range": [
+        10.38,
+        118.05
+      ],
+      "active_hours": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 0,
+      "suspicious_activity_flags": 0,
+      "risk_score": 0.743
+    }
+  },
+  {
+    "user_id": "user_070",
+    "demographics": {
+      "age": 35,
+      "income": 114219,
+      "credit_score": 649,
+      "account_age_months": 35
+    },
+    "location": {
+      "city": "San Jose",
+      "state": "TX",
+      "country": "US",
+      "zip_code": "78201"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 6,
+      "preferred_categories": [
+        "gas_station",
+        "cash_advance",
+        "clothing"
+      ],
+      "typical_amount_range": [
+        22.55,
+        325.74
+      ],
+      "active_hours": [
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 2,
+      "suspicious_activity_flags": 0,
+      "risk_score": 0.347
+    }
+  },
+  {
+    "user_id": "user_071",
+    "demographics": {
+      "age": 23,
+      "income": 120017,
+      "credit_score": 405,
+      "account_age_months": 39
+    },
+    "location": {
+      "city": "Philadelphia",
+      "state": "TX",
+      "country": "US",
+      "zip_code": "85001"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 38,
+      "preferred_categories": [
+        "grocery",
+        "cash_advance",
+        "travel"
+      ],
+      "typical_amount_range": [
+        17.05,
+        933.19
+      ],
+      "active_hours": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 2,
+      "suspicious_activity_flags": 1,
+      "risk_score": 0.094
+    }
+  },
+  {
+    "user_id": "user_072",
+    "demographics": {
+      "age": 39,
+      "income": 60865,
+      "credit_score": 308,
+      "account_age_months": 66
+    },
+    "location": {
+      "city": "Philadelphia",
+      "state": "CA",
       "country": "US",
       "zip_code": "19101"
     },
     "behavior": {
       "avg_monthly_transactions": 46,
       "preferred_categories": [
-        "grocery",
-        "travel",
-        "clothing"
-      ],
-      "typical_amount_range": [
-        17.84,
-        867.66
-      ],
-      "active_hours": [
-        6,
-        7,
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19,
-        20,
-        21
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 2,
-      "suspicious_activity_flags": 3,
-      "risk_score": 0.432
-    }
-  },
-  {
-    "user_id": "user_016",
-    "demographics": {
-      "age": 71,
-      "income": 69871,
-      "credit_score": 836,
-      "account_age_months": 21
-    },
-    "location": {
-      "city": "Chicago",
-      "state": "TX",
-      "country": "US",
-      "zip_code": "75201"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 40,
-      "preferred_categories": [
-        "electronics",
-        "pharmacy",
-        "online_retail"
-      ],
-      "typical_amount_range": [
-        78.06,
-        596.1
-      ],
-      "active_hours": [
-        6,
-        7,
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19,
-        20,
-        21,
-        22
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 2,
-      "suspicious_activity_flags": 0,
-      "risk_score": 0.953
-    }
-  },
-  {
-    "user_id": "user_017",
-    "demographics": {
-      "age": 53,
-      "income": 99648,
-      "credit_score": 607,
-      "account_age_months": 47
-    },
-    "location": {
-      "city": "San Jose",
-      "state": "IL",
-      "country": "US",
-      "zip_code": "95101"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 36,
-      "preferred_categories": [
+        "restaurant",
         "jewelry",
-        "grocery",
-        "gas_station"
-      ],
-      "typical_amount_range": [
-        82.21,
-        407.85
-      ],
-      "active_hours": [
-        6,
-        7,
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 1,
-      "suspicious_activity_flags": 0,
-      "risk_score": 0.771
-    }
-  },
-  {
-    "user_id": "user_018",
-    "demographics": {
-      "age": 30,
-      "income": 127948,
-      "credit_score": 813,
-      "account_age_months": 116
-    },
-    "location": {
-      "city": "Phoenix",
-      "state": "CA",
-      "country": "US",
-      "zip_code": "85001"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 9,
-      "preferred_categories": [
-        "travel",
-        "clothing",
-        "cash_advance"
-      ],
-      "typical_amount_range": [
-        71.7,
-        910.09
-      ],
-      "active_hours": [
-        7,
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19,
-        20
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 2,
-      "suspicious_activity_flags": 0,
-      "risk_score": 0.593
-    }
-  },
-  {
-    "user_id": "user_019",
-    "demographics": {
-      "age": 71,
-      "income": 65437,
-      "credit_score": 379,
-      "account_age_months": 112
-    },
-    "location": {
-      "city": "San Jose",
-      "state": "CA",
-      "country": "US",
-      "zip_code": "90210"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 35,
-      "preferred_categories": [
-        "electronics",
-        "travel",
         "online_retail"
       ],
       "typical_amount_range": [
-        22.33,
-        971.39
-      ],
-      "active_hours": [
-        6,
-        7,
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19,
-        20
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 0,
-      "suspicious_activity_flags": 2,
-      "risk_score": 0.777
-    }
-  },
-  {
-    "user_id": "user_020",
-    "demographics": {
-      "age": 47,
-      "income": 60310,
-      "credit_score": 682,
-      "account_age_months": 93
-    },
-    "location": {
-      "city": "San Jose",
-      "state": "NY",
-      "country": "US",
-      "zip_code": "77001"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 36,
-      "preferred_categories": [
-        "pharmacy",
-        "restaurant",
-        "jewelry"
-      ],
-      "typical_amount_range": [
-        61.62,
-        706.82
-      ],
-      "active_hours": [
-        7,
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19,
-        20,
-        21,
-        22
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 2,
-      "suspicious_activity_flags": 0,
-      "risk_score": 0.027
-    }
-  },
-  {
-    "user_id": "user_021",
-    "demographics": {
-      "age": 68,
-      "income": 146401,
-      "credit_score": 326,
-      "account_age_months": 82
-    },
-    "location": {
-      "city": "San Antonio",
-      "state": "PA",
-      "country": "US",
-      "zip_code": "95101"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 7,
-      "preferred_categories": [
-        "pharmacy",
-        "travel",
-        "cash_advance"
-      ],
-      "typical_amount_range": [
-        49.91,
-        617.38
+        18.2,
+        618.98
       ],
       "active_hours": [
         9,
@@ -1038,2928 +3408,34 @@
     },
     "risk_profile": {
       "historical_fraud_reports": 1,
-      "suspicious_activity_flags": 1,
-      "risk_score": 0.118
-    }
-  },
-  {
-    "user_id": "user_022",
-    "demographics": {
-      "age": 66,
-      "income": 37761,
-      "credit_score": 674,
-      "account_age_months": 59
-    },
-    "location": {
-      "city": "San Antonio",
-      "state": "CA",
-      "country": "US",
-      "zip_code": "60601"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 11,
-      "preferred_categories": [
-        "grocery",
-        "electronics",
-        "pharmacy"
-      ],
-      "typical_amount_range": [
-        26.86,
-        889.17
-      ],
-      "active_hours": [
-        7,
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19,
-        20
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 1,
-      "suspicious_activity_flags": 0,
-      "risk_score": 0.287
-    }
-  },
-  {
-    "user_id": "user_023",
-    "demographics": {
-      "age": 66,
-      "income": 69455,
-      "credit_score": 328,
-      "account_age_months": 26
-    },
-    "location": {
-      "city": "Phoenix",
-      "state": "PA",
-      "country": "US",
-      "zip_code": "78201"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 44,
-      "preferred_categories": [
-        "cash_advance",
-        "electronics",
-        "gas_station"
-      ],
-      "typical_amount_range": [
-        60.74,
-        806.14
-      ],
-      "active_hours": [
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19,
-        20
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 2,
-      "suspicious_activity_flags": 0,
-      "risk_score": 0.609
-    }
-  },
-  {
-    "user_id": "user_024",
-    "demographics": {
-      "age": 42,
-      "income": 74095,
-      "credit_score": 351,
-      "account_age_months": 59
-    },
-    "location": {
-      "city": "Dallas",
-      "state": "IL",
-      "country": "US",
-      "zip_code": "75201"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 35,
-      "preferred_categories": [
-        "restaurant",
-        "cash_advance",
-        "clothing"
-      ],
-      "typical_amount_range": [
-        40.81,
-        751.36
-      ],
-      "active_hours": [
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 1,
-      "suspicious_activity_flags": 0,
-      "risk_score": 0.563
-    }
-  },
-  {
-    "user_id": "user_025",
-    "demographics": {
-      "age": 73,
-      "income": 115523,
-      "credit_score": 309,
-      "account_age_months": 59
-    },
-    "location": {
-      "city": "Chicago",
-      "state": "TX",
-      "country": "US",
-      "zip_code": "90210"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 18,
-      "preferred_categories": [
-        "travel",
-        "gas_station",
-        "pharmacy"
-      ],
-      "typical_amount_range": [
-        73.52,
-        731.91
-      ],
-      "active_hours": [
-        7,
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 2,
       "suspicious_activity_flags": 3,
-      "risk_score": 0.396
-    }
-  },
-  {
-    "user_id": "user_026",
-    "demographics": {
-      "age": 61,
-      "income": 64016,
-      "credit_score": 414,
-      "account_age_months": 8
-    },
-    "location": {
-      "city": "New York",
-      "state": "IL",
-      "country": "US",
-      "zip_code": "92101"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 17,
-      "preferred_categories": [
-        "restaurant",
-        "grocery",
-        "jewelry"
-      ],
-      "typical_amount_range": [
-        17.2,
-        959.3
-      ],
-      "active_hours": [
-        6,
-        7,
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19,
-        20
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 0,
-      "suspicious_activity_flags": 0,
-      "risk_score": 0.787
-    }
-  },
-  {
-    "user_id": "user_027",
-    "demographics": {
-      "age": 72,
-      "income": 75147,
-      "credit_score": 791,
-      "account_age_months": 29
-    },
-    "location": {
-      "city": "Houston",
-      "state": "AZ",
-      "country": "US",
-      "zip_code": "90210"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 32,
-      "preferred_categories": [
-        "online_retail",
-        "restaurant",
-        "pharmacy"
-      ],
-      "typical_amount_range": [
-        84.35,
-        890.64
-      ],
-      "active_hours": [
-        6,
-        7,
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 2,
-      "suspicious_activity_flags": 1,
-      "risk_score": 0.2
-    }
-  },
-  {
-    "user_id": "user_028",
-    "demographics": {
-      "age": 62,
-      "income": 34675,
-      "credit_score": 381,
-      "account_age_months": 40
-    },
-    "location": {
-      "city": "Dallas",
-      "state": "IL",
-      "country": "US",
-      "zip_code": "78201"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 33,
-      "preferred_categories": [
-        "cash_advance",
-        "clothing",
-        "grocery"
-      ],
-      "typical_amount_range": [
-        25.28,
-        935.88
-      ],
-      "active_hours": [
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19,
-        20,
-        21,
-        22
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 0,
-      "suspicious_activity_flags": 2,
-      "risk_score": 0.25
-    }
-  },
-  {
-    "user_id": "user_029",
-    "demographics": {
-      "age": 70,
-      "income": 122971,
-      "credit_score": 817,
-      "account_age_months": 101
-    },
-    "location": {
-      "city": "San Diego",
-      "state": "PA",
-      "country": "US",
-      "zip_code": "85001"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 50,
-      "preferred_categories": [
-        "restaurant",
-        "gas_station",
-        "online_retail"
-      ],
-      "typical_amount_range": [
-        22.38,
-        107.51
-      ],
-      "active_hours": [
-        6,
-        7,
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 0,
-      "suspicious_activity_flags": 2,
-      "risk_score": 0.696
-    }
-  },
-  {
-    "user_id": "user_030",
-    "demographics": {
-      "age": 68,
-      "income": 124144,
-      "credit_score": 825,
-      "account_age_months": 58
-    },
-    "location": {
-      "city": "Phoenix",
-      "state": "CA",
-      "country": "US",
-      "zip_code": "75201"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 28,
-      "preferred_categories": [
-        "travel",
-        "clothing",
-        "electronics"
-      ],
-      "typical_amount_range": [
-        28.65,
-        184.5
-      ],
-      "active_hours": [
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19,
-        20,
-        21
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 2,
-      "suspicious_activity_flags": 3,
-      "risk_score": 0.891
-    }
-  },
-  {
-    "user_id": "user_031",
-    "demographics": {
-      "age": 48,
-      "income": 74274,
-      "credit_score": 592,
-      "account_age_months": 79
-    },
-    "location": {
-      "city": "Dallas",
-      "state": "CA",
-      "country": "US",
-      "zip_code": "77001"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 47,
-      "preferred_categories": [
-        "travel",
-        "pharmacy",
-        "online_retail"
-      ],
-      "typical_amount_range": [
-        17.3,
-        333.6
-      ],
-      "active_hours": [
-        7,
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19,
-        20
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 2,
-      "suspicious_activity_flags": 1,
-      "risk_score": 0.77
-    }
-  },
-  {
-    "user_id": "user_032",
-    "demographics": {
-      "age": 22,
-      "income": 33969,
-      "credit_score": 826,
-      "account_age_months": 75
-    },
-    "location": {
-      "city": "Chicago",
-      "state": "CA",
-      "country": "US",
-      "zip_code": "85001"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 49,
-      "preferred_categories": [
-        "travel",
-        "electronics",
-        "restaurant"
-      ],
-      "typical_amount_range": [
-        29.45,
-        408.92
-      ],
-      "active_hours": [
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19,
-        20,
-        21
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 2,
-      "suspicious_activity_flags": 3,
-      "risk_score": 0.663
-    }
-  },
-  {
-    "user_id": "user_033",
-    "demographics": {
-      "age": 65,
-      "income": 91731,
-      "credit_score": 715,
-      "account_age_months": 86
-    },
-    "location": {
-      "city": "San Jose",
-      "state": "TX",
-      "country": "US",
-      "zip_code": "10001"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 13,
-      "preferred_categories": [
-        "electronics",
-        "pharmacy",
-        "gas_station"
-      ],
-      "typical_amount_range": [
-        56.94,
-        468.19
-      ],
-      "active_hours": [
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 2,
-      "suspicious_activity_flags": 0,
-      "risk_score": 0.626
-    }
-  },
-  {
-    "user_id": "user_034",
-    "demographics": {
-      "age": 45,
-      "income": 95761,
-      "credit_score": 486,
-      "account_age_months": 67
-    },
-    "location": {
-      "city": "San Diego",
-      "state": "TX",
-      "country": "US",
-      "zip_code": "92101"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 10,
-      "preferred_categories": [
-        "grocery",
-        "pharmacy",
-        "online_retail"
-      ],
-      "typical_amount_range": [
-        87.46,
-        981.53
-      ],
-      "active_hours": [
-        7,
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19,
-        20
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 1,
-      "suspicious_activity_flags": 0,
-      "risk_score": 0.572
-    }
-  },
-  {
-    "user_id": "user_035",
-    "demographics": {
-      "age": 58,
-      "income": 38953,
-      "credit_score": 664,
-      "account_age_months": 80
-    },
-    "location": {
-      "city": "San Diego",
-      "state": "CA",
-      "country": "US",
-      "zip_code": "90210"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 41,
-      "preferred_categories": [
-        "grocery",
-        "travel",
-        "online_retail"
-      ],
-      "typical_amount_range": [
-        42.37,
-        290.66
-      ],
-      "active_hours": [
-        7,
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19,
-        20
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 2,
-      "suspicious_activity_flags": 3,
-      "risk_score": 0.59
-    }
-  },
-  {
-    "user_id": "user_036",
-    "demographics": {
-      "age": 72,
-      "income": 148436,
-      "credit_score": 700,
-      "account_age_months": 66
-    },
-    "location": {
-      "city": "Chicago",
-      "state": "IL",
-      "country": "US",
-      "zip_code": "75201"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 41,
-      "preferred_categories": [
-        "clothing",
-        "travel",
-        "pharmacy"
-      ],
-      "typical_amount_range": [
-        62.85,
-        224.82
-      ],
-      "active_hours": [
-        6,
-        7,
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19,
-        20,
-        21,
-        22
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 2,
-      "suspicious_activity_flags": 2,
-      "risk_score": 0.379
-    }
-  },
-  {
-    "user_id": "user_037",
-    "demographics": {
-      "age": 29,
-      "income": 146267,
-      "credit_score": 846,
-      "account_age_months": 61
-    },
-    "location": {
-      "city": "Philadelphia",
-      "state": "CA",
-      "country": "US",
-      "zip_code": "75201"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 12,
-      "preferred_categories": [
-        "pharmacy",
-        "travel",
-        "clothing"
-      ],
-      "typical_amount_range": [
-        68.67,
-        103.04
-      ],
-      "active_hours": [
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 1,
-      "suspicious_activity_flags": 1,
-      "risk_score": 0.923
-    }
-  },
-  {
-    "user_id": "user_038",
-    "demographics": {
-      "age": 73,
-      "income": 90402,
-      "credit_score": 564,
-      "account_age_months": 118
-    },
-    "location": {
-      "city": "Los Angeles",
-      "state": "AZ",
-      "country": "US",
-      "zip_code": "90210"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 43,
-      "preferred_categories": [
-        "electronics",
-        "grocery",
-        "online_retail"
-      ],
-      "typical_amount_range": [
-        86.71,
-        769.62
-      ],
-      "active_hours": [
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 0,
-      "suspicious_activity_flags": 2,
-      "risk_score": 0.024
-    }
-  },
-  {
-    "user_id": "user_039",
-    "demographics": {
-      "age": 68,
-      "income": 82802,
-      "credit_score": 718,
-      "account_age_months": 109
-    },
-    "location": {
-      "city": "Chicago",
-      "state": "CA",
-      "country": "US",
-      "zip_code": "92101"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 9,
-      "preferred_categories": [
-        "travel",
-        "jewelry",
-        "pharmacy"
-      ],
-      "typical_amount_range": [
-        72.38,
-        814.2
-      ],
-      "active_hours": [
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19,
-        20,
-        21,
-        22
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 2,
-      "suspicious_activity_flags": 2,
-      "risk_score": 0.82
-    }
-  },
-  {
-    "user_id": "user_040",
-    "demographics": {
-      "age": 79,
-      "income": 147598,
-      "credit_score": 592,
-      "account_age_months": 54
-    },
-    "location": {
-      "city": "New York",
-      "state": "IL",
-      "country": "US",
-      "zip_code": "95101"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 45,
-      "preferred_categories": [
-        "electronics",
-        "pharmacy",
-        "clothing"
-      ],
-      "typical_amount_range": [
-        21.55,
-        772.95
-      ],
-      "active_hours": [
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 1,
-      "suspicious_activity_flags": 0,
-      "risk_score": 0.883
-    }
-  },
-  {
-    "user_id": "user_041",
-    "demographics": {
-      "age": 67,
-      "income": 136323,
-      "credit_score": 628,
-      "account_age_months": 50
-    },
-    "location": {
-      "city": "Dallas",
-      "state": "AZ",
-      "country": "US",
-      "zip_code": "95101"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 14,
-      "preferred_categories": [
-        "electronics",
-        "clothing",
-        "jewelry"
-      ],
-      "typical_amount_range": [
-        69.9,
-        929.79
-      ],
-      "active_hours": [
-        6,
-        7,
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19,
-        20,
-        21
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 0,
-      "suspicious_activity_flags": 3,
-      "risk_score": 0.837
-    }
-  },
-  {
-    "user_id": "user_042",
-    "demographics": {
-      "age": 70,
-      "income": 124560,
-      "credit_score": 632,
-      "account_age_months": 95
-    },
-    "location": {
-      "city": "New York",
-      "state": "TX",
-      "country": "US",
-      "zip_code": "10001"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 37,
-      "preferred_categories": [
-        "travel",
-        "restaurant",
-        "cash_advance"
-      ],
-      "typical_amount_range": [
-        68.68,
-        113.85
-      ],
-      "active_hours": [
-        6,
-        7,
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19,
-        20,
-        21
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 2,
-      "suspicious_activity_flags": 0,
-      "risk_score": 0.554
-    }
-  },
-  {
-    "user_id": "user_043",
-    "demographics": {
-      "age": 51,
-      "income": 71044,
-      "credit_score": 361,
-      "account_age_months": 64
-    },
-    "location": {
-      "city": "San Antonio",
-      "state": "TX",
-      "country": "US",
-      "zip_code": "60601"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 26,
-      "preferred_categories": [
-        "travel",
-        "gas_station",
-        "jewelry"
-      ],
-      "typical_amount_range": [
-        33.38,
-        346.8
-      ],
-      "active_hours": [
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 1,
-      "suspicious_activity_flags": 2,
-      "risk_score": 0.884
-    }
-  },
-  {
-    "user_id": "user_044",
-    "demographics": {
-      "age": 33,
-      "income": 67077,
-      "credit_score": 442,
-      "account_age_months": 114
-    },
-    "location": {
-      "city": "San Diego",
-      "state": "AZ",
-      "country": "US",
-      "zip_code": "85001"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 42,
-      "preferred_categories": [
-        "pharmacy",
-        "online_retail",
-        "cash_advance"
-      ],
-      "typical_amount_range": [
-        43.38,
-        188.14
-      ],
-      "active_hours": [
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19,
-        20,
-        21,
-        22
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 1,
-      "suspicious_activity_flags": 3,
-      "risk_score": 0.422
-    }
-  },
-  {
-    "user_id": "user_045",
-    "demographics": {
-      "age": 32,
-      "income": 44591,
-      "credit_score": 374,
-      "account_age_months": 74
-    },
-    "location": {
-      "city": "Phoenix",
-      "state": "CA",
-      "country": "US",
-      "zip_code": "95101"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 26,
-      "preferred_categories": [
-        "grocery",
-        "online_retail",
-        "clothing"
-      ],
-      "typical_amount_range": [
-        79.71,
-        182.44
-      ],
-      "active_hours": [
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 1,
-      "suspicious_activity_flags": 0,
-      "risk_score": 0.252
-    }
-  },
-  {
-    "user_id": "user_046",
-    "demographics": {
-      "age": 56,
-      "income": 64759,
-      "credit_score": 761,
-      "account_age_months": 22
-    },
-    "location": {
-      "city": "San Diego",
-      "state": "CA",
-      "country": "US",
-      "zip_code": "19101"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 44,
-      "preferred_categories": [
-        "gas_station",
-        "grocery",
-        "jewelry"
-      ],
-      "typical_amount_range": [
-        50.77,
-        546.75
-      ],
-      "active_hours": [
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19,
-        20,
-        21
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 2,
-      "suspicious_activity_flags": 0,
-      "risk_score": 0.239
-    }
-  },
-  {
-    "user_id": "user_047",
-    "demographics": {
-      "age": 80,
-      "income": 120941,
-      "credit_score": 623,
-      "account_age_months": 116
-    },
-    "location": {
-      "city": "Houston",
-      "state": "IL",
-      "country": "US",
-      "zip_code": "77001"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 7,
-      "preferred_categories": [
-        "clothing",
-        "gas_station",
-        "cash_advance"
-      ],
-      "typical_amount_range": [
-        72.31,
-        441.01
-      ],
-      "active_hours": [
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 2,
-      "suspicious_activity_flags": 1,
-      "risk_score": 0.623
-    }
-  },
-  {
-    "user_id": "user_048",
-    "demographics": {
-      "age": 69,
-      "income": 100409,
-      "credit_score": 493,
-      "account_age_months": 108
-    },
-    "location": {
-      "city": "Los Angeles",
-      "state": "CA",
-      "country": "US",
-      "zip_code": "19101"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 7,
-      "preferred_categories": [
-        "gas_station",
-        "travel",
-        "electronics"
-      ],
-      "typical_amount_range": [
-        77.58,
-        791.05
-      ],
-      "active_hours": [
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 0,
-      "suspicious_activity_flags": 1,
-      "risk_score": 0.178
-    }
-  },
-  {
-    "user_id": "user_049",
-    "demographics": {
-      "age": 47,
-      "income": 132584,
-      "credit_score": 485,
-      "account_age_months": 110
-    },
-    "location": {
-      "city": "San Jose",
-      "state": "TX",
-      "country": "US",
-      "zip_code": "10001"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 10,
-      "preferred_categories": [
-        "cash_advance",
-        "electronics",
-        "travel"
-      ],
-      "typical_amount_range": [
-        69.78,
-        308.52
-      ],
-      "active_hours": [
-        6,
-        7,
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19,
-        20,
-        21
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 0,
-      "suspicious_activity_flags": 3,
-      "risk_score": 0.378
-    }
-  },
-  {
-    "user_id": "user_050",
-    "demographics": {
-      "age": 32,
-      "income": 54080,
-      "credit_score": 489,
-      "account_age_months": 62
-    },
-    "location": {
-      "city": "Chicago",
-      "state": "IL",
-      "country": "US",
-      "zip_code": "19101"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 48,
-      "preferred_categories": [
-        "clothing",
-        "electronics",
-        "jewelry"
-      ],
-      "typical_amount_range": [
-        78.83,
-        655.65
-      ],
-      "active_hours": [
-        7,
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 2,
-      "suspicious_activity_flags": 0,
-      "risk_score": 0.115
-    }
-  },
-  {
-    "user_id": "user_051",
-    "demographics": {
-      "age": 47,
-      "income": 138620,
-      "credit_score": 740,
-      "account_age_months": 60
-    },
-    "location": {
-      "city": "Dallas",
-      "state": "TX",
-      "country": "US",
-      "zip_code": "95101"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 21,
-      "preferred_categories": [
-        "gas_station",
-        "online_retail",
-        "pharmacy"
-      ],
-      "typical_amount_range": [
-        68.86,
-        267.49
-      ],
-      "active_hours": [
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19,
-        20
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 1,
-      "suspicious_activity_flags": 1,
-      "risk_score": 0.255
-    }
-  },
-  {
-    "user_id": "user_052",
-    "demographics": {
-      "age": 36,
-      "income": 100768,
-      "credit_score": 571,
-      "account_age_months": 111
-    },
-    "location": {
-      "city": "Phoenix",
-      "state": "NY",
-      "country": "US",
-      "zip_code": "78201"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 48,
-      "preferred_categories": [
-        "clothing",
-        "electronics",
-        "travel"
-      ],
-      "typical_amount_range": [
-        96.86,
-        100.61
-      ],
-      "active_hours": [
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 1,
-      "suspicious_activity_flags": 3,
-      "risk_score": 0.657
-    }
-  },
-  {
-    "user_id": "user_053",
-    "demographics": {
-      "age": 27,
-      "income": 122640,
-      "credit_score": 661,
-      "account_age_months": 48
-    },
-    "location": {
-      "city": "San Diego",
-      "state": "TX",
-      "country": "US",
-      "zip_code": "60601"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 49,
-      "preferred_categories": [
-        "clothing",
-        "gas_station",
-        "restaurant"
-      ],
-      "typical_amount_range": [
-        90.23,
-        130.47
-      ],
-      "active_hours": [
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 1,
-      "suspicious_activity_flags": 3,
-      "risk_score": 0.684
-    }
-  },
-  {
-    "user_id": "user_054",
-    "demographics": {
-      "age": 38,
-      "income": 95683,
-      "credit_score": 397,
-      "account_age_months": 58
-    },
-    "location": {
-      "city": "Philadelphia",
-      "state": "CA",
-      "country": "US",
-      "zip_code": "60601"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 38,
-      "preferred_categories": [
-        "online_retail",
-        "grocery",
-        "cash_advance"
-      ],
-      "typical_amount_range": [
-        29.07,
-        404.56
-      ],
-      "active_hours": [
-        6,
-        7,
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 2,
-      "suspicious_activity_flags": 3,
-      "risk_score": 0.012
-    }
-  },
-  {
-    "user_id": "user_055",
-    "demographics": {
-      "age": 24,
-      "income": 138544,
-      "credit_score": 469,
-      "account_age_months": 4
-    },
-    "location": {
-      "city": "San Jose",
-      "state": "TX",
-      "country": "US",
-      "zip_code": "60601"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 13,
-      "preferred_categories": [
-        "online_retail",
-        "pharmacy",
-        "clothing"
-      ],
-      "typical_amount_range": [
-        66.29,
-        222.41
-      ],
-      "active_hours": [
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19,
-        20,
-        21,
-        22
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 0,
-      "suspicious_activity_flags": 3,
-      "risk_score": 0.478
-    }
-  },
-  {
-    "user_id": "user_056",
-    "demographics": {
-      "age": 21,
-      "income": 38064,
-      "credit_score": 579,
-      "account_age_months": 32
-    },
-    "location": {
-      "city": "Dallas",
-      "state": "IL",
-      "country": "US",
-      "zip_code": "78201"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 5,
-      "preferred_categories": [
-        "pharmacy",
-        "clothing",
-        "travel"
-      ],
-      "typical_amount_range": [
-        43.38,
-        992.78
-      ],
-      "active_hours": [
-        7,
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 1,
-      "suspicious_activity_flags": 0,
-      "risk_score": 0.319
-    }
-  },
-  {
-    "user_id": "user_057",
-    "demographics": {
-      "age": 29,
-      "income": 25342,
-      "credit_score": 678,
-      "account_age_months": 27
-    },
-    "location": {
-      "city": "Houston",
-      "state": "CA",
-      "country": "US",
-      "zip_code": "19101"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 44,
-      "preferred_categories": [
-        "gas_station",
-        "restaurant",
-        "jewelry"
-      ],
-      "typical_amount_range": [
-        85.79,
-        904.52
-      ],
-      "active_hours": [
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 0,
-      "suspicious_activity_flags": 1,
-      "risk_score": 0.549
-    }
-  },
-  {
-    "user_id": "user_058",
-    "demographics": {
-      "age": 29,
-      "income": 102676,
-      "credit_score": 631,
-      "account_age_months": 105
-    },
-    "location": {
-      "city": "San Diego",
-      "state": "CA",
-      "country": "US",
-      "zip_code": "85001"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 34,
-      "preferred_categories": [
-        "grocery",
-        "travel",
-        "pharmacy"
-      ],
-      "typical_amount_range": [
-        11.62,
-        983.59
-      ],
-      "active_hours": [
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 0,
-      "suspicious_activity_flags": 2,
-      "risk_score": 0.93
-    }
-  },
-  {
-    "user_id": "user_059",
-    "demographics": {
-      "age": 33,
-      "income": 65329,
-      "credit_score": 627,
-      "account_age_months": 100
-    },
-    "location": {
-      "city": "Houston",
-      "state": "AZ",
-      "country": "US",
-      "zip_code": "95101"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 30,
-      "preferred_categories": [
-        "cash_advance",
-        "online_retail",
-        "clothing"
-      ],
-      "typical_amount_range": [
-        51.53,
-        254.12
-      ],
-      "active_hours": [
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19,
-        20,
-        21,
-        22
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 0,
-      "suspicious_activity_flags": 1,
-      "risk_score": 0.082
-    }
-  },
-  {
-    "user_id": "user_060",
-    "demographics": {
-      "age": 41,
-      "income": 63356,
-      "credit_score": 662,
-      "account_age_months": 92
-    },
-    "location": {
-      "city": "Phoenix",
-      "state": "CA",
-      "country": "US",
-      "zip_code": "77001"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 20,
-      "preferred_categories": [
-        "travel",
-        "restaurant",
-        "jewelry"
-      ],
-      "typical_amount_range": [
-        91.78,
-        454.5
-      ],
-      "active_hours": [
-        6,
-        7,
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 2,
-      "suspicious_activity_flags": 0,
-      "risk_score": 0.012
-    }
-  },
-  {
-    "user_id": "user_061",
-    "demographics": {
-      "age": 34,
-      "income": 102730,
-      "credit_score": 758,
-      "account_age_months": 4
-    },
-    "location": {
-      "city": "Phoenix",
-      "state": "CA",
-      "country": "US",
-      "zip_code": "92101"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 49,
-      "preferred_categories": [
-        "pharmacy",
-        "travel",
-        "gas_station"
-      ],
-      "typical_amount_range": [
-        10.2,
-        902.58
-      ],
-      "active_hours": [
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 2,
-      "suspicious_activity_flags": 1,
-      "risk_score": 0.134
-    }
-  },
-  {
-    "user_id": "user_062",
-    "demographics": {
-      "age": 79,
-      "income": 69000,
-      "credit_score": 304,
-      "account_age_months": 94
-    },
-    "location": {
-      "city": "Houston",
-      "state": "TX",
-      "country": "US",
-      "zip_code": "10001"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 30,
-      "preferred_categories": [
-        "online_retail",
-        "electronics",
-        "grocery"
-      ],
-      "typical_amount_range": [
-        94.8,
-        911.97
-      ],
-      "active_hours": [
-        7,
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 1,
-      "suspicious_activity_flags": 0,
-      "risk_score": 0.997
-    }
-  },
-  {
-    "user_id": "user_063",
-    "demographics": {
-      "age": 70,
-      "income": 141062,
-      "credit_score": 600,
-      "account_age_months": 110
-    },
-    "location": {
-      "city": "San Jose",
-      "state": "TX",
-      "country": "US",
-      "zip_code": "60601"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 37,
-      "preferred_categories": [
-        "electronics",
-        "travel",
-        "clothing"
-      ],
-      "typical_amount_range": [
-        46.24,
-        952.72
-      ],
-      "active_hours": [
-        6,
-        7,
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19,
-        20,
-        21
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 1,
-      "suspicious_activity_flags": 2,
-      "risk_score": 0.947
-    }
-  },
-  {
-    "user_id": "user_064",
-    "demographics": {
-      "age": 38,
-      "income": 90726,
-      "credit_score": 478,
-      "account_age_months": 83
-    },
-    "location": {
-      "city": "Los Angeles",
-      "state": "PA",
-      "country": "US",
-      "zip_code": "75201"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 37,
-      "preferred_categories": [
-        "cash_advance",
-        "online_retail",
-        "pharmacy"
-      ],
-      "typical_amount_range": [
-        91.1,
-        967.54
-      ],
-      "active_hours": [
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19,
-        20
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 2,
-      "suspicious_activity_flags": 2,
-      "risk_score": 0.821
-    }
-  },
-  {
-    "user_id": "user_065",
-    "demographics": {
-      "age": 43,
-      "income": 114468,
-      "credit_score": 352,
-      "account_age_months": 120
-    },
-    "location": {
-      "city": "Chicago",
-      "state": "NY",
-      "country": "US",
-      "zip_code": "60601"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 21,
-      "preferred_categories": [
-        "cash_advance",
-        "gas_station",
-        "clothing"
-      ],
-      "typical_amount_range": [
-        24.65,
-        434.59
-      ],
-      "active_hours": [
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19,
-        20
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 0,
-      "suspicious_activity_flags": 0,
-      "risk_score": 0.859
-    }
-  },
-  {
-    "user_id": "user_066",
-    "demographics": {
-      "age": 32,
-      "income": 87521,
-      "credit_score": 633,
-      "account_age_months": 91
-    },
-    "location": {
-      "city": "Philadelphia",
-      "state": "TX",
-      "country": "US",
-      "zip_code": "75201"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 38,
-      "preferred_categories": [
-        "cash_advance",
-        "travel",
-        "online_retail"
-      ],
-      "typical_amount_range": [
-        51.31,
-        904.89
-      ],
-      "active_hours": [
-        7,
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 1,
-      "suspicious_activity_flags": 2,
-      "risk_score": 0.544
-    }
-  },
-  {
-    "user_id": "user_067",
-    "demographics": {
-      "age": 46,
-      "income": 36693,
-      "credit_score": 552,
-      "account_age_months": 8
-    },
-    "location": {
-      "city": "New York",
-      "state": "TX",
-      "country": "US",
-      "zip_code": "85001"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 18,
-      "preferred_categories": [
-        "clothing",
-        "pharmacy",
-        "restaurant"
-      ],
-      "typical_amount_range": [
-        64.09,
-        582.88
-      ],
-      "active_hours": [
-        6,
-        7,
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 1,
-      "suspicious_activity_flags": 0,
-      "risk_score": 0.132
-    }
-  },
-  {
-    "user_id": "user_068",
-    "demographics": {
-      "age": 63,
-      "income": 69332,
-      "credit_score": 572,
-      "account_age_months": 64
-    },
-    "location": {
-      "city": "New York",
-      "state": "CA",
-      "country": "US",
-      "zip_code": "95101"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 27,
-      "preferred_categories": [
-        "jewelry",
-        "pharmacy",
-        "gas_station"
-      ],
-      "typical_amount_range": [
-        18.68,
-        386.91
-      ],
-      "active_hours": [
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19,
-        20,
-        21
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 2,
-      "suspicious_activity_flags": 1,
-      "risk_score": 0.959
-    }
-  },
-  {
-    "user_id": "user_069",
-    "demographics": {
-      "age": 76,
-      "income": 131651,
-      "credit_score": 391,
-      "account_age_months": 39
-    },
-    "location": {
-      "city": "Phoenix",
-      "state": "AZ",
-      "country": "US",
-      "zip_code": "19101"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 42,
-      "preferred_categories": [
-        "grocery",
-        "restaurant",
-        "clothing"
-      ],
-      "typical_amount_range": [
-        91.0,
-        502.99
-      ],
-      "active_hours": [
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19,
-        20
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 0,
-      "suspicious_activity_flags": 1,
-      "risk_score": 0.996
-    }
-  },
-  {
-    "user_id": "user_070",
-    "demographics": {
-      "age": 68,
-      "income": 77608,
-      "credit_score": 543,
-      "account_age_months": 20
-    },
-    "location": {
-      "city": "Chicago",
-      "state": "CA",
-      "country": "US",
-      "zip_code": "92101"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 11,
-      "preferred_categories": [
-        "online_retail",
-        "travel",
-        "restaurant"
-      ],
-      "typical_amount_range": [
-        52.35,
-        844.22
-      ],
-      "active_hours": [
-        6,
-        7,
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19,
-        20,
-        21,
-        22
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 1,
-      "suspicious_activity_flags": 3,
-      "risk_score": 0.533
-    }
-  },
-  {
-    "user_id": "user_071",
-    "demographics": {
-      "age": 24,
-      "income": 85224,
-      "credit_score": 606,
-      "account_age_months": 91
-    },
-    "location": {
-      "city": "Dallas",
-      "state": "PA",
-      "country": "US",
-      "zip_code": "90210"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 47,
-      "preferred_categories": [
-        "travel",
-        "pharmacy",
-        "restaurant"
-      ],
-      "typical_amount_range": [
-        41.38,
-        174.3
-      ],
-      "active_hours": [
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19,
-        20
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 1,
-      "suspicious_activity_flags": 3,
-      "risk_score": 0.309
-    }
-  },
-  {
-    "user_id": "user_072",
-    "demographics": {
-      "age": 38,
-      "income": 25176,
-      "credit_score": 493,
-      "account_age_months": 65
-    },
-    "location": {
-      "city": "Chicago",
-      "state": "PA",
-      "country": "US",
-      "zip_code": "10001"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 11,
-      "preferred_categories": [
-        "clothing",
-        "pharmacy",
-        "online_retail"
-      ],
-      "typical_amount_range": [
-        81.93,
-        386.53
-      ],
-      "active_hours": [
-        6,
-        7,
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 0,
-      "suspicious_activity_flags": 0,
-      "risk_score": 0.063
+      "risk_score": 0.301
     }
   },
   {
     "user_id": "user_073",
     "demographics": {
-      "age": 78,
-      "income": 98648,
-      "credit_score": 612,
-      "account_age_months": 97
+      "age": 32,
+      "income": 107933,
+      "credit_score": 609,
+      "account_age_months": 71
     },
     "location": {
-      "city": "Los Angeles",
-      "state": "PA",
-      "country": "US",
-      "zip_code": "85001"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 10,
-      "preferred_categories": [
-        "restaurant",
-        "jewelry",
-        "online_retail"
-      ],
-      "typical_amount_range": [
-        33.1,
-        364.59
-      ],
-      "active_hours": [
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 2,
-      "suspicious_activity_flags": 3,
-      "risk_score": 0.394
-    }
-  },
-  {
-    "user_id": "user_074",
-    "demographics": {
-      "age": 52,
-      "income": 136441,
-      "credit_score": 636,
-      "account_age_months": 5
-    },
-    "location": {
-      "city": "Phoenix",
-      "state": "AZ",
-      "country": "US",
-      "zip_code": "78201"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 5,
-      "preferred_categories": [
-        "travel",
-        "cash_advance",
-        "restaurant"
-      ],
-      "typical_amount_range": [
-        73.49,
-        966.75
-      ],
-      "active_hours": [
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 0,
-      "suspicious_activity_flags": 1,
-      "risk_score": 0.659
-    }
-  },
-  {
-    "user_id": "user_075",
-    "demographics": {
-      "age": 67,
-      "income": 84970,
-      "credit_score": 324,
-      "account_age_months": 23
-    },
-    "location": {
-      "city": "Houston",
-      "state": "TX",
-      "country": "US",
-      "zip_code": "19101"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 13,
-      "preferred_categories": [
-        "online_retail",
-        "restaurant",
-        "cash_advance"
-      ],
-      "typical_amount_range": [
-        46.76,
-        902.62
-      ],
-      "active_hours": [
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19,
-        20,
-        21,
-        22
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 0,
-      "suspicious_activity_flags": 3,
-      "risk_score": 0.004
-    }
-  },
-  {
-    "user_id": "user_076",
-    "demographics": {
-      "age": 63,
-      "income": 142745,
-      "credit_score": 792,
-      "account_age_months": 3
-    },
-    "location": {
-      "city": "Dallas",
-      "state": "AZ",
-      "country": "US",
-      "zip_code": "60601"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 30,
-      "preferred_categories": [
-        "online_retail",
-        "grocery",
-        "jewelry"
-      ],
-      "typical_amount_range": [
-        39.57,
-        850.65
-      ],
-      "active_hours": [
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 0,
-      "suspicious_activity_flags": 1,
-      "risk_score": 0.721
-    }
-  },
-  {
-    "user_id": "user_077",
-    "demographics": {
-      "age": 55,
-      "income": 90382,
-      "credit_score": 454,
-      "account_age_months": 98
-    },
-    "location": {
-      "city": "Los Angeles",
-      "state": "TX",
-      "country": "US",
-      "zip_code": "77001"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 20,
-      "preferred_categories": [
-        "electronics",
-        "travel",
-        "online_retail"
-      ],
-      "typical_amount_range": [
-        77.77,
-        570.4
-      ],
-      "active_hours": [
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19,
-        20
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 1,
-      "suspicious_activity_flags": 1,
-      "risk_score": 0.216
-    }
-  },
-  {
-    "user_id": "user_078",
-    "demographics": {
-      "age": 25,
-      "income": 133254,
-      "credit_score": 532,
-      "account_age_months": 38
-    },
-    "location": {
-      "city": "Philadelphia",
-      "state": "TX",
-      "country": "US",
-      "zip_code": "95101"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 22,
-      "preferred_categories": [
-        "grocery",
-        "clothing",
-        "jewelry"
-      ],
-      "typical_amount_range": [
-        32.54,
-        239.77
-      ],
-      "active_hours": [
-        7,
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19,
-        20,
-        21
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 2,
-      "suspicious_activity_flags": 2,
-      "risk_score": 0.702
-    }
-  },
-  {
-    "user_id": "user_079",
-    "demographics": {
-      "age": 78,
-      "income": 60082,
-      "credit_score": 810,
-      "account_age_months": 72
-    },
-    "location": {
-      "city": "Houston",
-      "state": "CA",
-      "country": "US",
-      "zip_code": "95101"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 19,
-      "preferred_categories": [
-        "clothing",
-        "travel",
-        "gas_station"
-      ],
-      "typical_amount_range": [
-        22.0,
-        795.77
-      ],
-      "active_hours": [
-        7,
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 2,
-      "suspicious_activity_flags": 0,
-      "risk_score": 0.005
-    }
-  },
-  {
-    "user_id": "user_080",
-    "demographics": {
-      "age": 58,
-      "income": 97888,
-      "credit_score": 742,
-      "account_age_months": 74
-    },
-    "location": {
-      "city": "San Diego",
-      "state": "CA",
-      "country": "US",
-      "zip_code": "78201"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 49,
-      "preferred_categories": [
-        "jewelry",
-        "gas_station",
-        "cash_advance"
-      ],
-      "typical_amount_range": [
-        71.12,
-        477.54
-      ],
-      "active_hours": [
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19,
-        20,
-        21
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 0,
-      "suspicious_activity_flags": 2,
-      "risk_score": 0.851
-    }
-  },
-  {
-    "user_id": "user_081",
-    "demographics": {
-      "age": 38,
-      "income": 136854,
-      "credit_score": 709,
-      "account_age_months": 14
-    },
-    "location": {
-      "city": "Phoenix",
+      "city": "Chicago",
       "state": "NY",
       "country": "US",
-      "zip_code": "10001"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 27,
-      "preferred_categories": [
-        "online_retail",
-        "pharmacy",
-        "gas_station"
-      ],
-      "typical_amount_range": [
-        66.18,
-        214.73
-      ],
-      "active_hours": [
-        7,
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 0,
-      "suspicious_activity_flags": 2,
-      "risk_score": 0.967
-    }
-  },
-  {
-    "user_id": "user_082",
-    "demographics": {
-      "age": 69,
-      "income": 80274,
-      "credit_score": 737,
-      "account_age_months": 17
-    },
-    "location": {
-      "city": "Phoenix",
-      "state": "TX",
-      "country": "US",
       "zip_code": "95101"
     },
     "behavior": {
-      "avg_monthly_transactions": 50,
+      "avg_monthly_transactions": 37,
       "preferred_categories": [
         "gas_station",
-        "pharmacy",
-        "grocery"
-      ],
-      "typical_amount_range": [
-        91.23,
-        146.78
-      ],
-      "active_hours": [
-        7,
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19,
-        20,
-        21,
-        22
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 2,
-      "suspicious_activity_flags": 1,
-      "risk_score": 0.574
-    }
-  },
-  {
-    "user_id": "user_083",
-    "demographics": {
-      "age": 47,
-      "income": 37632,
-      "credit_score": 689,
-      "account_age_months": 65
-    },
-    "location": {
-      "city": "Philadelphia",
-      "state": "TX",
-      "country": "US",
-      "zip_code": "19101"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 31,
-      "preferred_categories": [
-        "clothing",
-        "restaurant",
-        "jewelry"
-      ],
-      "typical_amount_range": [
-        46.66,
-        422.64
-      ],
-      "active_hours": [
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 0,
-      "suspicious_activity_flags": 0,
-      "risk_score": 0.119
-    }
-  },
-  {
-    "user_id": "user_084",
-    "demographics": {
-      "age": 79,
-      "income": 100286,
-      "credit_score": 831,
-      "account_age_months": 29
-    },
-    "location": {
-      "city": "Dallas",
-      "state": "CA",
-      "country": "US",
-      "zip_code": "78201"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 44,
-      "preferred_categories": [
-        "online_retail",
         "restaurant",
         "electronics"
       ],
       "typical_amount_range": [
-        75.95,
-        833.61
+        29.35,
+        491.15
       ],
       "active_hours": [
         6,
@@ -3975,90 +3451,42 @@
         16,
         17,
         18,
-        19,
-        20,
-        21,
-        22
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 1,
-      "suspicious_activity_flags": 1,
-      "risk_score": 0.012
-    }
-  },
-  {
-    "user_id": "user_085",
-    "demographics": {
-      "age": 23,
-      "income": 35932,
-      "credit_score": 707,
-      "account_age_months": 7
-    },
-    "location": {
-      "city": "Philadelphia",
-      "state": "CA",
-      "country": "US",
-      "zip_code": "75201"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 22,
-      "preferred_categories": [
-        "jewelry",
-        "restaurant",
-        "clothing"
-      ],
-      "typical_amount_range": [
-        11.38,
-        941.85
-      ],
-      "active_hours": [
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19,
-        20
+        19
       ]
     },
     "risk_profile": {
       "historical_fraud_reports": 2,
-      "suspicious_activity_flags": 0,
-      "risk_score": 0.736
+      "suspicious_activity_flags": 2,
+      "risk_score": 0.945
     }
   },
   {
-    "user_id": "user_086",
+    "user_id": "user_074",
     "demographics": {
-      "age": 65,
-      "income": 54250,
-      "credit_score": 778,
-      "account_age_months": 114
+      "age": 34,
+      "income": 87027,
+      "credit_score": 429,
+      "account_age_months": 52
     },
     "location": {
-      "city": "Houston",
-      "state": "CA",
+      "city": "Los Angeles",
+      "state": "PA",
       "country": "US",
-      "zip_code": "10001"
+      "zip_code": "90210"
     },
     "behavior": {
-      "avg_monthly_transactions": 35,
+      "avg_monthly_transactions": 46,
       "preferred_categories": [
-        "travel",
-        "online_retail",
-        "electronics"
+        "clothing",
+        "cash_advance",
+        "grocery"
       ],
       "typical_amount_range": [
-        29.84,
-        764.32
+        65.71,
+        500.94
       ],
       "active_hours": [
+        7,
         8,
         9,
         10,
@@ -4068,39 +3496,177 @@
         14,
         15,
         16,
-        17
+        17,
+        18
       ]
     },
     "risk_profile": {
-      "historical_fraud_reports": 2,
-      "suspicious_activity_flags": 2,
-      "risk_score": 0.083
+      "historical_fraud_reports": 0,
+      "suspicious_activity_flags": 1,
+      "risk_score": 0.677
     }
   },
   {
-    "user_id": "user_087",
+    "user_id": "user_075",
     "demographics": {
-      "age": 37,
-      "income": 136817,
-      "credit_score": 518,
-      "account_age_months": 17
+      "age": 70,
+      "income": 53346,
+      "credit_score": 795,
+      "account_age_months": 108
     },
     "location": {
-      "city": "Houston",
-      "state": "CA",
+      "city": "Philadelphia",
+      "state": "PA",
       "country": "US",
       "zip_code": "85001"
     },
     "behavior": {
       "avg_monthly_transactions": 15,
       "preferred_categories": [
-        "gas_station",
-        "jewelry",
+        "restaurant",
+        "online_retail",
+        "pharmacy"
+      ],
+      "typical_amount_range": [
+        46.51,
+        979.03
+      ],
+      "active_hours": [
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 1,
+      "suspicious_activity_flags": 0,
+      "risk_score": 0.537
+    }
+  },
+  {
+    "user_id": "user_076",
+    "demographics": {
+      "age": 18,
+      "income": 145544,
+      "credit_score": 435,
+      "account_age_months": 49
+    },
+    "location": {
+      "city": "Dallas",
+      "state": "CA",
+      "country": "US",
+      "zip_code": "92101"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 6,
+      "preferred_categories": [
+        "online_retail",
+        "travel",
+        "jewelry"
+      ],
+      "typical_amount_range": [
+        94.02,
+        467.59
+      ],
+      "active_hours": [
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 0,
+      "suspicious_activity_flags": 3,
+      "risk_score": 0.779
+    }
+  },
+  {
+    "user_id": "user_077",
+    "demographics": {
+      "age": 59,
+      "income": 117292,
+      "credit_score": 300,
+      "account_age_months": 104
+    },
+    "location": {
+      "city": "New York",
+      "state": "CA",
+      "country": "US",
+      "zip_code": "95101"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 13,
+      "preferred_categories": [
+        "clothing",
+        "travel",
         "cash_advance"
       ],
       "typical_amount_range": [
-        57.92,
-        859.88
+        59.59,
+        804.63
+      ],
+      "active_hours": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 2,
+      "suspicious_activity_flags": 1,
+      "risk_score": 0.928
+    }
+  },
+  {
+    "user_id": "user_078",
+    "demographics": {
+      "age": 57,
+      "income": 56432,
+      "credit_score": 408,
+      "account_age_months": 72
+    },
+    "location": {
+      "city": "Philadelphia",
+      "state": "IL",
+      "country": "US",
+      "zip_code": "90210"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 7,
+      "preferred_categories": [
+        "cash_advance",
+        "online_retail",
+        "travel"
+      ],
+      "typical_amount_range": [
+        32.81,
+        663.2
       ],
       "active_hours": [
         6,
@@ -4124,267 +3690,33 @@
     "risk_profile": {
       "historical_fraud_reports": 1,
       "suspicious_activity_flags": 3,
-      "risk_score": 0.741
+      "risk_score": 0.376
     }
   },
   {
-    "user_id": "user_088",
+    "user_id": "user_079",
     "demographics": {
       "age": 36,
-      "income": 98209,
-      "credit_score": 620,
-      "account_age_months": 6
-    },
-    "location": {
-      "city": "New York",
-      "state": "IL",
-      "country": "US",
-      "zip_code": "95101"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 27,
-      "preferred_categories": [
-        "cash_advance",
-        "clothing",
-        "grocery"
-      ],
-      "typical_amount_range": [
-        17.43,
-        886.06
-      ],
-      "active_hours": [
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 0,
-      "suspicious_activity_flags": 3,
-      "risk_score": 0.66
-    }
-  },
-  {
-    "user_id": "user_089",
-    "demographics": {
-      "age": 64,
-      "income": 59932,
-      "credit_score": 588,
-      "account_age_months": 18
-    },
-    "location": {
-      "city": "San Jose",
-      "state": "PA",
-      "country": "US",
-      "zip_code": "85001"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 31,
-      "preferred_categories": [
-        "pharmacy",
-        "travel",
-        "online_retail"
-      ],
-      "typical_amount_range": [
-        24.31,
-        867.61
-      ],
-      "active_hours": [
-        7,
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 1,
-      "suspicious_activity_flags": 1,
-      "risk_score": 0.741
-    }
-  },
-  {
-    "user_id": "user_090",
-    "demographics": {
-      "age": 60,
-      "income": 25286,
-      "credit_score": 800,
-      "account_age_months": 82
+      "income": 123816,
+      "credit_score": 649,
+      "account_age_months": 57
     },
     "location": {
       "city": "Houston",
       "state": "CA",
       "country": "US",
-      "zip_code": "60601"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 24,
-      "preferred_categories": [
-        "grocery",
-        "online_retail",
-        "pharmacy"
-      ],
-      "typical_amount_range": [
-        56.94,
-        598.19
-      ],
-      "active_hours": [
-        7,
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 1,
-      "suspicious_activity_flags": 2,
-      "risk_score": 0.026
-    }
-  },
-  {
-    "user_id": "user_091",
-    "demographics": {
-      "age": 20,
-      "income": 140853,
-      "credit_score": 310,
-      "account_age_months": 68
-    },
-    "location": {
-      "city": "San Antonio",
-      "state": "NY",
-      "country": "US",
       "zip_code": "75201"
     },
     "behavior": {
-      "avg_monthly_transactions": 25,
+      "avg_monthly_transactions": 14,
       "preferred_categories": [
-        "restaurant",
-        "pharmacy",
-        "cash_advance"
-      ],
-      "typical_amount_range": [
-        72.07,
-        987.82
-      ],
-      "active_hours": [
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19,
-        20
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 2,
-      "suspicious_activity_flags": 1,
-      "risk_score": 0.475
-    }
-  },
-  {
-    "user_id": "user_092",
-    "demographics": {
-      "age": 36,
-      "income": 30866,
-      "credit_score": 665,
-      "account_age_months": 1
-    },
-    "location": {
-      "city": "San Jose",
-      "state": "IL",
-      "country": "US",
-      "zip_code": "77001"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 7,
-      "preferred_categories": [
-        "online_retail",
-        "jewelry",
+        "grocery",
+        "cash_advance",
         "gas_station"
       ],
       "typical_amount_range": [
-        10.36,
-        282.91
-      ],
-      "active_hours": [
-        6,
-        7,
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19,
-        20
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 2,
-      "suspicious_activity_flags": 1,
-      "risk_score": 0.662
-    }
-  },
-  {
-    "user_id": "user_093",
-    "demographics": {
-      "age": 36,
-      "income": 126194,
-      "credit_score": 439,
-      "account_age_months": 92
-    },
-    "location": {
-      "city": "Phoenix",
-      "state": "TX",
-      "country": "US",
-      "zip_code": "77001"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 24,
-      "preferred_categories": [
-        "electronics",
-        "jewelry",
-        "grocery"
-      ],
-      "typical_amount_range": [
-        15.38,
-        335.71
+        90.22,
+        254.98
       ],
       "active_hours": [
         9,
@@ -4403,36 +3735,563 @@
     "risk_profile": {
       "historical_fraud_reports": 2,
       "suspicious_activity_flags": 0,
-      "risk_score": 0.67
+      "risk_score": 0.975
     }
   },
   {
-    "user_id": "user_094",
+    "user_id": "user_080",
     "demographics": {
-      "age": 68,
-      "income": 145184,
-      "credit_score": 307,
-      "account_age_months": 80
+      "age": 19,
+      "income": 87948,
+      "credit_score": 514,
+      "account_age_months": 50
     },
     "location": {
-      "city": "San Jose",
-      "state": "CA",
+      "city": "Chicago",
+      "state": "TX",
+      "country": "US",
+      "zip_code": "77001"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 11,
+      "preferred_categories": [
+        "electronics",
+        "cash_advance",
+        "clothing"
+      ],
+      "typical_amount_range": [
+        69.1,
+        806.07
+      ],
+      "active_hours": [
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 1,
+      "suspicious_activity_flags": 2,
+      "risk_score": 0.493
+    }
+  },
+  {
+    "user_id": "user_081",
+    "demographics": {
+      "age": 67,
+      "income": 111924,
+      "credit_score": 498,
+      "account_age_months": 56
+    },
+    "location": {
+      "city": "San Diego",
+      "state": "TX",
       "country": "US",
       "zip_code": "75201"
     },
     "behavior": {
-      "avg_monthly_transactions": 45,
+      "avg_monthly_transactions": 12,
       "preferred_categories": [
-        "jewelry",
-        "clothing",
-        "online_retail"
+        "travel",
+        "pharmacy",
+        "jewelry"
       ],
       "typical_amount_range": [
-        43.04,
-        547.77
+        85.58,
+        234.89
+      ],
+      "active_hours": [
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 0,
+      "suspicious_activity_flags": 0,
+      "risk_score": 0.652
+    }
+  },
+  {
+    "user_id": "user_082",
+    "demographics": {
+      "age": 78,
+      "income": 48981,
+      "credit_score": 769,
+      "account_age_months": 99
+    },
+    "location": {
+      "city": "San Antonio",
+      "state": "TX",
+      "country": "US",
+      "zip_code": "85001"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 14,
+      "preferred_categories": [
+        "restaurant",
+        "clothing",
+        "gas_station"
+      ],
+      "typical_amount_range": [
+        95.21,
+        116.91
+      ],
+      "active_hours": [
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 2,
+      "suspicious_activity_flags": 1,
+      "risk_score": 0.538
+    }
+  },
+  {
+    "user_id": "user_083",
+    "demographics": {
+      "age": 43,
+      "income": 25697,
+      "credit_score": 555,
+      "account_age_months": 55
+    },
+    "location": {
+      "city": "Chicago",
+      "state": "IL",
+      "country": "US",
+      "zip_code": "19101"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 47,
+      "preferred_categories": [
+        "electronics",
+        "gas_station",
+        "restaurant"
+      ],
+      "typical_amount_range": [
+        25.8,
+        626.82
+      ],
+      "active_hours": [
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 0,
+      "suspicious_activity_flags": 0,
+      "risk_score": 0.936
+    }
+  },
+  {
+    "user_id": "user_084",
+    "demographics": {
+      "age": 64,
+      "income": 49935,
+      "credit_score": 816,
+      "account_age_months": 89
+    },
+    "location": {
+      "city": "San Jose",
+      "state": "TX",
+      "country": "US",
+      "zip_code": "90210"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 20,
+      "preferred_categories": [
+        "online_retail",
+        "pharmacy",
+        "gas_station"
+      ],
+      "typical_amount_range": [
+        61.03,
+        143.51
+      ],
+      "active_hours": [
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 0,
+      "suspicious_activity_flags": 3,
+      "risk_score": 0.045
+    }
+  },
+  {
+    "user_id": "user_085",
+    "demographics": {
+      "age": 51,
+      "income": 56351,
+      "credit_score": 312,
+      "account_age_months": 3
+    },
+    "location": {
+      "city": "Phoenix",
+      "state": "CA",
+      "country": "US",
+      "zip_code": "85001"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 31,
+      "preferred_categories": [
+        "restaurant",
+        "travel",
+        "cash_advance"
+      ],
+      "typical_amount_range": [
+        79.35,
+        672.85
+      ],
+      "active_hours": [
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 0,
+      "suspicious_activity_flags": 3,
+      "risk_score": 0.699
+    }
+  },
+  {
+    "user_id": "user_086",
+    "demographics": {
+      "age": 69,
+      "income": 51308,
+      "credit_score": 807,
+      "account_age_months": 105
+    },
+    "location": {
+      "city": "Phoenix",
+      "state": "PA",
+      "country": "US",
+      "zip_code": "60601"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 21,
+      "preferred_categories": [
+        "travel",
+        "jewelry",
+        "restaurant"
+      ],
+      "typical_amount_range": [
+        80.25,
+        659.84
       ],
       "active_hours": [
         8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 0,
+      "suspicious_activity_flags": 2,
+      "risk_score": 0.255
+    }
+  },
+  {
+    "user_id": "user_087",
+    "demographics": {
+      "age": 40,
+      "income": 75366,
+      "credit_score": 585,
+      "account_age_months": 73
+    },
+    "location": {
+      "city": "San Diego",
+      "state": "NY",
+      "country": "US",
+      "zip_code": "60601"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 13,
+      "preferred_categories": [
+        "jewelry",
+        "electronics",
+        "clothing"
+      ],
+      "typical_amount_range": [
+        16.34,
+        621.41
+      ],
+      "active_hours": [
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 1,
+      "suspicious_activity_flags": 1,
+      "risk_score": 0.578
+    }
+  },
+  {
+    "user_id": "user_088",
+    "demographics": {
+      "age": 53,
+      "income": 85359,
+      "credit_score": 700,
+      "account_age_months": 92
+    },
+    "location": {
+      "city": "Houston",
+      "state": "CA",
+      "country": "US",
+      "zip_code": "90210"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 14,
+      "preferred_categories": [
+        "grocery",
+        "travel",
+        "online_retail"
+      ],
+      "typical_amount_range": [
+        44.44,
+        714.17
+      ],
+      "active_hours": [
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 2,
+      "suspicious_activity_flags": 0,
+      "risk_score": 0.927
+    }
+  },
+  {
+    "user_id": "user_089",
+    "demographics": {
+      "age": 72,
+      "income": 75026,
+      "credit_score": 442,
+      "account_age_months": 37
+    },
+    "location": {
+      "city": "Houston",
+      "state": "TX",
+      "country": "US",
+      "zip_code": "19101"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 16,
+      "preferred_categories": [
+        "electronics",
+        "jewelry",
+        "restaurant"
+      ],
+      "typical_amount_range": [
+        41.29,
+        581.83
+      ],
+      "active_hours": [
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 1,
+      "suspicious_activity_flags": 1,
+      "risk_score": 0.705
+    }
+  },
+  {
+    "user_id": "user_090",
+    "demographics": {
+      "age": 19,
+      "income": 63049,
+      "credit_score": 405,
+      "account_age_months": 79
+    },
+    "location": {
+      "city": "Philadelphia",
+      "state": "CA",
+      "country": "US",
+      "zip_code": "85001"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 44,
+      "preferred_categories": [
+        "grocery",
+        "travel",
+        "cash_advance"
+      ],
+      "typical_amount_range": [
+        24.39,
+        219.13
+      ],
+      "active_hours": [
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 1,
+      "suspicious_activity_flags": 1,
+      "risk_score": 0.745
+    }
+  },
+  {
+    "user_id": "user_091",
+    "demographics": {
+      "age": 50,
+      "income": 91548,
+      "credit_score": 706,
+      "account_age_months": 16
+    },
+    "location": {
+      "city": "Houston",
+      "state": "TX",
+      "country": "US",
+      "zip_code": "75201"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 13,
+      "preferred_categories": [
+        "travel",
+        "jewelry",
+        "grocery"
+      ],
+      "typical_amount_range": [
+        74.59,
+        827.76
+      ],
+      "active_hours": [
         9,
         10,
         11,
@@ -4452,36 +4311,35 @@
     "risk_profile": {
       "historical_fraud_reports": 1,
       "suspicious_activity_flags": 1,
-      "risk_score": 0.746
+      "risk_score": 0.268
     }
   },
   {
-    "user_id": "user_095",
+    "user_id": "user_092",
     "demographics": {
-      "age": 22,
-      "income": 123314,
-      "credit_score": 809,
-      "account_age_months": 67
+      "age": 58,
+      "income": 46990,
+      "credit_score": 814,
+      "account_age_months": 30
     },
     "location": {
-      "city": "Los Angeles",
-      "state": "TX",
+      "city": "San Antonio",
+      "state": "AZ",
       "country": "US",
-      "zip_code": "60601"
+      "zip_code": "78201"
     },
     "behavior": {
-      "avg_monthly_transactions": 26,
+      "avg_monthly_transactions": 30,
       "preferred_categories": [
-        "gas_station",
-        "cash_advance",
-        "pharmacy"
+        "jewelry",
+        "pharmacy",
+        "gas_station"
       ],
       "typical_amount_range": [
-        97.98,
-        635.19
+        70.24,
+        850.41
       ],
       "active_hours": [
-        6,
         7,
         8,
         9,
@@ -4493,39 +4351,91 @@
         15,
         16,
         17,
-        18
+        18,
+        19,
+        20,
+        21
       ]
     },
     "risk_profile": {
       "historical_fraud_reports": 0,
       "suspicious_activity_flags": 3,
-      "risk_score": 0.5
+      "risk_score": 0.754
     }
   },
   {
-    "user_id": "user_096",
+    "user_id": "user_093",
     "demographics": {
-      "age": 61,
-      "income": 120720,
-      "credit_score": 806,
-      "account_age_months": 101
+      "age": 49,
+      "income": 53093,
+      "credit_score": 703,
+      "account_age_months": 106
     },
     "location": {
-      "city": "San Diego",
-      "state": "NY",
+      "city": "Dallas",
+      "state": "PA",
       "country": "US",
-      "zip_code": "19101"
+      "zip_code": "77001"
     },
     "behavior": {
-      "avg_monthly_transactions": 23,
+      "avg_monthly_transactions": 11,
       "preferred_categories": [
-        "jewelry",
         "gas_station",
-        "travel"
+        "grocery",
+        "online_retail"
       ],
       "typical_amount_range": [
-        35.08,
-        575.41
+        85.04,
+        269.91
+      ],
+      "active_hours": [
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 2,
+      "suspicious_activity_flags": 1,
+      "risk_score": 0.847
+    }
+  },
+  {
+    "user_id": "user_094",
+    "demographics": {
+      "age": 42,
+      "income": 93397,
+      "credit_score": 669,
+      "account_age_months": 26
+    },
+    "location": {
+      "city": "Houston",
+      "state": "PA",
+      "country": "US",
+      "zip_code": "95101"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 9,
+      "preferred_categories": [
+        "cash_advance",
+        "grocery",
+        "pharmacy"
+      ],
+      "typical_amount_range": [
+        13.98,
+        649.55
       ],
       "active_hours": [
         7,
@@ -4546,78 +4456,33 @@
     "risk_profile": {
       "historical_fraud_reports": 1,
       "suspicious_activity_flags": 0,
-      "risk_score": 0.922
+      "risk_score": 0.583
     }
   },
   {
-    "user_id": "user_097",
+    "user_id": "user_095",
     "demographics": {
-      "age": 25,
-      "income": 28958,
-      "credit_score": 675,
-      "account_age_months": 34
+      "age": 22,
+      "income": 138504,
+      "credit_score": 705,
+      "account_age_months": 12
     },
     "location": {
-      "city": "Los Angeles",
+      "city": "San Antonio",
       "state": "TX",
       "country": "US",
-      "zip_code": "90210"
+      "zip_code": "95101"
     },
     "behavior": {
-      "avg_monthly_transactions": 32,
+      "avg_monthly_transactions": 46,
       "preferred_categories": [
-        "electronics",
-        "clothing",
-        "grocery"
-      ],
-      "typical_amount_range": [
-        80.76,
-        891.97
-      ],
-      "active_hours": [
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19
-      ]
-    },
-    "risk_profile": {
-      "historical_fraud_reports": 2,
-      "suspicious_activity_flags": 0,
-      "risk_score": 0.392
-    }
-  },
-  {
-    "user_id": "user_098",
-    "demographics": {
-      "age": 41,
-      "income": 133779,
-      "credit_score": 709,
-      "account_age_months": 105
-    },
-    "location": {
-      "city": "San Diego",
-      "state": "CA",
-      "country": "US",
-      "zip_code": "92101"
-    },
-    "behavior": {
-      "avg_monthly_transactions": 19,
-      "preferred_categories": [
-        "pharmacy",
-        "grocery",
+        "jewelry",
+        "online_retail",
         "travel"
       ],
       "typical_amount_range": [
-        46.6,
-        586.46
+        91.51,
+        523.57
       ],
       "active_hours": [
         6,
@@ -4640,36 +4505,37 @@
     },
     "risk_profile": {
       "historical_fraud_reports": 1,
-      "suspicious_activity_flags": 3,
-      "risk_score": 0.702
+      "suspicious_activity_flags": 0,
+      "risk_score": 0.427
     }
   },
   {
-    "user_id": "user_099",
+    "user_id": "user_096",
     "demographics": {
-      "age": 32,
-      "income": 120230,
-      "credit_score": 470,
-      "account_age_months": 32
+      "age": 55,
+      "income": 123165,
+      "credit_score": 624,
+      "account_age_months": 102
     },
     "location": {
-      "city": "Phoenix",
-      "state": "AZ",
+      "city": "Chicago",
+      "state": "CA",
       "country": "US",
-      "zip_code": "85001"
+      "zip_code": "95101"
     },
     "behavior": {
-      "avg_monthly_transactions": 25,
+      "avg_monthly_transactions": 40,
       "preferred_categories": [
-        "pharmacy",
-        "travel",
-        "electronics"
+        "jewelry",
+        "gas_station",
+        "cash_advance"
       ],
       "typical_amount_range": [
-        40.02,
-        455.3
+        47.36,
+        998.88
       ],
       "active_hours": [
+        6,
         7,
         8,
         9,
@@ -4680,13 +4546,155 @@
         14,
         15,
         16,
-        17
+        17,
+        18,
+        19,
+        20,
+        21
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 2,
+      "suspicious_activity_flags": 0,
+      "risk_score": 0.037
+    }
+  },
+  {
+    "user_id": "user_097",
+    "demographics": {
+      "age": 51,
+      "income": 26884,
+      "credit_score": 403,
+      "account_age_months": 116
+    },
+    "location": {
+      "city": "Philadelphia",
+      "state": "PA",
+      "country": "US",
+      "zip_code": "19101"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 40,
+      "preferred_categories": [
+        "grocery",
+        "cash_advance",
+        "gas_station"
+      ],
+      "typical_amount_range": [
+        53.64,
+        670.92
+      ],
+      "active_hours": [
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 2,
+      "suspicious_activity_flags": 0,
+      "risk_score": 0.923
+    }
+  },
+  {
+    "user_id": "user_098",
+    "demographics": {
+      "age": 76,
+      "income": 67602,
+      "credit_score": 669,
+      "account_age_months": 28
+    },
+    "location": {
+      "city": "Chicago",
+      "state": "CA",
+      "country": "US",
+      "zip_code": "60601"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 42,
+      "preferred_categories": [
+        "gas_station",
+        "online_retail",
+        "cash_advance"
+      ],
+      "typical_amount_range": [
+        88.01,
+        478.77
+      ],
+      "active_hours": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19
+      ]
+    },
+    "risk_profile": {
+      "historical_fraud_reports": 1,
+      "suspicious_activity_flags": 2,
+      "risk_score": 0.038
+    }
+  },
+  {
+    "user_id": "user_099",
+    "demographics": {
+      "age": 22,
+      "income": 125604,
+      "credit_score": 552,
+      "account_age_months": 105
+    },
+    "location": {
+      "city": "Phoenix",
+      "state": "TX",
+      "country": "US",
+      "zip_code": "75201"
+    },
+    "behavior": {
+      "avg_monthly_transactions": 23,
+      "preferred_categories": [
+        "travel",
+        "gas_station",
+        "clothing"
+      ],
+      "typical_amount_range": [
+        73.77,
+        913.96
+      ],
+      "active_hours": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20
       ]
     },
     "risk_profile": {
       "historical_fraud_reports": 0,
       "suspicious_activity_flags": 1,
-      "risk_score": 0.65
+      "risk_score": 0.282
     }
   }
 ]

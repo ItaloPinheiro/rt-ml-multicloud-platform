@@ -334,6 +334,19 @@ def main():
         default=False,
         help="Automatically promote model to production (skip evaluation gate)",
     )
+    parser.add_argument(
+        "--class-weight",
+        type=str,
+        default=None,
+        choices=["balanced", "balanced_subsample"],
+        help="Class weight strategy for handling imbalanced datasets",
+    )
+    parser.add_argument(
+        "--max-depth",
+        type=int,
+        default=None,
+        help="Maximum depth of trees (None for unlimited)",
+    )
 
     args = parser.parse_args()
 
@@ -344,6 +357,10 @@ def main():
 
     # Train model
     model_params = {"n_estimators": args.n_estimators, "random_state": 42, "n_jobs": -1}
+    if args.class_weight:
+        model_params["class_weight"] = args.class_weight
+    if args.max_depth is not None:
+        model_params["max_depth"] = args.max_depth
 
     try:
         run_id, metrics = trainer.train_and_log(
