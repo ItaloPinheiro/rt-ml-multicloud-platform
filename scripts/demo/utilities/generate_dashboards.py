@@ -1,8 +1,6 @@
 import json
 import os
 
-from textwrap import dedent
-
 DASHBOARDS_DIR = "ops/monitoring/grafana/dashboards"
 os.makedirs(DASHBOARDS_DIR, exist_ok=True)
 

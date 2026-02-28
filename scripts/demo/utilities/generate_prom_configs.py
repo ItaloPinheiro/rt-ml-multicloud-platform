@@ -1,7 +1,6 @@
-import yaml
 import os
 
-from textwrap import dedent
+import yaml
 
 RULES_DIR = "ops/monitoring/prometheus/rules"
 ALERTS_DIR = "ops/monitoring/prometheus/alerts"
