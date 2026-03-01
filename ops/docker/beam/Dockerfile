@@ -10,7 +10,7 @@ LABEL description="Apache Beam pipeline runner with multi-cloud support"
 WORKDIR /app
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     gcc \
     g++ \
     curl \
@@ -19,8 +19,9 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
-# Install Poetry (with upgraded pip)
-RUN pip install --no-cache-dir --upgrade pip && pip install poetry==1.8.5
+# Install Poetry
+RUN pip install poetry==1.8.5 \
+    && rm -rf ~/.cache/pip
 
 # Copy dependency files
 COPY pyproject.toml poetry.lock ./
