@@ -87,6 +87,11 @@ data "aws_availability_zones" "available" {
 # Current caller identity for unique naming
 data "aws_caller_identity" "current" {}
 
+# Training data bucket (managed by bootstrap module, referenced here read-only)
+data "aws_s3_bucket" "training_data" {
+  bucket = "${var.project_name}-training-data-${var.environment}"
+}
+
 # -----------------------------------------------------------------------------
 # Local Variables
 # -----------------------------------------------------------------------------

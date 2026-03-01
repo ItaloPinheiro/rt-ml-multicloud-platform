@@ -13,13 +13,13 @@ output "instance_id" {
 }
 
 output "training_data_bucket" {
-  description = "S3 bucket name for training data"
-  value       = aws_s3_bucket.training_data.bucket
+  description = "S3 bucket name for training data (managed by bootstrap module)"
+  value       = data.aws_s3_bucket.training_data.bucket
 }
 
 output "training_data_bucket_arn" {
-  description = "S3 bucket ARN for training data"
-  value       = aws_s3_bucket.training_data.arn
+  description = "S3 bucket ARN for training data (managed by bootstrap module)"
+  value       = data.aws_s3_bucket.training_data.arn
 }
 
 output "service_urls" {
@@ -40,5 +40,5 @@ output "ssh_command" {
 
 output "upload_training_data_command" {
   description = "Command to upload training data to S3"
-  value       = "aws s3 cp data/sample/demo/datasets/fraud_detection.csv s3://${aws_s3_bucket.training_data.bucket}/datasets/fraud_detection.csv"
+  value       = "aws s3 cp data/sample/demo/datasets/fraud_detection.csv s3://${data.aws_s3_bucket.training_data.bucket}/datasets/fraud_detection.csv"
 }

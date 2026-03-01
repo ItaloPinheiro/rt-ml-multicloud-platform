@@ -61,6 +61,7 @@ resource "aws_iam_role_policy_attachment" "ssm_attach" {
 }
 
 # 6. Policy for S3 training data access (read-only, scoped to training bucket)
+# The training data bucket is managed by the bootstrap module, not this demo module.
 resource "aws_iam_policy" "training_data_policy" {
   name        = "${local.name_prefix}-training-data-policy"
   description = "Allow EC2 (and K8s Jobs) to read training data from S3"
@@ -75,8 +76,8 @@ resource "aws_iam_policy" "training_data_policy" {
           "s3:ListBucket"
         ]
         Resource = [
-          aws_s3_bucket.training_data.arn,
-          "${aws_s3_bucket.training_data.arn}/*"
+          data.aws_s3_bucket.training_data.arn,
+          "${data.aws_s3_bucket.training_data.arn}/*"
         ]
       }
     ]
