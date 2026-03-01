@@ -3,11 +3,13 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
 
-from pydantic import BaseModel, Field, field_serializer, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator
 
 
 class PredictionRequest(BaseModel):
     """Schema for single prediction requests."""
+
+    model_config = ConfigDict(frozen=True)
 
     features: Dict[str, Any] = Field(
         ...,
@@ -51,6 +53,8 @@ class PredictionRequest(BaseModel):
 class PredictionResponse(BaseModel):
     """Schema for prediction responses."""
 
+    model_config = ConfigDict(frozen=True)
+
     prediction: Union[float, int, str] = Field(
         ..., description="Model prediction result"
     )
@@ -78,6 +82,8 @@ class PredictionResponse(BaseModel):
 
 class BatchPredictionRequest(BaseModel):
     """Schema for batch prediction requests."""
+
+    model_config = ConfigDict(frozen=True)
 
     instances: List[Dict[str, Any]] = Field(
         ...,
@@ -112,6 +118,8 @@ class BatchPredictionRequest(BaseModel):
 class BatchPredictionResponse(BaseModel):
     """Schema for batch prediction responses."""
 
+    model_config = ConfigDict(frozen=True)
+
     predictions: List[Union[float, int, str]] = Field(
         ..., description="List of predictions"
     )
@@ -144,6 +152,8 @@ class BatchPredictionResponse(BaseModel):
 class ModelInfo(BaseModel):
     """Schema for model information."""
 
+    model_config = ConfigDict(frozen=True)
+
     name: str = Field(..., description="Model name")
     versions: List[str] = Field(..., description="Available versions")
     current_stage: Optional[str] = Field(None, description="Current model stage")
@@ -158,6 +168,8 @@ class ModelInfo(BaseModel):
 
 class HealthCheck(BaseModel):
     """Schema for health check responses."""
+
+    model_config = ConfigDict(frozen=True)
 
     status: str = Field(..., description="Overall health status")
     timestamp: datetime = Field(..., description="Health check timestamp")
@@ -186,6 +198,8 @@ class HealthCheck(BaseModel):
 class ErrorResponse(BaseModel):
     """Schema for error responses."""
 
+    model_config = ConfigDict(frozen=True)
+
     error: str = Field(..., description="Error type")
     message: str = Field(..., description="Error message")
     detail: Optional[str] = Field(None, description="Detailed error information")
@@ -199,6 +213,8 @@ class ErrorResponse(BaseModel):
 
 class MetricsResponse(BaseModel):
     """Schema for metrics responses."""
+
+    model_config = ConfigDict(frozen=True)
 
     total_predictions: int = Field(..., description="Total number of predictions made")
     predictions_per_minute: float = Field(
@@ -221,6 +237,8 @@ class MetricsResponse(BaseModel):
 
 class FeatureImportance(BaseModel):
     """Schema for feature importance data."""
+
+    model_config = ConfigDict(frozen=True)
 
     model_name: str = Field(..., description="Model name")
     model_version: str = Field(..., description="Model version")
@@ -245,6 +263,8 @@ class FeatureImportance(BaseModel):
 class ModelUpdateRequest(BaseModel):
     """Schema for model update requests."""
 
+    model_config = ConfigDict(frozen=True)
+
     model_name: str = Field(..., description="Model name to update")
     target_version: Optional[str] = Field(
         None, description="Target version to update to"
@@ -255,6 +275,8 @@ class ModelUpdateRequest(BaseModel):
 
 class ModelUpdateResponse(BaseModel):
     """Schema for model update responses."""
+
+    model_config = ConfigDict(frozen=True)
 
     model_name: str = Field(..., description="Updated model name")
     old_version: str = Field(..., description="Previous model version")
@@ -272,6 +294,8 @@ class ModelUpdateResponse(BaseModel):
 class ModelConfig(BaseModel):
     """Schema for model configuration."""
 
+    model_config = ConfigDict(frozen=True)
+
     name: str = Field(..., description="Model name")
     version: str = Field(default="latest", description="Model version")
     preprocessing: Optional[Dict[str, Any]] = Field(
@@ -288,6 +312,8 @@ class ModelConfig(BaseModel):
 
 class APIConfig(BaseModel):
     """Schema for API configuration."""
+
+    model_config = ConfigDict(frozen=True)
 
     max_batch_size: int = Field(default=1000, description="Maximum batch size")
     default_timeout_ms: int = Field(default=5000, description="Default timeout")

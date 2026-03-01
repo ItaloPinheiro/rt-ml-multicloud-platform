@@ -5,10 +5,12 @@ aggregating features from streaming data using Apache Beam.
 """
 
 import json
+import os
 from datetime import datetime, timezone
 from typing import Any, Dict, Iterable, Optional, Tuple
 
 import numpy as np
+import yaml
 
 try:
     import apache_beam as beam
@@ -445,6 +447,29 @@ class AggregateFeatures(beam.DoFn):
             yield TaggedOutput("errors", error_info)
 
 
+def load_validation_config(config_path: Optional[str] = None) -> Dict[str, Any]:
+    """Load validation config from a YAML file.
+
+    Args:
+        config_path: Path to validation YAML file. Defaults to configs/validation.yml.
+
+    Returns:
+        Parsed validation config dictionary.
+    """
+    if config_path is None:
+        config_path = os.path.join(
+            os.path.dirname(__file__), "..", "..", "..", "configs", "validation.yml"
+        )
+    config_path = os.path.normpath(config_path)
+
+    if not os.path.exists(config_path):
+        logger.warning("Validation config not found", path=config_path)
+        return {}
+
+    with open(config_path) as f:
+        return yaml.safe_load(f) or {}
+
+
 class ValidateFeatures(beam.DoFn):
     """Validate feature quality and completeness.
 
@@ -452,13 +477,26 @@ class ValidateFeatures(beam.DoFn):
     before being used for model training or inference.
     """
 
-    def __init__(self, validation_config: Optional[Dict[str, Any]] = None):
+    def __init__(
+        self,
+        validation_config: Optional[Dict[str, Any]] = None,
+        config_path: Optional[str] = None,
+    ):
         """Initialize feature validation transform.
 
         Args:
-            validation_config: Configuration for validation rules
+            validation_config: Configuration for validation rules.
+                Takes precedence over config_path if both are provided.
+            config_path: Path to a YAML config file. Used only when
+                validation_config is not provided.
         """
-        self.validation_config = validation_config or {}
+        if validation_config is not None:
+            self.validation_config = validation_config
+        elif config_path is not None:
+            self.validation_config = load_validation_config(config_path)
+        else:
+            self.validation_config = {}
+
         self.required_fields = self.validation_config.get("required_fields", [])
         self.numeric_ranges = self.validation_config.get("numeric_ranges", {})
         self.categorical_values = self.validation_config.get("categorical_values", {})

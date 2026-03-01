@@ -1,0 +1,43 @@
+# Feature validation rules for the data quality pipeline.
+# Used by ValidateFeatures Beam transform to check incoming features.
+
+required_fields:
+  - amount
+  - merchant_category
+  - hour_of_day
+  - user_id
+
+numeric_ranges:
+  amount: [0, 1000000]
+  hour_of_day: [0, 23]
+  day_of_week: [0, 6]
+  risk_score: [0.0, 1.0]
+  fraud_score: [0.0, 1.0]
+  credit_score: [0.0, 1.0]
+
+categorical_values:
+  merchant_category:
+    - electronics
+    - grocery
+    - gas
+    - restaurant
+    - travel
+    - entertainment
+    - healthcare
+    - retail
+    - other
+    - unknown
+  payment_method:
+    - credit_card
+    - debit_card
+    - bank_transfer
+    - digital_wallet
+    - cash
+    - unknown
+  channel:
+    - online
+    - in_store
+    - mobile
+    - atm
+    - phone
+    - unknown

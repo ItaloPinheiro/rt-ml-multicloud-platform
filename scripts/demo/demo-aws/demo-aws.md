@@ -10,7 +10,7 @@ Unlike the local demo which runs everything on your machine, this workflow runs 
 *   **Python 3.13+** installed locally.
 *   **Bash** (recommended) or Git Bash on Windows.
 *   **AWS CLI** installed and configured.
-*   Project dependencies installed (`pip install -r requirements.txt` or `poetry install`).
+*   Project dependencies installed (`poetry install`).
 *   The AWS instance must be running and fully bootstrapped.
 
 ## Step-by-Step Workflow
@@ -35,11 +35,6 @@ INSTANCE_IP=$(aws ec2 describe-instances \
     --output text) && echo $INSTANCE_IP
 ```
 
-Verify IP was found
-```bash
-if [ -z "$INSTANCE_IP" ]; then echo "Error: Instance not found or not running!"; else echo "Instance IP: $INSTANCE_IP"; fi
-```
-
 Set Environment Variables
 ```bash
 export MLFLOW_TRACKING_URI="http://${INSTANCE_IP}:30500"
@@ -60,8 +55,6 @@ If the setup failed or you need to re-trigger the script:
 ```bash
 ssh -i ml-pipeline-debug.pem ubuntu@$INSTANCE_IP "sudo /var/lib/cloud/instance/scripts/part-001"
 ```
-
-> **Note:** You no longer need to manually pull/import Docker images. K3s pulls images directly from GHCR using an `imagePullSecret` configured during bootstrap.
 
 **Verify Services:**
 Once the script completes, ensure the platform pods are running:
@@ -189,13 +182,10 @@ MLflow 3.x introduces a redesigned UI with two top-level tabs: **GenAI** and **M
 2. **View model registry**: Click "Models" in the left sidebar -> see registered models, versions, and aliases
 3. **Compare runs**: Select multiple runs from the experiment table -> click "Compare"
 
-> **Note:** If you see "Failed to load chart data" on the GenAI Overview page, this is because the GenAI-specific database tables have no data for traditional ML experiments. Switch to the "Model training" tab. If errors persist on the Model training tab, run `mlflow db upgrade <backend-store-uri>` against the PostgreSQL instance to apply any pending schema migrations.
-
 ### Grafana
 
 Access Grafana at `http://$INSTANCE_IP:30300`.
 
-- **Default credentials**: `admin` / `admin` (you will be prompted to change on first login)
 - **Dashboards**: Navigate to Dashboards -> Browse to find the pre-provisioned dashboards:
   - Applications Uptime and Health
   - Model Performance Monitoring
@@ -351,6 +341,8 @@ export EC2_IP=$INSTANCE_IP
 ### API
 
 ```bash
+export API_URL="http://${INSTANCE_IP}:30800"
+
 # Health check
 curl -s "$API_URL/health" | python -m json.tool
 
@@ -404,14 +396,6 @@ This section explains the rationale behind the technology choices for the AWS de
 The EKS control plane alone costs $73/month with no application running. For a single-node demo workload, EC2 + K3s provides the same Kubernetes API surface at a fraction of the cost.
 
 **Migration readiness:** The K8s manifests use Kustomize base + overlay structure (`ops/k8s/base/`, `ops/k8s/overlays/`). Migrating to EKS requires a new overlay (`ops/k8s/overlays/eks-demo/`) and Terraform modules for VPC/EKS/RDS — the application code and base manifests remain unchanged. See `local/next_steps/ec2-to-eks-migration.md` for the full phased migration plan.
-
-### Why Self-Hosted MLflow instead of SageMaker
-
-The platform is designed to be **cloud-agnostic**, ingesting from Kafka, Kinesis, and Pub/Sub. MLflow is open-source and portable across any infrastructure — the same tracking server runs on local Docker Compose, K3s on EC2, or EKS.
-
-SageMaker Model Registry ties the model lifecycle to AWS, creating vendor lock-in across experiment tracking, model versioning, and serving endpoints. By self-hosting MLflow, the model registry API (`mlflow.MlflowClient`), alias-based promotion (`production` alias), and artifact storage are all portable.
-
-**Future plan:** SageMaker Training Jobs are planned for compute-only (offloading heavy training to managed GPU instances), while experiment tracking and model registry remain on MLflow. See `local/next_steps/aws-training-migration.md`.
 
 ### Why No Apache Beam Ingestion Pipeline in the Demo
 

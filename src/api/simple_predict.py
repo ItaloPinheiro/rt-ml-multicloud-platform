@@ -6,7 +6,7 @@ from typing import Any, Dict
 
 import numpy as np
 from fastapi import APIRouter
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 router = APIRouter()
 
@@ -40,10 +40,14 @@ def load_model():
 
 
 class SimplePredictionRequest(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
     features: Dict[str, Any]
 
 
 class SimplePredictionResponse(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
     prediction: int
     probability: float
     status: str

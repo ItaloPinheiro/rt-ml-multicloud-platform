@@ -398,6 +398,19 @@ class PrometheusMetrics:
             f"{self.prefix}_cpu_usage_percent", "CPU usage percentage"
         )
 
+        # Data validation metrics
+        self.data_validation_total = Counter(
+            f"{self.prefix}_data_validation_total",
+            "Total number of validated records",
+            ["result"],
+        )
+
+        self.data_validation_errors_by_field = Counter(
+            f"{self.prefix}_data_validation_errors_by_field",
+            "Validation errors broken down by field and error type",
+            ["field", "error_type"],
+        )
+
         # Error metrics
         self.errors_total = Counter(
             f"{self.prefix}_errors_total",
@@ -527,6 +540,25 @@ class PrometheusMetrics:
             percent: CPU usage percentage
         """
         self.cpu_usage_percent.set(percent)
+
+    def record_validation_result(self, result: str) -> None:
+        """Record a data validation result.
+
+        Args:
+            result: Validation result (valid, invalid, or error)
+        """
+        self.data_validation_total.labels(result=result).inc()
+
+    def record_validation_field_error(self, field: str, error_type: str) -> None:
+        """Record a field-level validation error.
+
+        Args:
+            field: Field name that failed validation
+            error_type: Type of error (missing, out_of_range, invalid_value)
+        """
+        self.data_validation_errors_by_field.labels(
+            field=field, error_type=error_type
+        ).inc()
 
     def record_error(self, component: str, error_type: str) -> None:
         """Record an error.
