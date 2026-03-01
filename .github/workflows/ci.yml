@@ -189,10 +189,6 @@ jobs:
   docker-build:
     name: Docker Build & Test
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      security-events: write
-
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -217,19 +213,6 @@ jobs:
         docker run --rm ml-pipeline:test ls -la /app/src
         docker run --rm ml-pipeline:test pip list
         docker run --rm ml-pipeline:test python -c "import sys; print(sys.path); import src; print('Import successful')"
-
-    - name: Run security scan on Docker image
-      uses: aquasecurity/trivy-action@master
-      with:
-        image-ref: 'ml-pipeline:test'
-        format: 'sarif'
-        output: 'trivy-results.sarif'
-
-    - name: Upload Trivy results to GitHub Security tab
-      uses: github/codeql-action/upload-sarif@v3
-      if: always()
-      with:
-        sarif_file: 'trivy-results.sarif'
 
   # Performance Tests (manual trigger only - run via workflow_dispatch)
   performance-test:

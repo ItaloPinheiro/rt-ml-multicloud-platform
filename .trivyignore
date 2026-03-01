@@ -1,0 +1,41 @@
+# Trivy CVE Suppressions
+# Reviewed and accepted vulnerabilities with no upstream fix available.
+# All Dockerfiles run apt-get upgrade -y, so patches are picked up automatically
+# when Debian publishes them. Last reviewed: 2026-03-01
+
+# --- HIGH severity ---
+
+# glibc: Integer overflow in memalign (libc6, libc-bin)
+# Requires attacker control of both size (near PTRDIFF_MAX) and alignment args
+# to memalign — not reachable in Python/FastAPI workloads.
+CVE-2026-0861
+
+# --- MEDIUM severity ---
+
+# util-linux: Heap buffer overread in setpwnam() (bsdutils, login, mount,
+# libblkid1, liblastlog2-2, libmount1, libsmartcols1, libuuid1, util-linux)
+# Requires processing 256-byte usernames — not applicable to containerized
+# Python services with fixed non-root user.
+CVE-2025-14104
+
+# curl: Pinned public key verification bypass (curl, libcurl4t64)
+# Only affects CURLOPT_PINNEDPUBLICKEY usage — not used by Python httpx/urllib.
+CVE-2025-13034
+
+# glibc: wordexp returns uninitialized memory with WRDE_REUSE/WRDE_APPEND
+# (libc-bin, libc6) — wordexp not called by Python runtime or dependencies.
+CVE-2025-15281
+
+# glibc: Information disclosure via zero-valued network query (libc-bin, libc6)
+CVE-2026-0915
+
+# sqlite: Integer overflow in FTS5 (libsqlite3-0)
+# Application uses PostgreSQL, not SQLite for data storage.
+CVE-2025-7709
+
+# libtasn1: DoS via stack buffer overflow in asn1_expend_octet_string
+# (libtasn1-6) — ASN.1 parsing not directly exposed to untrusted input.
+CVE-2025-13151
+
+# zlib: DoS via infinite loop in CRC32 combine functions (zlib1g)
+CVE-2026-27171
