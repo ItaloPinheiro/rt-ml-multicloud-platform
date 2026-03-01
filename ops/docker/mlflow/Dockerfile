@@ -7,7 +7,7 @@ FROM python:3.13-slim AS builder
 WORKDIR /app
 
 # Install build dependencies
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     gcc \
     g++ \
     git \
@@ -36,14 +36,12 @@ LABEL description="MLflow tracking server with S3 and PostgreSQL support"
 WORKDIR /app
 
 # Install minimal runtime dependencies
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     curl \
     postgresql-client \
     libpq5 \
-    && rm -rf /var/lib/apt/lists/*
-
-# Upgrade pip to address CVE-2026-1703
-RUN pip install --no-cache-dir --upgrade pip
+    && rm -rf /var/lib/apt/lists/* \
+    && python -m pip uninstall -y pip setuptools wheel || true
 
 # Copy virtual environment from builder
 COPY --from=builder /app/.venv /app/.venv

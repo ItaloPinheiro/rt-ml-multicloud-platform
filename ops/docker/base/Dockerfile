@@ -12,7 +12,7 @@ LABEL version="${APP_VERSION}"
 WORKDIR /app
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     gcc \
     g++ \
     curl \
@@ -20,9 +20,6 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
-
-# Upgrade pip to address CVE-2026-1703
-RUN pip install --no-cache-dir --upgrade pip
 
 # Install Poetry for dependency management
 ENV POETRY_HOME="/opt/poetry"
