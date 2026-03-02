@@ -22,6 +22,11 @@ output "training_data_bucket_arn" {
   value       = data.aws_s3_bucket.training_data.arn
 }
 
+output "kinesis_stream_name" {
+  description = "Name of the Kinesis Data Stream for real-time features"
+  value       = aws_kinesis_stream.demo_stream.name
+}
+
 output "service_urls" {
   description = "Service URLs (replace <IP> with instance_public_ip)"
   value = {
