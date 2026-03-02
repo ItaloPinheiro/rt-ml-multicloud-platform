@@ -5,6 +5,8 @@ This document describes the data ingestion and feature engineering pipeline desi
 
 Built on **Apache Beam**, this pipeline is highly portable. It can be executed locally (at near-zero cost) for demonstration or development purposes using the `DirectRunner`, or seamlessly deployed to production streaming platforms like AWS Managed Service for Apache Flink or a portable runner cluster (`FlinkRunner`).
 
+> For deployment on AWS (K8s Jobs, CI/CD, Terraform), see [kds-apache-beam-deployment.md](kds-apache-beam-deployment.md).
+
 ## Architecture
 
 1. **Source**: Amazon Kinesis Data Stream (reads streaming JSON events).
@@ -114,5 +116,5 @@ poetry run python scripts/demo/demo-aws/ingest_kinesis_s3.py \
 
 ## Considerations for Streaming ML Feature Engineering:
 1. **Windowing Options**: Ensure `window_config` dictates how incoming streaming features scale across time gaps: Fixed, Session, or Sliding.
-2. **Kinesis Starting Offset**: The framework defaults Kinesis start location to `LATEST` (process new data from now). Other configurable constants include `TRIM_HORIZON` (read oldest data) and `AT_TIMESTAMP`.
+2. **Kinesis Starting Offset**: The framework defaults Kinesis start location to `TRIM_HORIZON` (read all available data). Other configurable options include `LATEST` (process only new data from now) and `AT_TIMESTAMP`.
 3. **Data Quality Errors**: Failed transformations or invalid data schemas natively route to error streams instead of crashing the pipeline execution cleanly decoupling failure processing logic from standard flow logic.

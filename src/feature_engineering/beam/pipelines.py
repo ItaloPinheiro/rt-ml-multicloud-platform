@@ -674,7 +674,7 @@ def create_aws_pipeline_config(
         Pipeline configuration dictionary
     """
     return {
-        "runner": "FlinkRunner",
+        "runner": "DirectRunner",
         "region": region,
         "temp_location": f"s3://{s3_bucket}/temp",
         "staging_location": f"s3://{s3_bucket}/staging",
@@ -683,7 +683,7 @@ def create_aws_pipeline_config(
             "type": "kinesis",
             "stream_name": stream_name,
             "region": region,
-            "initial_position": "LATEST",
+            "initial_position": "TRIM_HORIZON",
         },
         "output_config": {
             "type": "s3",

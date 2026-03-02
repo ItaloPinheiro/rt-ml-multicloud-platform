@@ -31,9 +31,10 @@ COPY pyproject.toml poetry.lock ./
 RUN poetry config virtualenvs.create false \
     && poetry install --no-interaction --no-ansi --only main,processing
 
-# Copy application code
+# Copy application code and scripts
 COPY src ./src
 COPY configs ./configs
+COPY scripts ./scripts
 
 # Set environment variables
 ENV PYTHONPATH=/app:$PYTHONPATH

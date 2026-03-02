@@ -15,7 +15,9 @@ def main():
     parser.add_argument("--region", type=str, default="us-east-1", help="AWS Region where Kinesis and S3 exist")
     parser.add_argument("--output-prefix", type=str, default="ml-pipeline/features", help="Prefix for output files in S3")
     parser.add_argument("--runner", type=str, default="DirectRunner", help="Apache Beam Runner (e.g. FlinkRunner, DirectRunner)")
-    
+    parser.add_argument("--initial-position", type=str, default="TRIM_HORIZON",
+                        help="Kinesis initial position: TRIM_HORIZON (read all) or LATEST (new only)")
+
     args = parser.parse_args()
     
     print(f"Starting Feature Engineering Pipeline (Runner: {args.runner})")
@@ -30,16 +32,17 @@ def main():
         output_prefix=args.output_prefix
     )
     
-    # Override runner if executing locally vs AWS
+    # Override runner and initial position from CLI args
     config["runner"] = args.runner
+    config["input_config"]["initial_position"] = args.initial_position
     
     try:
         # Initialize pipeline orchestrator
         pipeline = FeatureEngineeringPipeline(config)
         
         # Run streaming pipeline mapping Kinesis -> Beam -> Features -> S3
-        print("\nExecuting streaming ingestion and feature engineering pipeline...")
-        print("Note: In streaming mode this job runs continuously. Press Ctrl+C to terminate.")
+        print("\nExecuting feature engineering pipeline...")
+        print(f"Initial position: {args.initial_position} | Runner: {args.runner}")
         
         result = pipeline.run_streaming_pipeline()
         result.wait_until_finish()
