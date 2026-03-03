@@ -18,12 +18,13 @@ try:
     )
     from apache_beam.io.gcp.bigquery import BigQueryDisposition, CreateDisposition
     from apache_beam.io.kafka import ReadFromKafka, WriteToKafka
+
     try:
         from apache_beam.io.kinesis import ReadFromKinesis, InitialPositionInStream
     except ImportError:
         ReadFromKinesis = None
         InitialPositionInStream = None
-        
+
     from apache_beam.options.pipeline_options import (
         PipelineOptions,
     )
@@ -135,7 +136,7 @@ class FeatureEngineeringPipeline:
                     f"--direct_num_workers={self.config.get('num_workers', 4)}",
                 ]
             )
-            
+
         elif runner in ["FlinkRunner", "PortableRunner"]:
             # Configs for AWS Managed Service for Apache Flink / Portable runners
             temp_location = self.config.get("temp_location")
@@ -160,7 +161,7 @@ class FeatureEngineeringPipeline:
 
         return pipeline_options
 
-    def run_streaming_pipeline(self) -> 'beam.pipeline.PipelineResult':
+    def run_streaming_pipeline(self) -> "beam.pipeline.PipelineResult":
         """Run streaming feature engineering pipeline.
 
         Returns:
@@ -228,7 +229,7 @@ class FeatureEngineeringPipeline:
 
     def run_batch_pipeline(
         self, input_path: str, output_path: str
-    ) -> 'beam.pipeline.PipelineResult':
+    ) -> "beam.pipeline.PipelineResult":
         """Run batch feature engineering pipeline.
 
         Args:
@@ -275,7 +276,7 @@ class FeatureEngineeringPipeline:
         return pipeline.run().wait_until_finish()
 
     def _create_input_source(
-        self, pipeline: 'beam.Pipeline', input_config: Dict[str, Any]
+        self, pipeline: "beam.Pipeline", input_config: Dict[str, Any]
     ):
         """Create input source based on configuration.
 
@@ -339,19 +340,19 @@ class FeatureEngineeringPipeline:
                     "ReadFromKinesis is not available. Please install the required "
                     "dependencies (apache-beam[aws])."
                 )
-            
+
             stream_name = input_config.get("stream_name")
             region = input_config.get("region", "us-east-1")
             aws_access_key = input_config.get("aws_access_key", "")
             aws_secret_key = input_config.get("aws_secret_key", "")
             initial_pos = input_config.get("initial_position", "LATEST")
-            
+
             position = InitialPositionInStream.LATEST if InitialPositionInStream else 0
             if initial_pos == "TRIM_HORIZON" and InitialPositionInStream:
                 position = InitialPositionInStream.TRIM_HORIZON
             elif initial_pos == "AT_TIMESTAMP" and InitialPositionInStream:
                 position = InitialPositionInStream.AT_TIMESTAMP
-            
+
             return (
                 pipeline
                 | "ReadFromKinesis"
@@ -363,7 +364,11 @@ class FeatureEngineeringPipeline:
                     initial_position_in_stream=position,
                 )
                 | "ExtractKinesisValue"
-                >> beam.Map(lambda record: (record.data if hasattr(record, 'data') else record).decode("utf-8"))
+                >> beam.Map(
+                    lambda record: (
+                        record.data if hasattr(record, "data") else record
+                    ).decode("utf-8")
+                )
                 | "ParseKinesisJSON" >> beam.Map(self._parse_json_safely)
             )
 
@@ -412,7 +417,7 @@ class FeatureEngineeringPipeline:
 
     def _write_outputs(
         self,
-        pipeline: 'beam.Pipeline',
+        pipeline: "beam.Pipeline",
         features,
         aggregated,
         errors: Dict[str, Any],
@@ -491,7 +496,7 @@ class FeatureEngineeringPipeline:
             output_path = output_config.get("path")
             if not output_path or not output_path.startswith("s3://"):
                 raise ValueError("S3 output type requires a path starting with s3://")
-                
+
             # Write features
             features | "WriteFeaturesToS3" >> WriteToText(
                 file_path_prefix=f"{output_path}/features", file_name_suffix=".json"
@@ -546,7 +551,7 @@ class FeatureEngineeringPipeline:
 
     def create_test_data_pipeline(
         self, output_path: str, num_records: int = 1000
-    ) -> 'beam.pipeline.PipelineResult':
+    ) -> "beam.pipeline.PipelineResult":
         """Create a pipeline that generates test data for development.
 
         Args:
@@ -658,6 +663,7 @@ def create_local_pipeline_config(input_file: str, output_path: str) -> Dict[str,
             }
         },
     }
+
 
 def create_aws_pipeline_config(
     stream_name: str, region: str, s3_bucket: str, output_prefix: str

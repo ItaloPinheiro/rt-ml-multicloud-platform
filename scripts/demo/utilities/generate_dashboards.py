@@ -20,7 +20,7 @@ def create_dashboard(uid, title, panels):
                     "name": "model_name",
                     "type": "query",
                     "label": "Model",
-                    "query": 'label_values(ml_predictions_total, model_name)',
+                    "query": "label_values(ml_predictions_total, model_name)",
                     "current": {"text": "All", "value": "$__all"},
                     "includeAll": True,
                     "multi": True,

@@ -185,7 +185,9 @@ class ModelTrainer:
 
         return metrics
 
-    def _build_pipeline(self, model_params: Optional[Dict[str, Any]] = None) -> Pipeline:
+    def _build_pipeline(
+        self, model_params: Optional[Dict[str, Any]] = None
+    ) -> Pipeline:
         """Build sklearn Pipeline from model definition config."""
         steps = []
         for step_cfg in self.model_def.pipeline_steps:
