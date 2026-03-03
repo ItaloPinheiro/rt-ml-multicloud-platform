@@ -13,6 +13,21 @@ def create_dashboard(uid, title, panels):
         "schemaVersion": 36,
         "timezone": "browser",
         "refresh": "1m",
+        # Template variable for filtering by model name across all panels
+        "templating": {
+            "list": [
+                {
+                    "name": "model_name",
+                    "type": "query",
+                    "label": "Model",
+                    "query": 'label_values(ml_predictions_total, model_name)',
+                    "current": {"text": "All", "value": "$__all"},
+                    "includeAll": True,
+                    "multi": True,
+                    "refresh": 2,
+                }
+            ]
+        },
     }
 
 

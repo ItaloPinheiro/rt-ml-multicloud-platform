@@ -55,9 +55,15 @@ def main():
         X, y, test_size=0.2, random_state=42
     )
 
-    parser = argparse.ArgumentParser(description="Train fraud detection model")
+    parser = argparse.ArgumentParser(description="Train ML model")
     parser.add_argument(
         "--n-estimators", type=int, default=100, help="Number of trees in Random Forest"
+    )
+    parser.add_argument(
+        "--model-type",
+        type=str,
+        default="fraud_detector",
+        help="Model definition name from configs/models/ (default: fraud_detector)",
     )
     args = parser.parse_args()
 

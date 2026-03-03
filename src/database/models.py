@@ -227,6 +227,12 @@ class PredictionLog(Base):
     prediction = Column(JSON, nullable=False)
     probabilities = Column(JSON)
 
+    # Prediction type discriminator for multi-model support
+    # "classification" -> probabilities is class probabilities
+    # "regression" -> probabilities is confidence interval [lower, upper]
+    # "score" -> probabilities is null
+    prediction_type = Column(String(50), default="classification")
+
     # Request context
     user_id = Column(String(255))
     session_id = Column(String(255))

@@ -138,6 +138,9 @@ class Config:
     batch_size: int = 1000
     max_retries: int = 3
 
+    # Model definitions
+    model_definitions_path: str = "configs/models"
+
     # Custom settings
     custom: Dict[str, Any] = field(default_factory=dict)
 

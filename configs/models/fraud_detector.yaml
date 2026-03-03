@@ -1,0 +1,55 @@
+# Model definition for fraud detection
+# To add a new model, create a new YAML file in this directory following this template.
+
+model_name: "fraud_detector"
+display_name: "Fraud Detection"
+description: "Credit card transaction fraud detection model"
+task_type: "classification"
+
+algorithm:
+  class: "sklearn.ensemble.RandomForestClassifier"
+  default_params:
+    n_estimators: 100
+    random_state: 42
+    n_jobs: -1
+
+pipeline_steps:
+  - name: "scaler"
+    class: "sklearn.preprocessing.StandardScaler"
+
+features:
+  columns:
+    - "hour_of_day"
+    - "day_of_week"
+    - "is_weekend"
+    - "transaction_count_24h"
+    - "avg_amount_30d"
+    - "risk_score"
+    - "amount"
+    - "merchant_category_encoded"
+    - "payment_method_encoded"
+  target: "label"
+
+metrics:
+  - "accuracy"
+  - "precision"
+  - "recall"
+  - "f1_score"
+
+mlflow:
+  experiment_name: "fraud_detection"
+
+serving:
+  confidence_threshold: 0.5
+
+validation:
+  test_input:
+    hour_of_day: 12.0
+    day_of_week: 1.0
+    is_weekend: false
+    transaction_count_24h: 5.0
+    avg_amount_30d: 100.0
+    risk_score: 0.5
+    amount: 50.0
+    merchant_category_encoded: 1.0
+    payment_method_encoded: 1.0

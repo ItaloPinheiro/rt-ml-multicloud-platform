@@ -62,7 +62,15 @@ class KafkaConsumer(StreamIngestion):
         super().__init__(config)
 
         self.bootstrap_servers = config["bootstrap_servers"]
-        self.topic = config["topic"]
+
+        # Support both single topic and list of topics
+        topics = config.get("topics", [])
+        if not topics:
+            topic = config.get("topic", "")
+            topics = [topic] if topic else []
+        self.topics = topics
+        self.topic = topics[0] if topics else ""  # backward compat
+
         self.group_id = config["group_id"]
         self.auto_offset_reset = config.get("auto_offset_reset", "latest")
         self.enable_auto_commit = config.get("enable_auto_commit", False)
@@ -109,8 +117,8 @@ class KafkaConsumer(StreamIngestion):
             # Create consumer
             self.consumer = Consumer(consumer_config)
 
-            # Subscribe to topic
-            self.consumer.subscribe([self.topic])
+            # Subscribe to topic(s)
+            self.consumer.subscribe(self.topics)
 
             # Create admin client for metadata operations
             admin_config = {
@@ -121,8 +129,9 @@ class KafkaConsumer(StreamIngestion):
 
             # Test connection by getting cluster metadata
             metadata = self.consumer.list_topics(timeout=10)
-            if self.topic not in metadata.topics:
-                raise ConnectionError(f"Topic '{self.topic}' not found in cluster")
+            for t in self.topics:
+                if t not in metadata.topics:
+                    raise ConnectionError(f"Topic '{t}' not found in cluster")
 
             self._connected = True
             self.logger.info(

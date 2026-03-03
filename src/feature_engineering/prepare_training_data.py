@@ -1,22 +1,18 @@
 """
 Prepare training-ready CSV from raw transaction data.
 
-Extracts the same 9 features used by the fraud_detector model from raw
-transaction JSON records. Works with both local files and S3 paths.
-
-Input:  JSON array of transaction records (local path or s3:// URI)
-Output: CSV with columns: hour_of_day, day_of_week, is_weekend,
-        transaction_count_24h, avg_amount_30d, risk_score, amount,
-        merchant_category_encoded, payment_method_encoded, label
+Extracts features from raw transaction JSON records using model definitions.
+Works with both local files and S3 paths.
 
 Usage:
-  # Local files
+  # Local files (default: fraud_detector model)
   python -m src.feature_engineering.prepare_training_data \
     --input data/sample/generated/transactions.json \
     --output data/sample/demo/datasets/fraud_detection.csv
 
-  # S3 paths
+  # S3 paths with specific model type
   python -m src.feature_engineering.prepare_training_data \
+    --model-type fraud_detector \
     --input s3://bucket/raw/transactions.json \
     --output s3://bucket/datasets/fraud_detection.csv
 """
@@ -30,24 +26,29 @@ from typing import Any, Dict, List
 
 import pandas as pd
 
+from src.models.model_definition import load_model_definition
+
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
-# Feature columns expected by the fraud_detector model
-FEATURE_COLUMNS = [
-    "hour_of_day",
-    "day_of_week",
-    "is_weekend",
-    "transaction_count_24h",
-    "avg_amount_30d",
-    "risk_score",
-    "amount",
-    "merchant_category_encoded",
-    "payment_method_encoded",
-    "label",
-]
+
+def get_feature_columns(model_name: str = "fraud_detector") -> List[str]:
+    """Load feature columns (including target) from model definition.
+
+    Args:
+        model_name: Model definition name from configs/models/.
+
+    Returns:
+        List of feature column names plus the target column.
+    """
+    model_def = load_model_definition(model_name)
+    return model_def.features.columns + [model_def.features.target]
+
+
+# Default feature columns for backward compatibility
+FEATURE_COLUMNS = get_feature_columns("fraud_detector")
 
 
 def read_data(path: str) -> List[Dict[str, Any]]:
@@ -111,30 +112,47 @@ def extract_features(transaction: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def prepare_training_data(input_path: str, output_path: str) -> pd.DataFrame:
-    """Full pipeline: read raw transactions, extract features, write CSV."""
+def prepare_training_data(
+    input_path: str,
+    output_path: str,
+    feature_columns: List[str] | None = None,
+) -> pd.DataFrame:
+    """Full pipeline: read raw transactions, extract features, write CSV.
+
+    Args:
+        input_path: Path to raw transactions JSON (local or s3://).
+        output_path: Path for output training CSV (local or s3://).
+        feature_columns: Column names for the output CSV. Defaults to FEATURE_COLUMNS.
+    """
+    columns = feature_columns or FEATURE_COLUMNS
+
     logger.info("Reading raw transactions from %s", input_path)
     transactions = read_data(input_path)
     logger.info("Loaded %d raw transactions", len(transactions))
 
     logger.info("Extracting training features...")
     rows = [extract_features(t) for t in transactions]
-    df = pd.DataFrame(rows, columns=FEATURE_COLUMNS)
+    df = pd.DataFrame(rows, columns=columns)
 
     # Validate no nulls
     null_counts = df.isnull().sum()
     if null_counts.any():
         logger.warning("Null values found:\n%s", null_counts[null_counts > 0])
 
-    fraud_count = df["label"].sum()
-    fraud_rate = fraud_count / len(df) * 100 if len(df) > 0 else 0
-    logger.info(
-        "Dataset stats: %d rows, %d fraud (%.1f%%), %d features",
-        len(df),
-        fraud_count,
-        fraud_rate,
-        len(FEATURE_COLUMNS) - 1,
-    )
+    # Log target column stats if it exists
+    target_col = columns[-1] if columns else "label"
+    if target_col in df.columns:
+        target_sum = df[target_col].sum()
+        target_rate = target_sum / len(df) * 100 if len(df) > 0 else 0
+        logger.info(
+            "Dataset stats: %d rows, %d positive (%.1f%%), %d features",
+            len(df),
+            target_sum,
+            target_rate,
+            len(columns) - 1,
+        )
+    else:
+        logger.info("Dataset stats: %d rows, %d features", len(df), len(columns))
 
     write_csv(df, output_path)
     return df
@@ -143,6 +161,12 @@ def prepare_training_data(input_path: str, output_path: str) -> pd.DataFrame:
 def main():
     parser = argparse.ArgumentParser(
         description="Prepare training CSV from raw transaction JSON"
+    )
+    parser.add_argument(
+        "--model-type",
+        type=str,
+        default="fraud_detector",
+        help="Model definition name from configs/models/ (default: fraud_detector)",
     )
     parser.add_argument(
         "--input",
@@ -159,8 +183,11 @@ def main():
 
     args = parser.parse_args()
 
+    # Load feature columns from model definition
+    feature_cols = get_feature_columns(args.model_type)
+
     try:
-        prepare_training_data(args.input, args.output)
+        prepare_training_data(args.input, args.output, feature_columns=feature_cols)
         logger.info("Feature preparation complete")
     except Exception as e:
         logger.error("Feature preparation failed: %s", e)

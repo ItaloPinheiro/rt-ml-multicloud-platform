@@ -33,7 +33,9 @@ class FeatureExtraction(beam.DoFn):
         """Initialize feature extraction transform.
 
         Args:
-            feature_config: Configuration for feature extraction
+            feature_config: Configuration for feature extraction including:
+                - domain: Feature extraction domain ("transaction", "generic").
+                  Defaults to "transaction" for backward compatibility.
         """
         if beam is None:
             raise ImportError(
@@ -42,7 +44,8 @@ class FeatureExtraction(beam.DoFn):
             )
 
         self.feature_config = feature_config or {}
-        self.logger = logger.bind(component="FeatureExtraction")
+        self.domain = self.feature_config.get("domain", "transaction")
+        self.logger = logger.bind(component="FeatureExtraction", domain=self.domain)
 
     def setup(self):
         """Setup method called once per worker."""
@@ -88,8 +91,17 @@ class FeatureExtraction(beam.DoFn):
                 "processed_at": datetime.now(timezone.utc).isoformat(),
             }
 
-            # Extract domain-specific features
-            features.update(self._extract_transaction_features(data))
+            # Extract domain-specific features based on configured domain
+            domain_extractors = {
+                "transaction": self._extract_transaction_features,
+                "generic": self._extract_generic_features,
+            }
+            extractor = domain_extractors.get(
+                self.domain, self._extract_transaction_features
+            )
+            features.update(extractor(data))
+
+            # These are domain-agnostic and always applied
             features.update(self._extract_temporal_features(timestamp_dt))
             features.update(self._extract_categorical_features(data))
             features.update(self._extract_numerical_features(data))
@@ -159,6 +171,29 @@ class FeatureExtraction(beam.DoFn):
         features["payment_method"] = data.get("payment_method", "unknown")
         features["currency"] = data.get("currency", "USD")
 
+        return features
+
+    def _extract_generic_features(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Extract features generically from flat key-value data.
+
+        Passes through all numeric and string values without
+        domain-specific assumptions. Useful for new model types
+        that don't have a dedicated extractor yet.
+
+        Args:
+            data: Input data dictionary
+
+        Returns:
+            Dictionary of features extracted from data
+        """
+        features = {}
+        for key, value in data.items():
+            if isinstance(value, (int, float)):
+                features[key] = value
+            elif isinstance(value, str):
+                features[key] = value
+            elif isinstance(value, bool):
+                features[key] = value
         return features
 
     def _extract_temporal_features(self, timestamp: datetime) -> Dict[str, Any]:
