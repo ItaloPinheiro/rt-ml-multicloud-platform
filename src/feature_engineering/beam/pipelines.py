@@ -20,7 +20,7 @@ try:
     from apache_beam.io.kafka import ReadFromKafka, WriteToKafka
 
     try:
-        from apache_beam.io.kinesis import ReadFromKinesis, InitialPositionInStream
+        from apache_beam.io.kinesis import InitialPositionInStream, ReadFromKinesis
     except ImportError:
         ReadFromKinesis = None
         InitialPositionInStream = None

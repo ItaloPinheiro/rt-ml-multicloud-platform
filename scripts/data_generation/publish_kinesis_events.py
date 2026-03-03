@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 import argparse
 import json
-import time
 import random
+import time
 import uuid
 from datetime import datetime, timezone
-import structlog
+
 import boto3
+import structlog
 from botocore.exceptions import ClientError
 
 logger = structlog.get_logger()

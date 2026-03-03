@@ -1,7 +1,7 @@
 #!/usr/bin/env python
-import sys
-import os
 import argparse
+import os
+import sys
 
 # Add project root to python path
 sys.path.append(
