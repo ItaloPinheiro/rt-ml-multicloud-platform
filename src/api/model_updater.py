@@ -275,6 +275,10 @@ class ModelUpdateManager:
     async def _validate_model(self, model_name: str, version: str) -> bool:
         """Validate a model with a test prediction.
 
+        Loads test input from the model definition (configs/models/<name>.yaml).
+        If no definition exists, skips feature-level validation since the model
+        was already successfully loaded.
+
         Args:
             model_name: Name of the model
             version: Version to validate
@@ -283,20 +287,31 @@ class ModelUpdateManager:
             True if validation passes
         """
         try:
-            # Create test data (use floats for nullable-safe schema compatibility)
-            test_features = {
-                "hour_of_day": 12.0,
-                "day_of_week": 1.0,
-                "is_weekend": False,
-                "transaction_count_24h": 5.0,
-                "avg_amount_30d": 100.0,
-                "risk_score": 0.5,
-                "amount": 50.0,
-                "merchant_category_encoded": 1.0,
-                "payment_method_encoded": 1.0,
-            }
+            # Load test features from model definition (config-driven, not hardcoded)
+            try:
+                from src.models.model_definition import load_model_definition
 
-            # Try a prediction
+                model_def = load_model_definition(model_name)
+                test_features = model_def.validation.test_input
+            except (FileNotFoundError, ValueError):
+                # No model definition available — model loaded successfully,
+                # so consider it valid without a test prediction
+                logger.debug(
+                    "No model definition found, skipping prediction validation",
+                    model=model_name,
+                    version=version,
+                )
+                return True
+
+            if not test_features:
+                logger.debug(
+                    "No test input in model definition, skipping prediction validation",
+                    model=model_name,
+                    version=version,
+                )
+                return True
+
+            # Try a prediction with the definition's test input
             result = await self.model_manager.predict(
                 model_name=model_name,
                 features=test_features,

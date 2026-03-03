@@ -320,3 +320,21 @@ resource "aws_instance" "demo" {
 #     Name = "${local.name_prefix}-eip"
 #   }
 # }
+
+# -----------------------------------------------------------------------------
+# Kinesis Data Stream for Real-time Feature Engineering Demo
+# -----------------------------------------------------------------------------
+
+resource "aws_kinesis_stream" "demo_stream" {
+  name             = "${local.name_prefix}-kds-stream"
+  shard_count      = 1
+  retention_period = 24
+
+  stream_mode_details {
+    stream_mode = "PROVISIONED"
+  }
+
+  tags = {
+    Name = "${local.name_prefix}-kds-stream"
+  }
+}

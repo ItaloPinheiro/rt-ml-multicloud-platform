@@ -89,3 +89,50 @@ resource "aws_iam_role_policy_attachment" "training_data_attach" {
   role       = aws_iam_role.ec2_role.name
   policy_arn = aws_iam_policy.training_data_policy.arn
 }
+
+# 8. Policy for Apache Beam Pipeline (Kinesis + advanced S3)
+resource "aws_iam_policy" "beam_pipeline_policy" {
+  name        = "${local.name_prefix}-beam-pipeline-policy"
+  description = "Allow EC2 to read/write KDS and advanced S3 ops for beam pipeline"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "kinesis:DescribeStream",
+          "kinesis:DescribeStreamSummary",
+          "kinesis:GetRecords",
+          "kinesis:GetShardIterator",
+          "kinesis:ListShards",
+          "kinesis:ListStreams",
+          "kinesis:SubscribeToShard",
+          "kinesis:PutRecord",
+          "kinesis:PutRecords"
+        ]
+        Resource = aws_kinesis_stream.demo_stream.arn
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:PutObject",
+          "s3:PutObjectAcl",
+          "s3:GetObject",
+          "s3:ListBucket",
+          "s3:DeleteObject"
+        ]
+        Resource = [
+          data.aws_s3_bucket.training_data.arn,
+          "${data.aws_s3_bucket.training_data.arn}/*"
+        ]
+      }
+    ]
+  })
+}
+
+# 9. Attach Beam pipeline policy to EC2 role
+resource "aws_iam_role_policy_attachment" "beam_pipeline_attach" {
+  role       = aws_iam_role.ec2_role.name
+  policy_arn = aws_iam_policy.beam_pipeline_policy.arn
+}

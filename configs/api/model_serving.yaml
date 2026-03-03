@@ -3,11 +3,19 @@
 
 # Model Management
 models:
-  # Default model settings
-  default:
-    name: "fraud_detection"
-    version: "latest"
-    stage: "production"  # production, staging, archived
+  # Default model when model_name is not specified in request
+  # Can be overridden via DEFAULT_MODEL_NAME env var
+  default_model: "fraud_detector"
+
+  # Per-model registry settings (add new models here)
+  registry:
+    fraud_detector:
+      version: "latest"
+      stage: "production"
+    # Example: add another model
+    # churn_predictor:
+    #   version: "latest"
+    #   stage: "production"
 
   # Model cache configuration
   cache:

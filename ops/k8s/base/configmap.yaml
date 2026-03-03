@@ -10,7 +10,9 @@ data:
   API_WORKERS: "4"
   REDIS_PORT: "6379"
   REDIS_DB: "0"
-  MLFLOW_EXPERIMENT_NAME: "fraud_detection"
+  # Per-model experiment names are now defined in configs/models/<name>.yaml
+  # Set this only to override the model definition for all models
+  MLFLOW_EXPERIMENT_NAME: ""
   PROMETHEUS_PORT: "9090"
   GRAFANA_PORT: "3001"
   LOG_LEVEL: "INFO"
@@ -18,7 +20,11 @@ data:
   MAX_RETRIES: "3"
   FEATURE_STORE_TTL: "3600"
   MODEL_CACHE_SIZE: "10"
+  # Comma-separated list of model_name:stage pairs to preload on startup
+  # Example: "fraud_detector:production,churn_predictor:production"
   PRELOAD_MODELS: "fraud_detector:production"
   MODEL_AUTO_UPDATE: "true"
   MODEL_UPDATE_INTERVAL: "10"
   TRAINING_DATA_BUCKET: ""
+  KINESIS_STREAM_NAME: ""
+  AWS_DEFAULT_REGION: "us-east-1"

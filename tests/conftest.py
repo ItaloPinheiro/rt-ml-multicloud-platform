@@ -12,6 +12,9 @@ import redis
 # Test configuration
 os.environ["ENVIRONMENT"] = "test"
 
+# Centralized test model name — change here to test with a different model
+TEST_MODEL_NAME = "fraud_detector"
+
 
 @pytest.fixture
 def temp_dir():
@@ -143,7 +146,7 @@ def sample_prediction_request():
             "is_weekend": False,
             "risk_score": 0.3,
         },
-        "model_name": "fraud_detector",
+        "model_name": TEST_MODEL_NAME,
         "version": "latest",
         "return_probabilities": True,
     }
@@ -169,7 +172,7 @@ def sample_batch_prediction_request():
                 "risk_score": 0.1,
             },
         ],
-        "model_name": "fraud_detector",
+        "model_name": TEST_MODEL_NAME,
         "version": "latest",
         "return_probabilities": True,
     }

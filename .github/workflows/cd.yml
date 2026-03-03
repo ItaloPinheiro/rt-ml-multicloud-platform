@@ -112,6 +112,23 @@ jobs:
         platforms: linux/amd64
         provenance: false
 
+    - name: Build and push Beam image
+      id: build-beam
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ops/docker/beam/Dockerfile
+        push: true
+        tags: |
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/beam:latest
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/beam:${{ steps.meta.outputs.version }}
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/beam:sha-${{ github.sha }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha,scope=beam-build
+        cache-to: type=gha,mode=max,scope=beam-build
+        platforms: linux/amd64
+        provenance: false
+
     - name: Generate SBOM (API)
       uses: anchore/sbom-action@v0
       with:
@@ -128,6 +145,14 @@ jobs:
         format: spdx-json
         output-file: sbom-mlflow.spdx.json
 
+    - name: Generate SBOM (Beam)
+      uses: anchore/sbom-action@v0
+      with:
+        # OCI references must be lowercase
+        image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/beam@${{ steps.build-beam.outputs.digest }}
+        format: spdx-json
+        output-file: sbom-beam.spdx.json
+
     - name: Upload SBOM
       uses: actions/upload-artifact@v4
       with:
@@ -135,6 +160,7 @@ jobs:
         path: |
           sbom-api.spdx.json
           sbom-mlflow.spdx.json
+          sbom-beam.spdx.json
 
   # ==========================================================================
   # DEPLOY TO DEMO INSTANCE - Only when ENABLE_DEMO_DEPLOY is true
@@ -371,7 +397,7 @@ jobs:
         # Note: In GHCR, packages pushed to user/repo/image become namespaced packages.
         # We must URL encode the slash as %2f for the API path.
         
-        PACKAGES=("rt-ml-multicloud-platform%2fapi" "rt-ml-multicloud-platform%2fmlflow")
+        PACKAGES=("rt-ml-multicloud-platform%2fapi" "rt-ml-multicloud-platform%2fmlflow" "rt-ml-multicloud-platform%2fbeam")
 
         for PKG in "${PACKAGES[@]}"; do
           echo "Processing package: $PKG"

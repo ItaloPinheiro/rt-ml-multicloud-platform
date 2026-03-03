@@ -42,6 +42,8 @@ patches:
         name: ml-pipeline-config
       data:
         TRAINING_DATA_BUCKET: "rt-ml-platform-training-data-demo"
+        KINESIS_STREAM_NAME: "rt-ml-platform-demo-kds-stream"
+        AWS_DEFAULT_REGION: "us-east-1"
 
   # Remove the base secret because we create it manually from Secrets Manager
   - target:

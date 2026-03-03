@@ -29,11 +29,12 @@ COPY pyproject.toml poetry.lock ./
 # Configure Poetry and install dependencies
 # Apache Beam and its dependencies should be in pyproject.toml
 RUN poetry config virtualenvs.create false \
-    && poetry install --no-interaction --no-ansi --only main
+    && poetry install --no-interaction --no-ansi --only main,processing
 
-# Copy application code
+# Copy application code and scripts
 COPY src ./src
 COPY configs ./configs
+COPY scripts ./scripts
 
 # Set environment variables
 ENV PYTHONPATH=/app:$PYTHONPATH

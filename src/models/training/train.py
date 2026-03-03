@@ -1,40 +1,83 @@
 """
 Model training module for the ML platform.
 Can be run standalone or imported as a module.
+
+Supports any model type defined in configs/models/<model_name>.yaml.
+Algorithm, preprocessing, features, and metrics are all config-driven.
 """
 
 import argparse
 import logging
 import os
 import sys
-from typing import Any, Dict, Tuple
+from typing import Any, Callable, Dict, Optional, Tuple
 
 import mlflow
 import mlflow.sklearn
 import numpy as np
 import pandas as pd
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
+from sklearn.metrics import (
+    accuracy_score,
+    f1_score,
+    mean_absolute_error,
+    mean_squared_error,
+    precision_score,
+    r2_score,
+    recall_score,
+)
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import Pipeline
+
+from src.models.model_definition import ModelDefinition, load_model_definition
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
+# Registry of metric functions by name
+METRIC_FUNCTIONS: Dict[str, Callable] = {
+    "accuracy": accuracy_score,
+    "precision": lambda y_true, y_pred: precision_score(
+        y_true, y_pred, zero_division=0
+    ),
+    "recall": lambda y_true, y_pred: recall_score(y_true, y_pred, zero_division=0),
+    "f1_score": lambda y_true, y_pred: f1_score(y_true, y_pred, zero_division=0),
+    "r2_score": r2_score,
+    "mae": mean_absolute_error,
+    "mse": mean_squared_error,
+}
+
 
 class ModelTrainer:
-    """Handles model training and MLflow logging."""
+    """Handles model training and MLflow logging.
+
+    Driven by ModelDefinition config — algorithm, preprocessing pipeline,
+    features, and metrics are all loaded from YAML, not hardcoded.
+    """
 
     def __init__(
         self,
         mlflow_tracking_uri: str = "http://mlflow-server:5000",
-        experiment_name: str = "fraud_detection_clean",
+        experiment_name: Optional[str] = None,
+        model_definition: Optional[ModelDefinition] = None,
+        model_type: str = "fraud_detector",
     ):
-        """Initialize the trainer with MLflow configuration."""
+        """Initialize the trainer with MLflow configuration.
+
+        Args:
+            mlflow_tracking_uri: MLflow tracking server URI.
+            experiment_name: Override experiment name (defaults to model definition).
+            model_definition: Pre-loaded ModelDefinition. If None, loads from model_type.
+            model_type: Model definition name to load from configs/models/.
+        """
+        if model_definition is not None:
+            self.model_def = model_definition
+        else:
+            self.model_def = load_model_definition(model_type)
+
         self.mlflow_tracking_uri = mlflow_tracking_uri
-        self.experiment_name = experiment_name
+        self.experiment_name = experiment_name or self.model_def.mlflow.experiment_name
         self.setup_mlflow()
 
     def setup_mlflow(self):
@@ -77,14 +120,25 @@ class ModelTrainer:
             self.experiment_id = "0"
 
     def load_data(self, data_path: str) -> Tuple[pd.DataFrame, pd.Series]:
-        """Load and prepare training data."""
+        """Load and prepare training data using model definition features."""
         logger.info(f"Loading data from {data_path}")
         df = pd.read_csv(data_path)
 
-        # Separate features and target
-        feature_columns = [col for col in df.columns if col != "label"]
+        target = self.model_def.features.target
+        feature_columns = self.model_def.features.columns
+
+        # Validate that expected columns exist in data
+        missing = set(feature_columns + [target]) - set(df.columns)
+        if missing:
+            # Fall back to auto-detection if definition columns don't match
+            logger.warning(
+                f"Columns {missing} not found in data, "
+                f"falling back to all non-target columns"
+            )
+            feature_columns = [col for col in df.columns if col != target]
+
         X = df[feature_columns]
-        y = df["label"]
+        y = df[target]
 
         # Cast integer columns to float64 for nullable-safe schema inference
         # This prevents MLflow UserWarning about integer columns not handling missing values
@@ -99,29 +153,31 @@ class ModelTrainer:
         self,
         X_train: np.ndarray,
         y_train: np.ndarray,
-        model_params: Dict[str, Any] = None,
-    ) -> RandomForestClassifier:
-        """Train a Random Forest model."""
-        if model_params is None:
-            model_params = {"n_estimators": 100, "random_state": 42}
+        model_params: Optional[Dict[str, Any]] = None,
+    ) -> Any:
+        """Train the model defined in model definition."""
+        params = {**self.model_def.algorithm.default_params, **(model_params or {})}
 
-        logger.info(f"Training Random Forest with params: {model_params}")
-        model = RandomForestClassifier(**model_params)
+        logger.info(
+            f"Training {self.model_def.algorithm.class_path} with params: {params}"
+        )
+        model = self.model_def.algorithm.create_instance(model_params)
         model.fit(X_train, y_train)
         return model
 
     def evaluate_model(
-        self, model: RandomForestClassifier, X_test: np.ndarray, y_test: np.ndarray
+        self, model: Any, X_test: np.ndarray, y_test: np.ndarray
     ) -> Dict[str, float]:
-        """Evaluate model performance."""
+        """Evaluate model using metrics from model definition."""
         y_pred = model.predict(X_test)
 
-        metrics = {
-            "accuracy": accuracy_score(y_test, y_pred),
-            "precision": precision_score(y_test, y_pred, zero_division=0),
-            "recall": recall_score(y_test, y_pred, zero_division=0),
-            "f1_score": f1_score(y_test, y_pred, zero_division=0),
-        }
+        metrics = {}
+        for metric_name in self.model_def.metrics:
+            func = METRIC_FUNCTIONS.get(metric_name)
+            if func:
+                metrics[metric_name] = func(y_test, y_pred)
+            else:
+                logger.warning(f"Unknown metric '{metric_name}', skipping")
 
         logger.info("Model evaluation metrics:")
         for metric_name, value in metrics.items():
@@ -129,15 +185,28 @@ class ModelTrainer:
 
         return metrics
 
+    def _build_pipeline(
+        self, model_params: Optional[Dict[str, Any]] = None
+    ) -> Pipeline:
+        """Build sklearn Pipeline from model definition config."""
+        steps = []
+        for step_cfg in self.model_def.pipeline_steps:
+            steps.append((step_cfg.name, step_cfg.create_instance()))
+
+        steps.append(("clf", self.model_def.algorithm.create_instance(model_params)))
+        return Pipeline(steps)
+
     def train_and_log(
         self,
         data_path: str,
-        model_name: str = "fraud_detector",
+        model_name: Optional[str] = None,
         test_size: float = 0.2,
-        model_params: Dict[str, Any] = None,
+        model_params: Optional[Dict[str, Any]] = None,
         auto_promote: bool = True,
     ):
         """Complete training pipeline with MLflow logging."""
+        model_name = model_name or self.model_def.model_name
+
         # Load data
         X, y = self.load_data(data_path)
 
@@ -146,22 +215,14 @@ class ModelTrainer:
             X, y, test_size=test_size, random_state=42
         )
 
-        if model_params is None:
-            model_params = {"n_estimators": 100, "random_state": 42}
+        params = {**self.model_def.algorithm.default_params, **(model_params or {})}
 
-        # Create Pipeline (Scaler + Model)
-        # We need to import Pipeline if it's not available in class scope (it is imported at top level)
-        from sklearn.ensemble import RandomForestClassifier
-        from sklearn.pipeline import Pipeline
-
-        logger.info(f"Training Random Forest Pipeline with params: {model_params}")
-
-        pipeline = Pipeline(
-            [
-                ("scaler", StandardScaler()),
-                ("clf", RandomForestClassifier(**model_params)),
-            ]
+        logger.info(
+            f"Training {self.model_def.algorithm.class_path} pipeline "
+            f"with params: {params}"
         )
+
+        pipeline = self._build_pipeline(model_params)
 
         # Start MLflow run
         with mlflow.start_run(experiment_id=self.experiment_id) as run:
@@ -170,22 +231,23 @@ class ModelTrainer:
 
             # Evaluate model
             y_pred = pipeline.predict(X_test)
-            metrics = {
-                "accuracy": accuracy_score(y_test, y_pred),
-                "precision": precision_score(y_test, y_pred, zero_division=0),
-                "recall": recall_score(y_test, y_pred, zero_division=0),
-                "f1_score": f1_score(y_test, y_pred, zero_division=0),
-            }
+            metrics = {}
+            for metric_name in self.model_def.metrics:
+                func = METRIC_FUNCTIONS.get(metric_name)
+                if func:
+                    metrics[metric_name] = func(y_test, y_pred)
 
             logger.info("Model evaluation metrics:")
             for metric_name, value in metrics.items():
                 logger.info(f"  {metric_name}: {value:.4f}")
 
             # Log parameters
-            mlflow.log_param("model_type", "random_forest_pipeline")
+            mlflow.log_param("model_type", self.model_def.model_name)
+            mlflow.log_param("algorithm", self.model_def.algorithm.class_path)
+            mlflow.log_param("task_type", self.model_def.task_type)
             mlflow.log_param("test_size", test_size)
-            if model_params:
-                for param_name, param_value in model_params.items():
+            if params:
+                for param_name, param_value in params.items():
                     mlflow.log_param(param_name, param_value)
 
             # Log metrics
@@ -302,7 +364,13 @@ class ModelTrainer:
 
 def main():
     """Main training script entry point."""
-    parser = argparse.ArgumentParser(description="Train fraud detection model")
+    parser = argparse.ArgumentParser(description="Train ML model")
+    parser.add_argument(
+        "--model-type",
+        type=str,
+        default="fraud_detector",
+        help="Model definition name from configs/models/ (default: fraud_detector)",
+    )
     parser.add_argument(
         "--data-path",
         type=str,
@@ -318,17 +386,17 @@ def main():
     parser.add_argument(
         "--experiment",
         type=str,
-        default="fraud_detection",
-        help="MLflow experiment name",
+        default=None,
+        help="MLflow experiment name (defaults to model definition)",
     )
     parser.add_argument(
         "--model-name",
         type=str,
-        default="fraud_detector",
-        help="Name for registered model",
+        default=None,
+        help="Name for registered model (defaults to model definition)",
     )
     parser.add_argument(
-        "--n-estimators", type=int, default=100, help="Number of trees in Random Forest"
+        "--n-estimators", type=int, default=None, help="Number of trees (if applicable)"
     )
     parser.add_argument(
         "--auto-promote",
@@ -352,22 +420,31 @@ def main():
 
     args = parser.parse_args()
 
+    # Load model definition
+    model_def = load_model_definition(args.model_type)
+
     # Initialize trainer
     trainer = ModelTrainer(
-        mlflow_tracking_uri=args.mlflow_uri, experiment_name=args.experiment
+        mlflow_tracking_uri=args.mlflow_uri,
+        experiment_name=args.experiment,
+        model_definition=model_def,
     )
 
-    # Train model
-    model_params = {"n_estimators": args.n_estimators, "random_state": 42, "n_jobs": -1}
+    # Build model params from CLI args, falling back to definition defaults
+    model_params = dict(model_def.algorithm.default_params)
+    if args.n_estimators is not None:
+        model_params["n_estimators"] = args.n_estimators
     if args.class_weight:
         model_params["class_weight"] = args.class_weight
     if args.max_depth is not None:
         model_params["max_depth"] = args.max_depth
 
+    model_name = args.model_name or model_def.model_name
+
     try:
         run_id, metrics = trainer.train_and_log(
             data_path=args.data_path,
-            model_name=args.model_name,
+            model_name=model_name,
             model_params=model_params,
             auto_promote=args.auto_promote,
         )

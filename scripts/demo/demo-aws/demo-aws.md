@@ -84,7 +84,34 @@ Verify the upload:
 aws s3 ls s3://rt-ml-platform-training-data-demo/datasets/
 ```
 
-### 5. Train Model Version 1 (Baseline)
+### 5. Stream Feature Engineering (Optional — Kinesis + Beam)
+
+Run the Kinesis-to-S3 feature engineering pipeline. This publishes mock transaction events to Kinesis, then the Apache Beam pipeline reads them, extracts features, and writes aggregated results to S3.
+
+```bash
+export EC2_IP=$INSTANCE_IP
+./scripts/demo/demo-aws/trigger-ingestion.sh --total-events 100
+```
+
+**What happens:**
+1. A Kinesis producer Job publishes 100 mock transaction events to the `rt-ml-platform-demo-kds-stream`.
+2. An Apache Beam Job (DirectRunner) reads all events from the stream using `TRIM_HORIZON`.
+3. Features are extracted, validated, windowed (60s fixed), and aggregated by `user_id`.
+4. Output is written to `s3://rt-ml-platform-training-data-demo/features/`.
+
+**Verify output:**
+```bash
+aws s3 ls s3://rt-ml-platform-training-data-demo/features/ --recursive
+```
+
+**Options:**
+- `--total-events N` — number of events to produce (default: 100)
+- `--events-per-second N` — publishing rate (default: 5.0)
+- `--output-prefix PREFIX` — S3 output prefix (default: `features`)
+
+> See `docs/pipeline/kds-apache-beam-deployment.md` for full architecture details and production deployment guidance.
+
+### 6. Train Model Version 1 (Baseline)
 
 Training now runs as a **K8s Job inside the cluster**, not on your laptop.
 The training Job downloads data from S3, trains, and registers the model in MLflow.
@@ -108,7 +135,7 @@ export EC2_IP=$INSTANCE_IP
 *   Model v1 is promoted as the first champion (no prior model to compare against)
 *   API auto-detects the new production model within 10 seconds
 
-### 6. Verify API Prediction (Version 1)
+### 7. Verify API Prediction (Version 1)
 
 Send a prediction request to the remote API to confirm it is serving the model:
 
@@ -120,7 +147,7 @@ curl -X POST "$API_URL/predict" \
 
 *   **Success Criteria**: Response contains `"model_version": "1"`.
 
-### 7. Train & Upgrade Model (Version 2 — Improved)
+### 8. Train & Upgrade Model (Version 2 — Improved)
 
 Now train a **stronger model** with more estimators and unlimited tree depth:
 
@@ -137,7 +164,7 @@ Now train a **stronger model** with more estimators and unlimited tree depth:
 
 > **How the evaluation gate decides:** The challenger must meet a minimum accuracy threshold (0.80) AND beat the champion on both accuracy and f1_score. See `src/models/evaluation/evaluate_and_promote.py` for details.
 
-### 8. Verify Auto-Promotion (Zero-Downtime Deployment)
+### 9. Verify Auto-Promotion (Zero-Downtime Deployment)
 
 The API polls MLflow every **10 seconds** for changes to the "production" alias.
 
@@ -296,6 +323,12 @@ ssh -i ml-pipeline-debug.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl logs job/mode
 # Evaluation job logs
 ssh -i ml-pipeline-debug.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl logs job/model-evaluation -n ml-pipeline"
 
+# Kinesis producer job logs
+ssh -i ml-pipeline-debug.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl logs job/kinesis-producer -n ml-pipeline"
+
+# Beam ingestion job logs
+ssh -i ml-pipeline-debug.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl logs job/beam-ingestion -n ml-pipeline"
+
 # Restart a deployment (e.g. after config change)
 ssh -i ml-pipeline-debug.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl rollout restart deployment/ml-pipeline-api -n ml-pipeline"
 
@@ -346,6 +379,24 @@ export EC2_IP=$INSTANCE_IP
 
 # Train with class weighting (better fraud recall)
 ./scripts/demo/demo-aws/trigger-training.sh --n-estimators 200 --class-weight balanced
+```
+
+### Ingestion (Kinesis + Beam)
+
+```bash
+export EC2_IP=$INSTANCE_IP
+
+# Run ingestion with defaults (100 events)
+./scripts/demo/demo-aws/trigger-ingestion.sh
+
+# Run with more events at higher rate
+./scripts/demo/demo-aws/trigger-ingestion.sh --total-events 500 --events-per-second 10
+
+# Verify S3 output
+aws s3 ls s3://rt-ml-platform-training-data-demo/features/ --recursive
+
+# Clean up ingestion jobs
+ssh -i ml-pipeline-debug.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl delete job kinesis-producer beam-ingestion -n ml-pipeline --ignore-not-found"
 ```
 
 ### API
@@ -413,11 +464,11 @@ SageMaker Model Registry ties the model lifecycle to AWS, creating vendor lock-i
 
 **Future plan:** SageMaker Training Jobs are planned for compute-only (offloading heavy training to managed GPU instances), while experiment tracking and model registry remain on MLflow. See `local/next_steps/aws-training-migration.md`.
 
-### Why No Apache Beam Ingestion Pipeline in the Demo
+### Why DirectRunner for Apache Beam (Not FlinkRunner)
 
-Apache Beam pipelines are implemented in `src/feature_engineering/` and tested via the `--profile beam` Docker Compose profile in the local demo (`scripts/demo/demo-local/demo-local.sh`).
+The Beam feature engineering pipeline runs as a K8s Job using `DirectRunner` on the single t3.large EC2 instance. This avoids standing up a dedicated Apache Flink cluster for the demo, keeping infrastructure minimal. The `DirectRunner` processes events in-process using multi-threading, which is sufficient for the bounded demo workload (100-500 events).
 
-The AWS demo focuses on the **training-to-serving loop**: `[S3] -> [K8s Training Job] -> [MLflow] -> [Evaluation Gate] -> [API Auto-Promotion]`. Adding Beam to this demo would require standing up a streaming source (Kafka cluster or Kinesis stream), increasing infrastructure complexity and cost without demonstrating additional ML pipeline value.
+For production, the same pipeline code switches to `FlinkRunner` targeting AWS Managed Service for Apache Flink — no code changes required, only the `--runner` flag changes. See `docs/pipeline/kds-apache-beam-deployment.md` for the production deployment path.
 
 ### Why K8s Jobs for Training instead of SageMaker Training
 

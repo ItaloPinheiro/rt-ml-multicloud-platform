@@ -1,9 +1,13 @@
 """Pydantic schemas for API request/response models."""
 
+import os
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
 
 from pydantic import BaseModel, Field, field_serializer, field_validator
+
+# Configurable default model name (backward-compatible)
+_DEFAULT_MODEL = os.getenv("DEFAULT_MODEL_NAME", "fraud_detector")
 
 
 class PredictionRequest(BaseModel):
@@ -24,7 +28,7 @@ class PredictionRequest(BaseModel):
     )
 
     model_name: str = Field(
-        default="fraud_detector",
+        default=_DEFAULT_MODEL,
         description="Name of the model to use for prediction",
         json_schema_extra={"example": "fraud_detector"},
     )
@@ -87,7 +91,7 @@ class BatchPredictionRequest(BaseModel):
     )
 
     model_name: str = Field(
-        default="fraud_detector", description="Name of the model to use for prediction"
+        default=_DEFAULT_MODEL, description="Name of the model to use for prediction"
     )
 
     version: Optional[str] = Field(default="latest", description="Model version")
