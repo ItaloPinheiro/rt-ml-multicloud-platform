@@ -247,7 +247,10 @@ class FeatureEngineeringPipeline:
                 pipeline
                 | "ReadFromFiles" >> ReadFromText(input_path)
                 | "ParseJSON" >> beam.Map(self._parse_json_safely)
-                | "FilterValid" >> beam.Filter(lambda x: x is not None)
+                | "FilterValid"
+                >> beam.Filter(lambda x: x is not None).with_output_types(
+                    Dict[str, Any]
+                )
             )
 
             # Extract features
@@ -299,6 +302,10 @@ class FeatureEngineeringPipeline:
                     | "ReadFromPubSub" >> ReadFromPubSub(subscription=subscription)
                     | "DecodeMessages" >> beam.Map(lambda x: x.decode("utf-8"))
                     | "ParsePubSubJSON" >> beam.Map(self._parse_json_safely)
+                    | "FilterPubSubNulls"
+                    >> beam.Filter(lambda x: x is not None).with_output_types(
+                        Dict[str, Any]
+                    )
                 )
             elif topic:
                 return (
@@ -306,6 +313,10 @@ class FeatureEngineeringPipeline:
                     | "ReadFromPubSubTopic" >> ReadFromPubSub(topic=topic)
                     | "DecodeTopicMessages" >> beam.Map(lambda x: x.decode("utf-8"))
                     | "ParseTopicJSON" >> beam.Map(self._parse_json_safely)
+                    | "FilterTopicNulls"
+                    >> beam.Filter(lambda x: x is not None).with_output_types(
+                        Dict[str, Any]
+                    )
                 )
             else:
                 raise ValueError(
@@ -332,6 +343,10 @@ class FeatureEngineeringPipeline:
                 | "ExtractKafkaValue"
                 >> beam.Map(lambda record: record[1].decode("utf-8"))
                 | "ParseKafkaJSON" >> beam.Map(self._parse_json_safely)
+                | "FilterKafkaNulls"
+                >> beam.Filter(lambda x: x is not None).with_output_types(
+                    Dict[str, Any]
+                )
             )
 
         elif source_type == "kinesis":
@@ -367,6 +382,10 @@ class FeatureEngineeringPipeline:
                         ).decode("utf-8")
                     )
                     | "ParseKinesisJSON" >> beam.Map(self._parse_json_safely)
+                    | "FilterKinesisNulls"
+                    >> beam.Filter(lambda x: x is not None).with_output_types(
+                        Dict[str, Any]
+                    )
                 )
             else:
                 # Fallback: boto3-based reader for DirectRunner
@@ -385,7 +404,10 @@ class FeatureEngineeringPipeline:
                     pipeline
                     | "CreateFromKinesis" >> beam.Create(records)
                     | "ParseKinesisJSON" >> beam.Map(self._parse_json_safely)
-                    | "FilterNulls" >> beam.Filter(lambda x: x is not None)
+                    | "FilterNulls"
+                    >> beam.Filter(lambda x: x is not None).with_output_types(
+                        Dict[str, Any]
+                    )
                 )
 
         elif source_type == "file":
@@ -394,6 +416,10 @@ class FeatureEngineeringPipeline:
                 pipeline
                 | "ReadFromFile" >> ReadFromText(file_pattern)
                 | "ParseFileJSON" >> beam.Map(self._parse_json_safely)
+                | "FilterFileNulls"
+                >> beam.Filter(lambda x: x is not None).with_output_types(
+                    Dict[str, Any]
+                )
             )
 
         else:
