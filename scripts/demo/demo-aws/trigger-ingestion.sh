@@ -146,8 +146,12 @@ spec:
 JOBEOF"
 
 echo "  Waiting for producer to complete..."
-ssh ubuntu@"$EC2_IP" \
-  "sudo k3s kubectl wait --for=condition=complete job/kinesis-producer -n $NAMESPACE --timeout=300s"
+if ! ssh ubuntu@"$EC2_IP" \
+  "sudo k3s kubectl wait --for=condition=complete job/kinesis-producer -n $NAMESPACE --timeout=300s"; then
+  echo "ERROR: Kinesis producer job failed."
+  ssh ubuntu@"$EC2_IP" "sudo k3s kubectl logs job/kinesis-producer -n $NAMESPACE" | tail -20
+  exit 1
+fi
 
 echo "  Producer logs:"
 ssh ubuntu@"$EC2_IP" \
@@ -206,9 +210,35 @@ spec:
             cpu: \"1000m\"
 JOBEOF"
 
-echo "  Waiting for Beam pipeline to complete..."
-ssh ubuntu@"$EC2_IP" \
-  "sudo k3s kubectl wait --for=condition=complete job/beam-ingestion -n $NAMESPACE --timeout=600s"
+echo "  Waiting for Beam pipeline to complete (or fail)..."
+BEAM_TIMEOUT=600
+BEAM_ELAPSED=0
+BEAM_STATUS=""
+while [ $BEAM_ELAPSED -lt $BEAM_TIMEOUT ]; do
+  # Check for completion or failure via jsonpath on job conditions
+  BEAM_STATUS=$(ssh ubuntu@"$EC2_IP" \
+    "sudo k3s kubectl get job beam-ingestion -n $NAMESPACE -o jsonpath='{.status.conditions[0].type}' 2>/dev/null" || echo "")
+
+  if [ "$BEAM_STATUS" = "Complete" ]; then
+    echo "  Beam pipeline completed successfully."
+    break
+  elif [ "$BEAM_STATUS" = "Failed" ]; then
+    echo "  ERROR: Beam pipeline job failed!"
+    echo ""
+    echo "  Beam pipeline logs:"
+    ssh ubuntu@"$EC2_IP" "sudo k3s kubectl logs job/beam-ingestion -n $NAMESPACE --tail=30"
+    exit 1
+  fi
+
+  sleep 5
+  BEAM_ELAPSED=$((BEAM_ELAPSED + 5))
+done
+
+if [ "$BEAM_STATUS" != "Complete" ]; then
+  echo "  ERROR: Beam pipeline timed out after ${BEAM_TIMEOUT}s"
+  ssh ubuntu@"$EC2_IP" "sudo k3s kubectl logs job/beam-ingestion -n $NAMESPACE --tail=30"
+  exit 1
+fi
 
 echo "  Beam pipeline logs:"
 ssh ubuntu@"$EC2_IP" \
