@@ -22,6 +22,7 @@ import io
 import json
 import logging
 import sys
+import zlib
 from typing import Any, Dict, List
 
 import pandas as pd
@@ -105,9 +106,14 @@ def extract_features(transaction: Dict[str, Any]) -> Dict[str, Any]:
         "avg_amount_30d": features.get("avg_amount_30d", 0.0),
         "risk_score": features.get("risk_score", 0.0),
         "amount": transaction.get("amount", 0.0),
-        "merchant_category_encoded": hash(transaction.get("merchant_category", ""))
+        "merchant_category_encoded": zlib.crc32(
+            transaction.get("merchant_category", "").encode()
+        )
         % 100,
-        "payment_method_encoded": hash(transaction.get("payment_method", "")) % 10,
+        "payment_method_encoded": zlib.crc32(
+            transaction.get("payment_method", "").encode()
+        )
+        % 10,
         "label": transaction.get("label", 0),
     }
 
