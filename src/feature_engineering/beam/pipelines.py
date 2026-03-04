@@ -8,6 +8,8 @@ import json
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
+import numpy as np
+
 try:
     import apache_beam as beam
     from apache_beam.io import (
@@ -42,6 +44,23 @@ from src.feature_engineering.beam.transforms import (
 )
 
 logger = structlog.get_logger()
+
+
+def _numpy_safe_json(obj: Any) -> str:
+    """Serialize a dict to JSON, converting numpy types to Python natives."""
+
+    def default(o: Any) -> Any:
+        if isinstance(o, np.integer):
+            return int(o)
+        if isinstance(o, np.floating):
+            return float(o)
+        if isinstance(o, np.bool_):
+            return bool(o)
+        if isinstance(o, np.ndarray):
+            return o.tolist()
+        raise TypeError(f"Object of type {type(o).__name__} is not JSON serializable")
+
+    return json.dumps(obj, default=default)
 
 
 class FeatureEngineeringPipeline:
@@ -524,13 +543,25 @@ class FeatureEngineeringPipeline:
             output_path = output_config.get("path", "/tmp/pipeline_output")
 
             # Write features
-            features | "WriteFeaturesToFile" >> WriteToText(
-                file_path_prefix=f"{output_path}/features", file_name_suffix=".json"
+            (
+                features
+                | "SerializeFeaturesForFile" >> beam.Map(_numpy_safe_json)
+                | "WriteFeaturesToFile"
+                >> WriteToText(
+                    file_path_prefix=f"{output_path}/features",
+                    file_name_suffix=".json",
+                )
             )
 
             # Write aggregated features
-            aggregated | "WriteAggregatedToFile" >> WriteToText(
-                file_path_prefix=f"{output_path}/aggregated", file_name_suffix=".json"
+            (
+                aggregated
+                | "SerializeAggregatedForFile" >> beam.Map(_numpy_safe_json)
+                | "WriteAggregatedToFile"
+                >> WriteToText(
+                    file_path_prefix=f"{output_path}/aggregated",
+                    file_name_suffix=".json",
+                )
             )
 
         elif output_type == "s3":
@@ -540,13 +571,25 @@ class FeatureEngineeringPipeline:
                 raise ValueError("S3 output type requires a path starting with s3://")
 
             # Write features
-            features | "WriteFeaturesToS3" >> WriteToText(
-                file_path_prefix=f"{output_path}/features", file_name_suffix=".json"
+            (
+                features
+                | "SerializeFeaturesForS3" >> beam.Map(_numpy_safe_json)
+                | "WriteFeaturesToS3"
+                >> WriteToText(
+                    file_path_prefix=f"{output_path}/features",
+                    file_name_suffix=".json",
+                )
             )
 
             # Write aggregated features
-            aggregated | "WriteAggregatedToS3" >> WriteToText(
-                file_path_prefix=f"{output_path}/aggregated", file_name_suffix=".json"
+            (
+                aggregated
+                | "SerializeAggregatedForS3" >> beam.Map(_numpy_safe_json)
+                | "WriteAggregatedToS3"
+                >> WriteToText(
+                    file_path_prefix=f"{output_path}/aggregated",
+                    file_name_suffix=".json",
+                )
             )
 
         elif output_type == "kafka":

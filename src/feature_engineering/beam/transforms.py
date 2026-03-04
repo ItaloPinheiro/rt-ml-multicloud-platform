@@ -217,7 +217,7 @@ class FeatureExtraction(beam.DoFn):
             "year": timestamp.year,
             "is_weekend": timestamp.weekday() >= 5,
             "is_business_hours": 9 <= timestamp.hour <= 17,
-            "is_night": timestamp.hour < 6 or timestamp.hour > 22,
+            "is_night": timestamp.hour < 6 or timestamp.hour >= 22,
             "quarter": (timestamp.month - 1) // 3 + 1,
             "week_of_year": timestamp.isocalendar()[1],
             "unix_timestamp": int(timestamp.timestamp()),

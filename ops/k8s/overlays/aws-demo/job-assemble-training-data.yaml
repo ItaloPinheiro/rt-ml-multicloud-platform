@@ -1,0 +1,53 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: assemble-training-data
+  namespace: ml-pipeline
+  labels:
+    app.kubernetes.io/name: assemble-training-data
+    app.kubernetes.io/component: feature-engineering
+    app.kubernetes.io/part-of: ml-pipeline-platform
+spec:
+  backoffLimit: 1
+  activeDeadlineSeconds: 300
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: assemble-training-data
+        app.kubernetes.io/component: feature-engineering
+    spec:
+      restartPolicy: Never
+      imagePullSecrets:
+      - name: ghcr-pull-secret
+      containers:
+      - name: assembler
+        image: ghcr.io/italopinheiro/rt-ml-multicloud-platform/beam:main
+        imagePullPolicy: Always
+        command: ["python", "-m", "src.feature_engineering.assemble_training_data"]
+        args:
+        - "--features-path=s3://$(TRAINING_DATA_BUCKET)/features"
+        - "--aggregated-path=s3://$(TRAINING_DATA_BUCKET)/aggregated"
+        - "--output-path=s3://$(TRAINING_DATA_BUCKET)/datasets/fraud_detection.csv"
+        - "--model-type=fraud_detector"
+        - "--labeling-strategy=rule_based"
+        env:
+        - name: PYTHONPATH
+          value: "/app"
+        - name: TRAINING_DATA_BUCKET
+          valueFrom:
+            configMapKeyRef:
+              name: ml-pipeline-config
+              key: TRAINING_DATA_BUCKET
+        - name: AWS_DEFAULT_REGION
+          valueFrom:
+            configMapKeyRef:
+              name: ml-pipeline-config
+              key: AWS_DEFAULT_REGION
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
