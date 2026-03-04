@@ -198,13 +198,22 @@ def assemble_training_data(
     aggregated_raw = _read_jsonl(aggregated_path)
     aggregated_df = pd.DataFrame(aggregated_raw)
 
-    # Deduplicate per-record features by message_id
+    # Deduplicate per-record features by message_id (skip if all unknown/missing)
     if "message_id" in features_df.columns:
-        before = len(features_df)
-        features_df = features_df.drop_duplicates(subset=["message_id"])
-        dupes = before - len(features_df)
-        if dupes > 0:
-            logger.info("Dropped %d duplicate records by message_id", dupes)
+        unique_ids = features_df["message_id"].nunique()
+        has_meaningful_ids = unique_ids > 1 or (
+            unique_ids == 1 and features_df["message_id"].iloc[0] != "unknown"
+        )
+        if has_meaningful_ids:
+            before = len(features_df)
+            features_df = features_df.drop_duplicates(subset=["message_id"])
+            dupes = before - len(features_df)
+            if dupes > 0:
+                logger.info("Dropped %d duplicate records by message_id", dupes)
+        else:
+            logger.info(
+                "Skipping dedup: message_id not set (%d records)", len(features_df)
+            )
 
     # Rename aggregated key column to user_id for join
     if "key" in aggregated_df.columns and "user_id" not in aggregated_df.columns:
