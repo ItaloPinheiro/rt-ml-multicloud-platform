@@ -26,8 +26,8 @@ spec:
         imagePullPolicy: Always
         command: ["python", "-m", "src.feature_engineering.assemble_training_data"]
         args:
-        - "--features-path=s3://$(TRAINING_DATA_BUCKET)/features"
-        - "--aggregated-path=s3://$(TRAINING_DATA_BUCKET)/aggregated"
+        - "--features-path=s3://$(TRAINING_DATA_BUCKET)/features/features"
+        - "--aggregated-path=s3://$(TRAINING_DATA_BUCKET)/features/aggregated"
         - "--output-path=s3://$(TRAINING_DATA_BUCKET)/datasets/fraud_detection.csv"
         - "--model-type=fraud_detector"
         - "--labeling-strategy=rule_based"
