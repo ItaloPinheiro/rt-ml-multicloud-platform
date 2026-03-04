@@ -5,16 +5,15 @@
 # Runs the Kinesis producer -> Apache Beam feature engineering pipeline.
 # Producer publishes N events to Kinesis; Beam reads and writes features to S3.
 #
-# Prerequisites:
-#   - EC2 instance running with K3s
-#   - SSH key configured
-#   - Kinesis stream provisioned (via Terraform)
-#   - Beam image available in GHCR
+# The script applies the K8s Job manifests, waits for the producer to finish,
+# then launches the Beam job and exits. Monitor the Beam pod separately:
+#   kubectl get pods -n ml-pipeline -w
+#   kubectl logs job/beam-ingestion -n ml-pipeline -f
 #
 # Usage:
 #   ./trigger-ingestion.sh                       # defaults: 100 events
 #   ./trigger-ingestion.sh --total-events 500    # custom event count
-#   ./trigger-ingestion.sh --events-per-second 10 # faster publishing
+#   ./trigger-ingestion.sh --events-per-second 10
 # =============================================================================
 set -euo pipefail
 
@@ -25,7 +24,10 @@ NAMESPACE="ml-pipeline"
 TOTAL_EVENTS=100
 EVENTS_PER_SECOND=5.0
 OUTPUT_PREFIX="features"
-BEAM_IMAGE="ghcr.io/italopinheiro/rt-ml-multicloud-platform/beam:main"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+MANIFESTS_DIR="$PROJECT_ROOT/ops/k8s/overlays/aws-demo"
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -33,9 +35,8 @@ while [[ $# -gt 0 ]]; do
     --total-events)      TOTAL_EVENTS="$2"; shift 2 ;;
     --events-per-second) EVENTS_PER_SECOND="$2"; shift 2 ;;
     --output-prefix)     OUTPUT_PREFIX="$2"; shift 2 ;;
-    --beam-image)        BEAM_IMAGE="$2"; shift 2 ;;
     -h|--help)
-      echo "Usage: $0 [--total-events N] [--events-per-second N] [--output-prefix PREFIX] [--beam-image IMAGE]"
+      echo "Usage: $0 [--total-events N] [--events-per-second N] [--output-prefix PREFIX]"
       exit 0
       ;;
     *) echo "Unknown option: $1"; exit 1 ;;
@@ -57,13 +58,15 @@ if [ -z "${EC2_IP:-}" ]; then
   fi
 fi
 
+# Helper: run SSH commands on the instance
+remote() {
+  ssh -o StrictHostKeyChecking=no ubuntu@"$EC2_IP" "$@"
+}
+
 # Read config values from the cluster
-STREAM_NAME=$(ssh -o StrictHostKeyChecking=no ubuntu@"$EC2_IP" \
-  "sudo k3s kubectl get configmap ml-pipeline-config -n $NAMESPACE -o jsonpath='{.data.KINESIS_STREAM_NAME}' 2>/dev/null" || echo "")
-BUCKET=$(ssh ubuntu@"$EC2_IP" \
-  "sudo k3s kubectl get configmap ml-pipeline-config -n $NAMESPACE -o jsonpath='{.data.TRAINING_DATA_BUCKET}' 2>/dev/null" || echo "")
-REGION=$(ssh ubuntu@"$EC2_IP" \
-  "sudo k3s kubectl get configmap ml-pipeline-config -n $NAMESPACE -o jsonpath='{.data.AWS_DEFAULT_REGION}' 2>/dev/null" || echo "us-east-1")
+STREAM_NAME=$(remote "sudo k3s kubectl get configmap ml-pipeline-config -n $NAMESPACE -o jsonpath='{.data.KINESIS_STREAM_NAME}'" 2>/dev/null || echo "")
+BUCKET=$(remote "sudo k3s kubectl get configmap ml-pipeline-config -n $NAMESPACE -o jsonpath='{.data.TRAINING_DATA_BUCKET}'" 2>/dev/null || echo "")
+REGION=$(remote "sudo k3s kubectl get configmap ml-pipeline-config -n $NAMESPACE -o jsonpath='{.data.AWS_DEFAULT_REGION}'" 2>/dev/null || echo "us-east-1")
 
 if [ -z "$STREAM_NAME" ]; then
   echo "ERROR: KINESIS_STREAM_NAME not set in ConfigMap. Did you apply the aws-demo overlay?"
@@ -83,188 +86,65 @@ echo "  S3 bucket:    $BUCKET"
 echo "  Region:       $REGION"
 echo "  Events:       $TOTAL_EVENTS at ${EVENTS_PER_SECOND}/s"
 echo "  Output:       s3://${BUCKET}/${OUTPUT_PREFIX}"
-echo "  Beam image:   $BEAM_IMAGE"
 echo "============================================"
 
 # ---------------------------------------------------------------------------
 # Step 1: Clean up previous jobs
 # ---------------------------------------------------------------------------
 echo ""
-echo "[1/4] Cleaning up previous jobs..."
-ssh ubuntu@"$EC2_IP" \
-  "sudo k3s kubectl delete job kinesis-producer beam-ingestion -n $NAMESPACE --ignore-not-found=true"
+echo "[1/3] Cleaning up previous jobs..."
+remote "sudo k3s kubectl delete job kinesis-producer beam-ingestion -n $NAMESPACE --ignore-not-found=true"
 
 # ---------------------------------------------------------------------------
-# Step 2: Run Kinesis producer
+# Step 2: Run Kinesis producer (wait for completion)
 # ---------------------------------------------------------------------------
 echo ""
-echo "[2/4] Running Kinesis producer ($TOTAL_EVENTS events at ${EVENTS_PER_SECOND}/s)..."
+echo "[2/3] Running Kinesis producer ($TOTAL_EVENTS events at ${EVENTS_PER_SECOND}/s)..."
 
-ssh ubuntu@"$EC2_IP" "cat <<'JOBEOF' | sudo k3s kubectl apply -f -
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: kinesis-producer
-  namespace: $NAMESPACE
-  labels:
-    app.kubernetes.io/name: kinesis-producer
-    app.kubernetes.io/component: ingestion
-    app.kubernetes.io/part-of: ml-pipeline-platform
-spec:
-  backoffLimit: 1
-  activeDeadlineSeconds: 300
-  ttlSecondsAfterFinished: 3600
-  template:
-    metadata:
-      labels:
-        app.kubernetes.io/name: kinesis-producer
-        app.kubernetes.io/component: ingestion
-    spec:
-      restartPolicy: Never
-      imagePullSecrets:
-      - name: ghcr-pull-secret
-      containers:
-      - name: producer
-        image: $BEAM_IMAGE
-        imagePullPolicy: Always
-        command: [\"python\", \"/app/scripts/data_generation/publish_kinesis_events.py\"]
-        args:
-        - \"--stream-name=$STREAM_NAME\"
-        - \"--region=$REGION\"
-        - \"--events-per-second=$EVENTS_PER_SECOND\"
-        - \"--total-events=$TOTAL_EVENTS\"
-        env:
-        - name: PYTHONPATH
-          value: \"/app\"
-        resources:
-          requests:
-            memory: \"128Mi\"
-            cpu: \"100m\"
-          limits:
-            memory: \"256Mi\"
-            cpu: \"250m\"
-JOBEOF"
+# Patch the manifest with CLI overrides and apply via stdin
+sed \
+  -e "s|value: \"5.0\"|value: \"${EVENTS_PER_SECOND}\"|" \
+  -e "s|value: \"100\"|value: \"${TOTAL_EVENTS}\"|" \
+  "$MANIFESTS_DIR/job-kinesis-producer.yaml" \
+  | ssh -o StrictHostKeyChecking=no ubuntu@"$EC2_IP" "sudo k3s kubectl apply -f -"
 
 echo "  Waiting for producer to complete..."
-if ! ssh ubuntu@"$EC2_IP" \
-  "sudo k3s kubectl wait --for=condition=complete job/kinesis-producer -n $NAMESPACE --timeout=300s"; then
+if ! remote "sudo k3s kubectl wait --for=condition=complete job/kinesis-producer -n $NAMESPACE --timeout=300s"; then
   echo "ERROR: Kinesis producer job failed."
-  ssh ubuntu@"$EC2_IP" "sudo k3s kubectl logs job/kinesis-producer -n $NAMESPACE" | tail -20
+  remote "sudo k3s kubectl logs job/kinesis-producer -n $NAMESPACE --tail=20"
   exit 1
 fi
 
 echo "  Producer logs:"
-ssh ubuntu@"$EC2_IP" \
-  "sudo k3s kubectl logs job/kinesis-producer -n $NAMESPACE" | tail -5
+remote "sudo k3s kubectl logs job/kinesis-producer -n $NAMESPACE" | tail -5
 
 # ---------------------------------------------------------------------------
-# Step 3: Run Beam ingestion pipeline
-# ---------------------------------------------------------------------------
-echo ""
-echo "[3/4] Running Apache Beam feature engineering pipeline..."
-
-ssh ubuntu@"$EC2_IP" "cat <<'JOBEOF' | sudo k3s kubectl apply -f -
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: beam-ingestion
-  namespace: $NAMESPACE
-  labels:
-    app.kubernetes.io/name: beam-ingestion
-    app.kubernetes.io/component: ingestion
-    app.kubernetes.io/part-of: ml-pipeline-platform
-spec:
-  backoffLimit: 1
-  activeDeadlineSeconds: 600
-  ttlSecondsAfterFinished: 3600
-  template:
-    metadata:
-      labels:
-        app.kubernetes.io/name: beam-ingestion
-        app.kubernetes.io/component: ingestion
-    spec:
-      restartPolicy: Never
-      imagePullSecrets:
-      - name: ghcr-pull-secret
-      containers:
-      - name: beam-runner
-        image: $BEAM_IMAGE
-        imagePullPolicy: Always
-        command: [\"python\", \"/app/scripts/demo/demo-aws/ingest_kinesis_s3.py\"]
-        args:
-        - \"--stream-name=$STREAM_NAME\"
-        - \"--s3-bucket=$BUCKET\"
-        - \"--region=$REGION\"
-        - \"--output-prefix=$OUTPUT_PREFIX\"
-        - \"--runner=DirectRunner\"
-        - \"--initial-position=TRIM_HORIZON\"
-        env:
-        - name: PYTHONPATH
-          value: \"/app\"
-        resources:
-          requests:
-            memory: \"512Mi\"
-            cpu: \"500m\"
-          limits:
-            memory: \"1Gi\"
-            cpu: \"1000m\"
-JOBEOF"
-
-echo "  Waiting for Beam pipeline to complete (or fail)..."
-BEAM_TIMEOUT=600
-BEAM_ELAPSED=0
-BEAM_STATUS=""
-while [ $BEAM_ELAPSED -lt $BEAM_TIMEOUT ]; do
-  # Check for completion or failure via jsonpath on job conditions
-  BEAM_STATUS=$(ssh ubuntu@"$EC2_IP" \
-    "sudo k3s kubectl get job beam-ingestion -n $NAMESPACE -o jsonpath='{.status.conditions[0].type}' 2>/dev/null" || echo "")
-
-  if [ "$BEAM_STATUS" = "Complete" ]; then
-    echo "  Beam pipeline completed successfully."
-    break
-  elif [ "$BEAM_STATUS" = "Failed" ]; then
-    echo "  ERROR: Beam pipeline job failed!"
-    echo ""
-    echo "  Beam pipeline logs:"
-    ssh ubuntu@"$EC2_IP" "sudo k3s kubectl logs job/beam-ingestion -n $NAMESPACE --tail=30"
-    exit 1
-  fi
-
-  sleep 5
-  BEAM_ELAPSED=$((BEAM_ELAPSED + 5))
-done
-
-if [ "$BEAM_STATUS" != "Complete" ]; then
-  echo "  ERROR: Beam pipeline timed out after ${BEAM_TIMEOUT}s"
-  ssh ubuntu@"$EC2_IP" "sudo k3s kubectl logs job/beam-ingestion -n $NAMESPACE --tail=30"
-  exit 1
-fi
-
-echo "  Beam pipeline logs:"
-ssh ubuntu@"$EC2_IP" \
-  "sudo k3s kubectl logs job/beam-ingestion -n $NAMESPACE" | tail -10
-
-# ---------------------------------------------------------------------------
-# Step 4: Verify S3 output
+# Step 3: Launch Beam ingestion (fire and forget)
 # ---------------------------------------------------------------------------
 echo ""
-echo "[4/4] Verifying S3 features output..."
-S3_OUTPUT=$(aws s3 ls "s3://${BUCKET}/${OUTPUT_PREFIX}/" --recursive 2>&1 || echo "")
+echo "[3/3] Launching Apache Beam feature engineering pipeline..."
 
-if [ -n "$S3_OUTPUT" ]; then
-  echo "  Features written to S3:"
-  echo "$S3_OUTPUT" | head -20
-else
-  echo "  WARNING: No output found at s3://${BUCKET}/${OUTPUT_PREFIX}/"
-  echo "  Check Beam pipeline logs for errors."
-fi
+sed \
+  -e "s|--output-prefix=features|--output-prefix=${OUTPUT_PREFIX}|" \
+  "$MANIFESTS_DIR/job-beam-ingestion.yaml" \
+  | ssh -o StrictHostKeyChecking=no ubuntu@"$EC2_IP" "sudo k3s kubectl apply -f -"
 
 echo ""
 echo "============================================"
-echo "  Ingestion pipeline complete!"
+echo "  Beam job submitted. Monitor with:"
 echo "============================================"
-echo "  Features at: s3://${BUCKET}/${OUTPUT_PREFIX}/"
-echo "  MLflow:      http://$EC2_IP:30500"
-echo "  API:         http://$EC2_IP:30800/docs"
-echo "  Grafana:     http://$EC2_IP:30300"
+echo ""
+echo "  # Watch pod status:"
+echo "  ssh ubuntu@$EC2_IP \"sudo k3s kubectl get pods -n $NAMESPACE -l app.kubernetes.io/name=beam-ingestion -w\""
+echo ""
+echo "  # Stream logs:"
+echo "  ssh ubuntu@$EC2_IP \"sudo k3s kubectl logs job/beam-ingestion -n $NAMESPACE -f\""
+echo ""
+echo "  # Verify S3 output:"
+echo "  aws s3 ls s3://${BUCKET}/${OUTPUT_PREFIX}/ --recursive"
+echo ""
+echo "  # Dashboards:"
+echo "  MLflow:   http://$EC2_IP:30500"
+echo "  API:      http://$EC2_IP:30800/docs"
+echo "  Grafana:  http://$EC2_IP:30300"
 echo "============================================"

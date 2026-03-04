@@ -74,11 +74,11 @@ class FeatureEngineeringPipeline:
             )
 
         self.config = config
-        self.pipeline_options = self._create_pipeline_options()
         self.logger = logger.bind(
             runner=config.get("runner", "DirectRunner"),
             project=config.get("project", "local"),
         )
+        self.pipeline_options = self._create_pipeline_options()
 
     def _create_pipeline_options(self) -> PipelineOptions:
         """Create Apache Beam pipeline options.
