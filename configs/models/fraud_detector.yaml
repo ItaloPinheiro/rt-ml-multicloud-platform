@@ -42,6 +42,37 @@ mlflow:
 serving:
   confidence_threshold: 0.5
 
+# Mapping from Beam pipeline output fields to training feature columns.
+# Used by assemble_training_data to build training CSV from Beam JSON-lines.
+beam_mapping:
+  # Per-record feature fields (from Beam FeatureExtraction output)
+  per_record_fields:
+    hour_of_day: "hour_of_day"
+    day_of_week: "day_of_week"
+    risk_score: "risk_score"
+    amount: "amount"
+
+  # Aggregated feature fields (from Beam AggregateFeatures output, keyed by user_id)
+  aggregated_fields:
+    transaction_count_24h:
+      source_field: "record_count"
+    avg_amount_30d:
+      source_field: "avg_amount"
+
+  # Columns requiring transformation before training
+  transforms:
+    is_weekend:
+      type: "bool_to_int"
+      source_field: "is_weekend"
+    merchant_category_encoded:
+      type: "hash_encode"
+      source_field: "merchant_category"
+      modulo: 100
+    payment_method_encoded:
+      type: "hash_encode"
+      source_field: "payment_method"
+      modulo: 10
+
 validation:
   test_input:
     hour_of_day: 12.0
