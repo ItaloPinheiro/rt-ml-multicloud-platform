@@ -16,7 +16,7 @@ try:
         WriteToBigQuery,
         WriteToText,
     )
-    from apache_beam.io.gcp.bigquery import BigQueryDisposition, CreateDisposition
+    from apache_beam.io.gcp.bigquery import BigQueryDisposition
     from apache_beam.io.kafka import ReadFromKafka, WriteToKafka
 
     try:
@@ -335,42 +335,58 @@ class FeatureEngineeringPipeline:
             )
 
         elif source_type == "kinesis":
-            if ReadFromKinesis is None:
-                raise ImportError(
-                    "ReadFromKinesis is not available. Please install the required "
-                    "dependencies (apache-beam[aws])."
-                )
-
             stream_name = input_config.get("stream_name")
             region = input_config.get("region", "us-east-1")
-            aws_access_key = input_config.get("aws_access_key", "")
-            aws_secret_key = input_config.get("aws_secret_key", "")
             initial_pos = input_config.get("initial_position", "LATEST")
 
-            position = InitialPositionInStream.LATEST if InitialPositionInStream else 0
-            if initial_pos == "TRIM_HORIZON" and InitialPositionInStream:
-                position = InitialPositionInStream.TRIM_HORIZON
-            elif initial_pos == "AT_TIMESTAMP" and InitialPositionInStream:
-                position = InitialPositionInStream.AT_TIMESTAMP
+            if ReadFromKinesis is not None:
+                # Cross-language transform (requires FlinkRunner/SparkRunner)
+                aws_access_key = input_config.get("aws_access_key", "")
+                aws_secret_key = input_config.get("aws_secret_key", "")
 
-            return (
-                pipeline
-                | "ReadFromKinesis"
-                >> ReadFromKinesis(
-                    stream_name=stream_name,
-                    aws_access_key=aws_access_key,
-                    aws_secret_key=aws_secret_key,
+                position = InitialPositionInStream.LATEST
+                if initial_pos == "TRIM_HORIZON":
+                    position = InitialPositionInStream.TRIM_HORIZON
+                elif initial_pos == "AT_TIMESTAMP":
+                    position = InitialPositionInStream.AT_TIMESTAMP
+
+                return (
+                    pipeline
+                    | "ReadFromKinesis"
+                    >> ReadFromKinesis(
+                        stream_name=stream_name,
+                        aws_access_key=aws_access_key,
+                        aws_secret_key=aws_secret_key,
+                        region=region,
+                        initial_position_in_stream=position,
+                    )
+                    | "ExtractKinesisValue"
+                    >> beam.Map(
+                        lambda record: (
+                            record.data if hasattr(record, "data") else record
+                        ).decode("utf-8")
+                    )
+                    | "ParseKinesisJSON" >> beam.Map(self._parse_json_safely)
+                )
+            else:
+                # Fallback: boto3-based reader for DirectRunner
+                self.logger.info(
+                    "ReadFromKinesis not available, using boto3 fallback",
+                    stream=stream_name,
                     region=region,
-                    initial_position_in_stream=position,
+                    position=initial_pos,
                 )
-                | "ExtractKinesisValue"
-                >> beam.Map(
-                    lambda record: (
-                        record.data if hasattr(record, "data") else record
-                    ).decode("utf-8")
+                records = _read_kinesis_via_boto3(stream_name, region, initial_pos)
+                self.logger.info(
+                    "Read records from Kinesis via boto3",
+                    count=len(records),
                 )
-                | "ParseKinesisJSON" >> beam.Map(self._parse_json_safely)
-            )
+                return (
+                    pipeline
+                    | "CreateFromKinesis" >> beam.Create(records)
+                    | "ParseKinesisJSON" >> beam.Map(self._parse_json_safely)
+                    | "FilterNulls" >> beam.Filter(lambda x: x is not None)
+                )
 
         elif source_type == "file":
             file_pattern = input_config.get("file_pattern")
@@ -445,7 +461,7 @@ class FeatureEngineeringPipeline:
                 table=f"{project}:{dataset}.features",
                 schema="SCHEMA_AUTODETECT",
                 write_disposition=BigQueryDisposition.WRITE_APPEND,
-                create_disposition=CreateDisposition.CREATE_IF_NEEDED,
+                create_disposition=BigQueryDisposition.CREATE_IF_NEEDED,
             )
 
             # Write aggregated features
@@ -453,7 +469,7 @@ class FeatureEngineeringPipeline:
                 table=f"{project}:{dataset}.aggregated_features",
                 schema="SCHEMA_AUTODETECT",
                 write_disposition=BigQueryDisposition.WRITE_APPEND,
-                create_disposition=CreateDisposition.CREATE_IF_NEEDED,
+                create_disposition=BigQueryDisposition.CREATE_IF_NEEDED,
             )
 
             # Write errors
@@ -467,7 +483,7 @@ class FeatureEngineeringPipeline:
                 table=f"{project}:{dataset}.errors",
                 schema="SCHEMA_AUTODETECT",
                 write_disposition=BigQueryDisposition.WRITE_APPEND,
-                create_disposition=CreateDisposition.CREATE_IF_NEEDED,
+                create_disposition=BigQueryDisposition.CREATE_IF_NEEDED,
             )
 
             # Write invalid features
@@ -475,7 +491,7 @@ class FeatureEngineeringPipeline:
                 table=f"{project}:{dataset}.invalid_features",
                 schema="SCHEMA_AUTODETECT",
                 write_disposition=BigQueryDisposition.WRITE_APPEND,
-                create_disposition=CreateDisposition.CREATE_IF_NEEDED,
+                create_disposition=BigQueryDisposition.CREATE_IF_NEEDED,
             )
 
         elif output_type == "file":
@@ -597,6 +613,65 @@ class FeatureEngineeringPipeline:
             )
 
         return pipeline.run()
+
+
+def _read_kinesis_via_boto3(
+    stream_name: str, region: str, initial_position: str = "TRIM_HORIZON"
+) -> list:
+    """Read all records from a Kinesis stream using boto3.
+
+    This is a bounded fallback for DirectRunner when the cross-language
+    ReadFromKinesis transform is not available. Iterates all shards and
+    reads records until each shard is exhausted.
+
+    Args:
+        stream_name: Kinesis Data Stream name
+        region: AWS region
+        initial_position: TRIM_HORIZON (all records) or LATEST (new only)
+
+    Returns:
+        List of decoded record data strings (JSON)
+    """
+    import boto3
+
+    client = boto3.client("kinesis", region_name=region)
+
+    # Get all shard IDs
+    shards = []
+    paginator = client.get_paginator("list_shards")
+    for page in paginator.paginate(StreamName=stream_name):
+        shards.extend(page["Shards"])
+
+    shard_iterator_type = (
+        "TRIM_HORIZON" if initial_position == "TRIM_HORIZON" else "LATEST"
+    )
+
+    records_out = []
+    for shard in shards:
+        shard_id = shard["ShardId"]
+        iterator_resp = client.get_shard_iterator(
+            StreamName=stream_name,
+            ShardId=shard_id,
+            ShardIteratorType=shard_iterator_type,
+        )
+        shard_iterator = iterator_resp["ShardIterator"]
+
+        # Read until the shard is exhausted (no more records and iterator stops advancing)
+        empty_responses = 0
+        while shard_iterator and empty_responses < 3:
+            resp = client.get_records(ShardIterator=shard_iterator, Limit=1000)
+            batch = resp.get("Records", [])
+
+            if not batch:
+                empty_responses += 1
+            else:
+                empty_responses = 0
+                for record in batch:
+                    records_out.append(record["Data"].decode("utf-8"))
+
+            shard_iterator = resp.get("NextShardIterator")
+
+    return records_out
 
 
 def create_dataflow_pipeline_config(
