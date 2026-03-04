@@ -82,8 +82,8 @@ class RuleBasedLabeling(LabelingStrategy):
 
         # Weekend cash advance interaction
         if "is_weekend" in df.columns and "merchant_category" in df.columns:
-            weekend_cash = (
-                df["is_weekend"].astype(bool) & (df["merchant_category"] == "cash_advance")
+            weekend_cash = df["is_weekend"].astype(bool) & (
+                df["merchant_category"] == "cash_advance"
             )
             risk += weekend_cash.astype(float) * 0.3
 
@@ -129,9 +129,7 @@ class FileBasedLabeling(LabelingStrategy):
                 f"Available: {list(df.columns)}"
             )
 
-        merged = df[[self.id_column]].merge(
-            labels_df, on=self.id_column, how="left"
-        )
+        merged = df[[self.id_column]].merge(labels_df, on=self.id_column, how="left")
         return merged[self.label_column].fillna(0).astype(int)
 
 
@@ -141,9 +139,7 @@ LABELING_STRATEGIES: Dict[str, type] = {
 }
 
 
-def get_labeling_strategy(
-    name: str, **kwargs: Any
-) -> LabelingStrategy:
+def get_labeling_strategy(name: str, **kwargs: Any) -> LabelingStrategy:
     """Factory for labeling strategies.
 
     Args:

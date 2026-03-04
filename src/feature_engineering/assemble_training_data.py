@@ -41,7 +41,7 @@ def _is_s3_path(path: str) -> bool:
 
 def _parse_s3_url(path: str) -> tuple[str, str]:
     """Split s3://bucket/prefix into (bucket, prefix)."""
-    without_scheme = path[len("s3://"):]
+    without_scheme = path[len("s3://") :]
     bucket, _, prefix = without_scheme.partition("/")
     return bucket, prefix
 
@@ -63,9 +63,7 @@ def _read_s3_jsonl(path: str) -> List[Dict[str, Any]]:
                 keys.append(key)
 
     if not keys:
-        raise FileNotFoundError(
-            f"No .json files found at s3://{bucket}/{prefix}"
-        )
+        raise FileNotFoundError(f"No .json files found at s3://{bucket}/{prefix}")
 
     records: List[Dict[str, Any]] = []
     for key in sorted(keys):
@@ -99,7 +97,9 @@ def _read_local_jsonl(path: str) -> List[Dict[str, Any]]:
                 if line:
                     records.append(json.loads(line))
 
-    logger.info("Read %d records from %d file(s) at %s", len(records), len(json_files), path)
+    logger.info(
+        "Read %d records from %d file(s) at %s", len(records), len(json_files), path
+    )
     return records
 
 
@@ -141,7 +141,8 @@ def _load_beam_mapping(model_type: str) -> Dict[str, Any]:
     """
     import yaml
 
-    model_def = load_model_definition(model_type)
+    # Validate model exists (raises FileNotFoundError / ValueError if not)
+    load_model_definition(model_type)
 
     # Re-read raw YAML to get beam_mapping (not part of ModelDefinition dataclass)
     from src.models.model_definition import _DEFAULT_DEFINITIONS_PATH
@@ -215,7 +216,11 @@ def assemble_training_data(
         agg_columns = ["user_id"]
         agg_field_map = beam_mapping.get("aggregated_fields", {})
         for col_info in agg_field_map.values():
-            src = col_info if isinstance(col_info, str) else col_info.get("source_field", "")
+            src = (
+                col_info
+                if isinstance(col_info, str)
+                else col_info.get("source_field", "")
+            )
             if src and src in aggregated_df.columns:
                 agg_columns.append(src)
 
@@ -277,11 +282,19 @@ def _map_columns(
         # Check explicit mapping first
         if target_col in all_mappings:
             mapping = all_mappings[target_col]
-            source_field = mapping if isinstance(mapping, str) else mapping.get("source_field", target_col)
+            source_field = (
+                mapping
+                if isinstance(mapping, str)
+                else mapping.get("source_field", target_col)
+            )
             if source_field in df.columns:
                 result[target_col] = df[source_field]
             else:
-                logger.warning("Source field '%s' not found for target '%s'", source_field, target_col)
+                logger.warning(
+                    "Source field '%s' not found for target '%s'",
+                    source_field,
+                    target_col,
+                )
                 result[target_col] = 0
         # Check transforms (hash encoding, type casts)
         elif target_col in transforms:
@@ -297,7 +310,9 @@ def _map_columns(
             elif transform_type == "bool_to_int" and source_field in df.columns:
                 result[target_col] = df[source_field].astype(int)
             else:
-                logger.warning("Cannot apply transform '%s' for '%s'", transform_type, target_col)
+                logger.warning(
+                    "Cannot apply transform '%s' for '%s'", transform_type, target_col
+                )
                 result[target_col] = 0
         # Direct match
         elif target_col in df.columns:
@@ -333,11 +348,22 @@ def _validate(df: pd.DataFrame, model_def: Any) -> None:
     # Class balance check
     if model_def.features.target in df.columns:
         fraud_rate = df[model_def.features.target].mean()
-        logger.info("Fraud rate: %.2f%% (%d / %d)", fraud_rate * 100, df[model_def.features.target].sum(), len(df))
+        logger.info(
+            "Fraud rate: %.2f%% (%d / %d)",
+            fraud_rate * 100,
+            df[model_def.features.target].sum(),
+            len(df),
+        )
         if fraud_rate < 0.01:
-            logger.warning("Very low fraud rate (%.2f%%) - model may underperform", fraud_rate * 100)
+            logger.warning(
+                "Very low fraud rate (%.2f%%) - model may underperform",
+                fraud_rate * 100,
+            )
         elif fraud_rate > 0.50:
-            logger.warning("Very high fraud rate (%.2f%%) - check labeling strategy", fraud_rate * 100)
+            logger.warning(
+                "Very high fraud rate (%.2f%%) - check labeling strategy",
+                fraud_rate * 100,
+            )
 
     # Row count
     if len(df) == 0:
@@ -416,7 +442,9 @@ def main() -> None:
             labeling_strategy=args.labeling_strategy,
             labeling_kwargs=labeling_kwargs,
         )
-        logger.info("Assembly complete: %d rows written to %s", len(df), args.output_path)
+        logger.info(
+            "Assembly complete: %d rows written to %s", len(df), args.output_path
+        )
     except Exception:
         logger.exception("Assembly failed")
         sys.exit(1)
