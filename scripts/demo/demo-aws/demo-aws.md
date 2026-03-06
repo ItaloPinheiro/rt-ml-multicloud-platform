@@ -52,13 +52,13 @@ Before training, ensure the EC2 instance has finished running its bootstrap scri
 
 **Check User Script Logs:**
 ```bash
-ssh -i ml-pipeline-debug.pem ubuntu@$INSTANCE_IP "sudo cat /var/log/user-data.log"
+ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP "sudo cat /var/log/user-data.log"
 ```
 
 **Re-run Bootstrap (if needed):**
 If the setup failed or you need to re-trigger the script:
 ```bash
-ssh -i ml-pipeline-debug.pem ubuntu@$INSTANCE_IP "sudo /var/lib/cloud/instance/scripts/part-001"
+ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP "sudo /var/lib/cloud/instance/scripts/part-001"
 ```
 
 > **Note:** You no longer need to manually pull/import Docker images. K3s pulls images directly from GHCR using an `imagePullSecret` configured during bootstrap.
@@ -66,7 +66,7 @@ ssh -i ml-pipeline-debug.pem ubuntu@$INSTANCE_IP "sudo /var/lib/cloud/instance/s
 **Verify Services:**
 Once the script completes, ensure the platform pods are running:
 ```bash
-ssh -i ml-pipeline-debug.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl get pods -n ml-pipeline"
+ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl get pods -n ml-pipeline"
 ```
 *   You should see `ml-pipeline-api` and `ml-pipeline-mlflow` with status `Running`.
 
@@ -89,7 +89,6 @@ aws s3 ls s3://rt-ml-platform-training-data-demo/datasets/
 Run the Kinesis-to-S3 feature engineering pipeline. This publishes mock transaction events to Kinesis, then the Apache Beam pipeline reads them, extracts features, and writes aggregated results to S3.
 
 ```bash
-export EC2_IP=$INSTANCE_IP
 ./scripts/demo/demo-aws/trigger-ingestion.sh --total-events 100
 ```
 
@@ -120,7 +119,6 @@ The evaluation gate then compares it against the current champion and promotes o
 We start with a **weak baseline** model: few estimators and shallow trees (max depth 1). This model will have decent accuracy (~80%) but poor fraud detection (f1 near 0) because the shallow trees can't learn complex fraud patterns.
 
 ```bash
-export EC2_IP=$INSTANCE_IP
 ./scripts/demo/demo-aws/trigger-training.sh --n-estimators 10 --max-depth 1 --auto-promote
 ```
 
@@ -256,8 +254,8 @@ http://$INSTANCE_IP:30900/graph?g0.expr=up{job="ml-pipeline-api-service"}&g0.ran
 
 *   **Connection Refused**: Ensure the security group allows traffic on ports 30300-30900 from your IP.
 *   **Model Not Updating**: 
-    *   Check API logs: `ssh -i ml-pipeline-debug.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl logs -l app=ml-pipeline-api -n ml-pipeline --tail 50"`
-    *   Check MLflow logs: `ssh -i ml-pipeline-debug.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl logs -l app=mlflow -n ml-pipeline --tail 50"`
+    *   Check API logs: `ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl logs -l app=ml-pipeline-api -n ml-pipeline --tail 50"`
+    *   Check MLflow logs: `ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl logs -l app=mlflow -n ml-pipeline --tail 50"`
     *   Ensure the model was actually promoted to "Production" in the MLflow UI.
 
 ## Cleanup
@@ -305,38 +303,38 @@ Quick reference for common commands. All assume `$INSTANCE_IP` and env vars are 
 
 ```bash
 # SSH into the instance
-ssh -i ml-pipeline-debug.pem ubuntu@$INSTANCE_IP
+ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP
 
 # List all pods
-ssh -i ml-pipeline-debug.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl get pods -n ml-pipeline"
+ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl get pods -n ml-pipeline"
 
 # Pod logs (replace <pod-name>)
-ssh -i ml-pipeline-debug.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl logs <pod-name> -n ml-pipeline --tail 100"
+ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl logs <pod-name> -n ml-pipeline --tail 100"
 
 # Logs by label
-ssh -i ml-pipeline-debug.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl logs -l app=ml-pipeline-api -n ml-pipeline --tail 50"
-ssh -i ml-pipeline-debug.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl logs -l app=mlflow -n ml-pipeline --tail 50"
+ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl logs -l app=ml-pipeline-api -n ml-pipeline --tail 50"
+ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl logs -l app=mlflow -n ml-pipeline --tail 50"
 
 # Training job logs
-ssh -i ml-pipeline-debug.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl logs job/model-training -n ml-pipeline -c train"
+ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl logs job/model-training -n ml-pipeline -c train"
 
 # Evaluation job logs
-ssh -i ml-pipeline-debug.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl logs job/model-evaluation -n ml-pipeline"
+ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl logs job/model-evaluation -n ml-pipeline"
 
 # Kinesis producer job logs
-ssh -i ml-pipeline-debug.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl logs job/kinesis-producer -n ml-pipeline"
+ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl logs job/kinesis-producer -n ml-pipeline"
 
 # Beam ingestion job logs
-ssh -i ml-pipeline-debug.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl logs job/beam-ingestion -n ml-pipeline"
+ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl logs job/beam-ingestion -n ml-pipeline"
 
 # Restart a deployment (e.g. after config change)
-ssh -i ml-pipeline-debug.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl rollout restart deployment/ml-pipeline-api -n ml-pipeline"
+ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl rollout restart deployment/ml-pipeline-api -n ml-pipeline"
 
 # Delete completed/failed jobs
-ssh -i ml-pipeline-debug.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl delete job model-training model-evaluation -n ml-pipeline --ignore-not-found"
+ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl delete job model-training model-evaluation -n ml-pipeline --ignore-not-found"
 
 # Re-apply kustomize manifests
-ssh -i ml-pipeline-debug.pem ubuntu@$INSTANCE_IP "cd /opt/ml-platform && sudo k3s kubectl kustomize ops/k8s/overlays/aws-demo --load-restrictor LoadRestrictionsNone | sudo k3s kubectl apply -f -"
+ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP "cd /opt/ml-platform && sudo k3s kubectl kustomize ops/k8s/overlays/aws-demo --load-restrictor LoadRestrictionsNone | sudo k3s kubectl apply -f -"
 ```
 
 ### MLflow & Models
@@ -366,8 +364,6 @@ for exp in client.search_experiments(view_type=mlflow.entities.ViewType.DELETED_
 ### Training
 
 ```bash
-export EC2_IP=$INSTANCE_IP
-
 # Train with defaults (100 estimators)
 ./scripts/demo/demo-aws/trigger-training.sh
 
@@ -384,8 +380,6 @@ export EC2_IP=$INSTANCE_IP
 ### Ingestion (Kinesis + Beam)
 
 ```bash
-export EC2_IP=$INSTANCE_IP
-
 # Run ingestion with defaults (100 events)
 ./scripts/demo/demo-aws/trigger-ingestion.sh
 
@@ -396,7 +390,7 @@ export EC2_IP=$INSTANCE_IP
 aws s3 ls s3://rt-ml-platform-training-data-demo/features/ --recursive
 
 # Clean up ingestion jobs
-ssh -i ml-pipeline-debug.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl delete job kinesis-producer beam-ingestion -n ml-pipeline --ignore-not-found"
+ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl delete job kinesis-producer beam-ingestion -n ml-pipeline --ignore-not-found"
 ```
 
 ### API

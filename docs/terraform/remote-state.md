@@ -80,7 +80,7 @@ This guide explains how to transition from local state to a robust Remote State 
    Use `New repository secret` to add:
    *   `AWS_ACCESS_KEY_ID`: Your AWS Access Key
    *   `AWS_SECRET_ACCESS_KEY`: Your AWS Secret Key
-   *   `AWS_KEY_NAME`: The name of your EC2 Key Pair (e.g., `ml-pipeline-key`)
+   *   `AWS_KEY_NAME`: The name of your EC2 Key Pair (e.g., `rt-ml-platform-aws-ec2`)
 
 3. **Enable Deployments (Variables)**
    Go to `Variables` tab and create:

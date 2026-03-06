@@ -13,7 +13,7 @@
 #   ./trigger-ingestion.sh --ssh-key ~/.ssh/my-key.pem
 #
 # Environment variables:
-#   EC2_IP       - Skip auto-discovery, connect to this IP
+#   INSTANCE_IP       - Skip auto-discovery, connect to this IP
 #   SSH_KEY      - Path to SSH private key (or use --ssh-key)
 # =============================================================================
 set -euo pipefail
@@ -46,16 +46,16 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# Get EC2 IP
-if [ -z "${EC2_IP:-}" ]; then
+# Get instance IP
+if [ -z "${INSTANCE_IP:-}" ]; then
   echo "Discovering EC2 instance IP..."
-  EC2_IP=$(aws ec2 describe-instances \
+  INSTANCE_IP=$(aws ec2 describe-instances \
     --filters "Name=tag:Name,Values=rt-ml-platform-demo-instance" \
               "Name=instance-state-name,Values=running" \
     --query "Reservations[*].Instances[*].PublicIpAddress" \
     --output text)
 
-  if [ -z "$EC2_IP" ]; then
+  if [ -z "$INSTANCE_IP" ]; then
     echo "ERROR: No running demo instance found"
     exit 1
   fi
@@ -69,7 +69,7 @@ fi
 
 # Helper: run SSH commands on the instance
 remote() {
-  ssh "${SSH_OPTS[@]}" ubuntu@"$EC2_IP" "$@"
+  ssh "${SSH_OPTS[@]}" ubuntu@"$INSTANCE_IP" "$@"
 }
 
 # Read config values from the cluster
@@ -89,7 +89,7 @@ fi
 echo "============================================"
 echo "  Ingestion Pipeline - AWS Demo"
 echo "============================================"
-echo "  Instance:     $EC2_IP"
+echo "  Instance:     $INSTANCE_IP"
 echo "  Stream:       $STREAM_NAME"
 echo "  S3 bucket:    $BUCKET"
 echo "  Region:       $REGION"
@@ -115,7 +115,7 @@ sed \
   -e "s|value: \"5.0\"|value: \"${EVENTS_PER_SECOND}\"|" \
   -e "s|value: \"100\"|value: \"${TOTAL_EVENTS}\"|" \
   "$MANIFESTS_DIR/job-kinesis-producer.yaml" \
-  | ssh "${SSH_OPTS[@]}" ubuntu@"$EC2_IP" "sudo k3s kubectl apply -f -"
+  | ssh "${SSH_OPTS[@]}" ubuntu@"$INSTANCE_IP" "sudo k3s kubectl apply -f -"
 
 echo "  Waiting for producer to complete..."
 if ! remote "sudo k3s kubectl wait --for=condition=complete job/kinesis-producer -n $NAMESPACE --timeout=300s"; then
@@ -136,7 +136,7 @@ echo "[3/5] Running Apache Beam feature engineering pipeline..."
 sed \
   -e "s|--output-prefix=features|--output-prefix=${OUTPUT_PREFIX}|" \
   "$MANIFESTS_DIR/job-beam-ingestion.yaml" \
-  | ssh "${SSH_OPTS[@]}" ubuntu@"$EC2_IP" "sudo k3s kubectl apply -f -"
+  | ssh "${SSH_OPTS[@]}" ubuntu@"$INSTANCE_IP" "sudo k3s kubectl apply -f -"
 
 echo "  Waiting for Beam pipeline to complete..."
 if ! remote "sudo k3s kubectl wait --for=condition=complete job/beam-ingestion -n $NAMESPACE --timeout=600s"; then
@@ -155,7 +155,7 @@ echo ""
 echo "[4/5] Assembling training data from Beam features..."
 
 cat "$MANIFESTS_DIR/job-assemble-training-data.yaml" \
-  | ssh "${SSH_OPTS[@]}" ubuntu@"$EC2_IP" "sudo k3s kubectl apply -f -"
+  | ssh "${SSH_OPTS[@]}" ubuntu@"$INSTANCE_IP" "sudo k3s kubectl apply -f -"
 
 echo "  Waiting for assembly to complete..."
 if ! remote "sudo k3s kubectl wait --for=condition=complete job/assemble-training-data -n $NAMESPACE --timeout=300s"; then
@@ -189,7 +189,7 @@ echo ""
 echo "  Next step: run trigger-training.sh"
 echo ""
 echo "  Dashboards:"
-echo "  MLflow:   http://$EC2_IP:30500"
-echo "  API:      http://$EC2_IP:30800/docs"
-echo "  Grafana:  http://$EC2_IP:30300"
+echo "  MLflow:   http://$INSTANCE_IP:30500"
+echo "  API:      http://$INSTANCE_IP:30800/docs"
+echo "  Grafana:  http://$INSTANCE_IP:30300"
 echo "============================================"
