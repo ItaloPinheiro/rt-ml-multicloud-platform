@@ -6,13 +6,14 @@
 #
 # Prerequisites:
 #   - EC2 instance running with K3s
-#   - SSH key configured
+#   - SSH key at ~/.ssh/rt-ml-platform-aws-ec2.pem (or set SSH_KEY_PATH)
 #   - Training data uploaded to S3 (or available in the image)
 #
 # Usage:
-#   ./trigger-training.sh                    # defaults: 100 estimators
-#   ./trigger-training.sh --n-estimators 200 # custom estimators
-#   ./trigger-training.sh --auto-promote     # skip evaluation gate
+#   ./trigger-training.sh                              # uses default key
+#   SSH_KEY_PATH=~/.ssh/other.pem ./trigger-training.sh # override key
+#   ./trigger-training.sh --n-estimators 200
+#   ./trigger-training.sh --auto-promote
 # =============================================================================
 set -euo pipefail
 
@@ -36,22 +37,38 @@ while [[ $# -gt 0 ]]; do
     --max-depth)    MAX_DEPTH="$2"; shift 2 ;;
     -h|--help)
       echo "Usage: $0 [--n-estimators N] [--max-depth N] [--class-weight balanced] [--experiment NAME] [--auto-promote]"
+      echo "  SSH key: set SSH_KEY_PATH env var (default: ~/.ssh/rt-ml-platform-aws-ec2.pem)"
       exit 0
       ;;
     *) echo "Unknown option: $1"; exit 1 ;;
   esac
 done
 
-# Get EC2 IP
-if [ -z "${EC2_IP:-}" ]; then
+# ---------------------------------------------------------------------------
+# SSH Configuration
+# ---------------------------------------------------------------------------
+SSH_KEY_PATH="${SSH_KEY_PATH:-$HOME/.ssh/rt-ml-platform-aws-ec2.pem}"
+
+if [ ! -f "$SSH_KEY_PATH" ]; then
+  echo "ERROR: SSH key not found at $SSH_KEY_PATH"
+  echo "  Place your EC2 key at ~/.ssh/rt-ml-platform-aws-ec2.pem"
+  echo "  or set SSH_KEY_PATH to the correct path."
+  exit 1
+fi
+
+SSH_OPTS="-i $SSH_KEY_PATH -o StrictHostKeyChecking=no"
+SSH_CMD="ssh $SSH_OPTS ubuntu"
+
+# Get instance IP
+if [ -z "${INSTANCE_IP:-}" ]; then
   echo "Discovering EC2 instance IP..."
-  EC2_IP=$(aws ec2 describe-instances \
+  INSTANCE_IP=$(aws ec2 describe-instances \
     --filters "Name=tag:Name,Values=rt-ml-platform-demo-instance" \
               "Name=instance-state-name,Values=running" \
     --query "Reservations[*].Instances[*].PublicIpAddress" \
     --output text)
 
-  if [ -z "$EC2_IP" ]; then
+  if [ -z "$INSTANCE_IP" ]; then
     echo "ERROR: No running demo instance found"
     exit 1
   fi
@@ -60,7 +77,8 @@ fi
 echo "============================================"
 echo "  Training Pipeline - AWS Demo"
 echo "============================================"
-echo "  Instance:     $EC2_IP"
+echo "  Instance:     $INSTANCE_IP"
+echo "  SSH key:      $SSH_KEY_PATH"
 echo "  Estimators:   $N_ESTIMATORS"
 echo "  Class weight: ${CLASS_WEIGHT:-none}"
 echo "  Max depth:    ${MAX_DEPTH:-unlimited}"
@@ -91,20 +109,20 @@ echo ""
 echo "[1/3] Submitting training job..."
 
 # Get the current API image for consistency
-API_IMAGE=$(ssh -o StrictHostKeyChecking=no ubuntu@"$EC2_IP" \
+API_IMAGE=$($SSH_CMD@"$INSTANCE_IP" \
   "sudo k3s kubectl get deployment ml-pipeline-api -n $NAMESPACE -o jsonpath='{.spec.template.spec.containers[0].image}'")
 echo "  Using image: $API_IMAGE"
 
 # Get S3 bucket from configmap
-BUCKET=$(ssh ubuntu@"$EC2_IP" \
+BUCKET=$($SSH_CMD@"$INSTANCE_IP" \
   "sudo k3s kubectl get configmap ml-pipeline-config -n $NAMESPACE -o jsonpath='{.data.TRAINING_DATA_BUCKET}' 2>/dev/null" || echo "")
 
 # Clean up previous jobs
-ssh ubuntu@"$EC2_IP" \
+$SSH_CMD@"$INSTANCE_IP" \
   "sudo k3s kubectl delete job model-training -n $NAMESPACE --ignore-not-found=true"
 
 # Create and apply training job
-ssh ubuntu@"$EC2_IP" "cat <<'JOBEOF' | sudo k3s kubectl apply -f -
+$SSH_CMD@"$INSTANCE_IP" "cat <<'JOBEOF' | sudo k3s kubectl apply -f -
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -169,11 +187,11 @@ spec:
 JOBEOF"
 
 echo "  Waiting for training to complete..."
-ssh ubuntu@"$EC2_IP" \
+$SSH_CMD@"$INSTANCE_IP" \
   "sudo k3s kubectl wait --for=condition=complete job/model-training -n $NAMESPACE --timeout=600s"
 
 echo "  Training logs:"
-ssh ubuntu@"$EC2_IP" \
+$SSH_CMD@"$INSTANCE_IP" \
   "sudo k3s kubectl logs job/model-training -n $NAMESPACE -c train"
 
 # ---------------------------------------------------------------------------
@@ -186,10 +204,10 @@ else
   echo ""
   echo "[2/3] Running evaluation gate..."
 
-  ssh ubuntu@"$EC2_IP" \
+  $SSH_CMD@"$INSTANCE_IP" \
     "sudo k3s kubectl delete job model-evaluation -n $NAMESPACE --ignore-not-found=true"
 
-  ssh ubuntu@"$EC2_IP" "cat <<'JOBEOF' | sudo k3s kubectl apply -f -
+  $SSH_CMD@"$INSTANCE_IP" "cat <<'JOBEOF' | sudo k3s kubectl apply -f -
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -225,15 +243,15 @@ spec:
 JOBEOF"
 
   echo "  Waiting for evaluation..."
-  ssh ubuntu@"$EC2_IP" \
+  $SSH_CMD@"$INSTANCE_IP" \
     "sudo k3s kubectl wait --for=condition=complete job/model-evaluation -n $NAMESPACE --timeout=120s" || {
     echo "  Evaluation result: REJECTED"
-    ssh ubuntu@"$EC2_IP" "sudo k3s kubectl logs job/model-evaluation -n $NAMESPACE"
+    $SSH_CMD@"$INSTANCE_IP" "sudo k3s kubectl logs job/model-evaluation -n $NAMESPACE"
     exit 1
   }
 
   echo "  Evaluation logs:"
-  ssh ubuntu@"$EC2_IP" \
+  $SSH_CMD@"$INSTANCE_IP" \
     "sudo k3s kubectl logs job/model-evaluation -n $NAMESPACE"
 fi
 
@@ -243,7 +261,7 @@ fi
 echo ""
 echo "[3/3] Verifying API model update..."
 
-API_URL="http://$EC2_IP:30800"
+API_URL="http://$INSTANCE_IP:30800"
 echo "  Waiting for API auto-update cycle (up to 30s)..."
 
 for i in $(seq 1 6); do
@@ -254,9 +272,9 @@ for i in $(seq 1 6); do
     echo "============================================"
     echo "  Training pipeline complete!"
     echo "============================================"
-    echo "  MLflow:  http://$EC2_IP:30500"
-    echo "  API:     http://$EC2_IP:30800/docs"
-    echo "  Grafana: http://$EC2_IP:30300"
+    echo "  MLflow:  http://$INSTANCE_IP:30500"
+    echo "  API:     http://$INSTANCE_IP:30800/docs"
+    echo "  Grafana: http://$INSTANCE_IP:30300"
     echo "============================================"
     exit 0
   fi

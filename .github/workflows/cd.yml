@@ -441,17 +441,19 @@ jobs:
 
     - name: Terraform Init
       id: init
-      run: terraform init -backend=false
+      run: terraform init
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_REGION: us-east-1
 
     - name: Terraform Validate
       id: validate
       run: terraform validate -no-color
 
-
     - name: Terraform Plan
       id: plan
-      run: terraform plan -no-color -var="key_name=dummy-key"
-      continue-on-error: true
+      run: terraform plan -no-color -var="key_name=${{ secrets.AWS_KEY_NAME }}"
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}

@@ -2,7 +2,7 @@
 aws_region = "us-east-1"
 
 # SSH Key Pair (MUST EXIST in AWS console)
-key_name = "ml-pipeline-key"
+key_name = "rt-ml-platform-aws-ec2"
 
 # Instance Configuration
 # t3.medium (4GB) recommended for zero-downtime rolling updates (~$30/month)
