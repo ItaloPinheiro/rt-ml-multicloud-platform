@@ -129,38 +129,35 @@ jobs:
         platforms: linux/amd64
         provenance: false
 
-    - name: Generate SBOM (API)
-      uses: anchore/sbom-action@v0
-      with:
-        # OCI references must be lowercase
-        image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api@${{ steps.build.outputs.digest }}
-        format: spdx-json
-        output-file: sbom-api.spdx.json
+    # - name: Generate SBOM (API)
+    #   uses: anchore/sbom-action@v0
+    #   with:
+    #     image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api@${{ steps.build.outputs.digest }}
+    #     format: spdx-json
+    #     output-file: sbom-api.spdx.json
 
-    - name: Generate SBOM (MLflow)
-      uses: anchore/sbom-action@v0
-      with:
-        # OCI references must be lowercase
-        image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/mlflow@${{ steps.build-mlflow.outputs.digest }}
-        format: spdx-json
-        output-file: sbom-mlflow.spdx.json
+    # - name: Generate SBOM (MLflow)
+    #   uses: anchore/sbom-action@v0
+    #   with:
+    #     image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/mlflow@${{ steps.build-mlflow.outputs.digest }}
+    #     format: spdx-json
+    #     output-file: sbom-mlflow.spdx.json
 
-    - name: Generate SBOM (Beam)
-      uses: anchore/sbom-action@v0
-      with:
-        # OCI references must be lowercase
-        image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/beam@${{ steps.build-beam.outputs.digest }}
-        format: spdx-json
-        output-file: sbom-beam.spdx.json
+    # - name: Generate SBOM (Beam)
+    #   uses: anchore/sbom-action@v0
+    #   with:
+    #     image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/beam@${{ steps.build-beam.outputs.digest }}
+    #     format: spdx-json
+    #     output-file: sbom-beam.spdx.json
 
-    - name: Upload SBOM
-      uses: actions/upload-artifact@v4
-      with:
-        name: sbom
-        path: |
-          sbom-api.spdx.json
-          sbom-mlflow.spdx.json
-          sbom-beam.spdx.json
+    # - name: Upload SBOM
+    #   uses: actions/upload-artifact@v4
+    #   with:
+    #     name: sbom
+    #     path: |
+    #       sbom-api.spdx.json
+    #       sbom-mlflow.spdx.json
+    #       sbom-beam.spdx.json
 
   # ==========================================================================
   # DEPLOY TO DEMO INSTANCE - Only when ENABLE_DEMO_DEPLOY is true
