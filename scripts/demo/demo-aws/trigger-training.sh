@@ -3,17 +3,23 @@
 # Trigger Training Pipeline on AWS Demo Instance
 # =============================================================================
 # Runs the full training -> evaluation -> promotion pipeline on the K3s cluster.
+# Job manifests live in ops/k8s/overlays/aws-demo/ and are patched at apply time
+# with CLI overrides (n-estimators, experiment, etc.).
 #
 # Prerequisites:
-#   - EC2 instance running with K3s
-#   - SSH key at ~/.ssh/rt-ml-platform-aws-ec2.pem (or set SSH_KEY_PATH)
-#   - Training data uploaded to S3 (or available in the image)
+#   - EC2 instance running with K3s and aws-demo overlay applied
+#   - SSH key at ~/.ssh/rt-ml-platform-aws-ec2.pem (or set SSH_KEY)
+#   - Training data uploaded to S3 (run trigger-ingestion.sh first)
 #
 # Usage:
-#   ./trigger-training.sh                              # uses default key
-#   SSH_KEY_PATH=~/.ssh/other.pem ./trigger-training.sh # override key
+#   ./trigger-training.sh                              # defaults
 #   ./trigger-training.sh --n-estimators 200
 #   ./trigger-training.sh --auto-promote
+#   ./trigger-training.sh --ssh-key ~/.ssh/other.pem
+#
+# Environment variables:
+#   INSTANCE_IP       - Skip auto-discovery, connect to this IP
+#   SSH_KEY           - Path to SSH private key (default: ~/.ssh/rt-ml-platform-aws-ec2.pem)
 # =============================================================================
 set -euo pipefail
 
@@ -26,6 +32,11 @@ EXPERIMENT="fraud_detection"
 AUTO_PROMOTE=false
 CLASS_WEIGHT=""
 MAX_DEPTH=""
+SSH_KEY="${SSH_KEY:-}"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+MANIFESTS_DIR="$PROJECT_ROOT/ops/k8s/overlays/aws-demo"
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -35,9 +46,10 @@ while [[ $# -gt 0 ]]; do
     --auto-promote) AUTO_PROMOTE=true; shift ;;
     --class-weight) CLASS_WEIGHT="$2"; shift 2 ;;
     --max-depth)    MAX_DEPTH="$2"; shift 2 ;;
+    --ssh-key)      SSH_KEY="$2"; shift 2 ;;
     -h|--help)
-      echo "Usage: $0 [--n-estimators N] [--max-depth N] [--class-weight balanced] [--experiment NAME] [--auto-promote]"
-      echo "  SSH key: set SSH_KEY_PATH env var (default: ~/.ssh/rt-ml-platform-aws-ec2.pem)"
+      echo "Usage: $0 [--n-estimators N] [--max-depth N] [--class-weight balanced] [--experiment NAME] [--auto-promote] [--ssh-key PATH]"
+      echo "  SSH key: set SSH_KEY env var or use --ssh-key (default: ~/.ssh/rt-ml-platform-aws-ec2.pem)"
       exit 0
       ;;
     *) echo "Unknown option: $1"; exit 1 ;;
@@ -47,17 +59,16 @@ done
 # ---------------------------------------------------------------------------
 # SSH Configuration
 # ---------------------------------------------------------------------------
-SSH_KEY_PATH="${SSH_KEY_PATH:-$HOME/.ssh/rt-ml-platform-aws-ec2.pem}"
+SSH_KEY="${SSH_KEY:-$HOME/.ssh/rt-ml-platform-aws-ec2.pem}"
 
-if [ ! -f "$SSH_KEY_PATH" ]; then
-  echo "ERROR: SSH key not found at $SSH_KEY_PATH"
+if [ ! -f "$SSH_KEY" ]; then
+  echo "ERROR: SSH key not found at $SSH_KEY"
   echo "  Place your EC2 key at ~/.ssh/rt-ml-platform-aws-ec2.pem"
-  echo "  or set SSH_KEY_PATH to the correct path."
+  echo "  or set SSH_KEY / use --ssh-key to the correct path."
   exit 1
 fi
 
-SSH_OPTS="-i $SSH_KEY_PATH -o StrictHostKeyChecking=no"
-SSH_CMD="ssh $SSH_OPTS ubuntu"
+SSH_OPTS=(-i "$SSH_KEY" -o StrictHostKeyChecking=no)
 
 # Get instance IP
 if [ -z "${INSTANCE_IP:-}" ]; then
@@ -74,11 +85,25 @@ if [ -z "${INSTANCE_IP:-}" ]; then
   fi
 fi
 
+# Helper: run SSH commands on the instance
+remote() {
+  ssh "${SSH_OPTS[@]}" ubuntu@"$INSTANCE_IP" "$@"
+}
+
+# Verify SSH connectivity before proceeding
+echo "Verifying SSH connectivity to $INSTANCE_IP..."
+if ! remote "echo ok" >/dev/null 2>&1; then
+  echo "ERROR: Cannot SSH into ubuntu@$INSTANCE_IP"
+  echo "  Key: $SSH_KEY"
+  echo "  Check that the instance is running and the key is correct."
+  exit 1
+fi
+
 echo "============================================"
 echo "  Training Pipeline - AWS Demo"
 echo "============================================"
 echo "  Instance:     $INSTANCE_IP"
-echo "  SSH key:      $SSH_KEY_PATH"
+echo "  SSH key:      $SSH_KEY"
 echo "  Estimators:   $N_ESTIMATORS"
 echo "  Class weight: ${CLASS_WEIGHT:-none}"
 echo "  Max depth:    ${MAX_DEPTH:-unlimited}"
@@ -86,180 +111,84 @@ echo "  Experiment:   $EXPERIMENT"
 echo "  Auto-promote: $AUTO_PROMOTE"
 echo "============================================"
 
-# Build training args
-TRAIN_ARGS="--data-path=/data/fraud_detection.csv"
-TRAIN_ARGS="$TRAIN_ARGS --mlflow-uri=http://mlflow-service:5000"
-TRAIN_ARGS="$TRAIN_ARGS --experiment=$EXPERIMENT"
-TRAIN_ARGS="$TRAIN_ARGS --model-name=fraud_detector"
-TRAIN_ARGS="$TRAIN_ARGS --n-estimators=$N_ESTIMATORS"
+# Build training args for sed patching
+# Base manifest has: "--n-estimators=100" and "--experiment=fraud_detection"
+TRAIN_SED_ARGS=()
+TRAIN_SED_ARGS+=(-e "s|--n-estimators=100|--n-estimators=${N_ESTIMATORS}|")
+TRAIN_SED_ARGS+=(-e "s|--experiment=fraud_detection|--experiment=${EXPERIMENT}|")
+
+# Add optional args by appending to the args list
+EXTRA_ARGS=""
 if [ "$AUTO_PROMOTE" = "true" ]; then
-  TRAIN_ARGS="$TRAIN_ARGS --auto-promote"
+  EXTRA_ARGS="${EXTRA_ARGS}\n        - \"--auto-promote\""
 fi
 if [ -n "$CLASS_WEIGHT" ]; then
-  TRAIN_ARGS="$TRAIN_ARGS --class-weight=$CLASS_WEIGHT"
+  EXTRA_ARGS="${EXTRA_ARGS}\n        - \"--class-weight=${CLASS_WEIGHT}\""
 fi
 if [ -n "$MAX_DEPTH" ]; then
-  TRAIN_ARGS="$TRAIN_ARGS --max-depth=$MAX_DEPTH"
+  EXTRA_ARGS="${EXTRA_ARGS}\n        - \"--max-depth=${MAX_DEPTH}\""
+fi
+
+# If we have extra args, insert them after the last training arg line
+if [ -n "$EXTRA_ARGS" ]; then
+  TRAIN_SED_ARGS+=(-e "s|--model-name=fraud_detector\"|--model-name=fraud_detector\"${EXTRA_ARGS}|")
 fi
 
 # ---------------------------------------------------------------------------
-# Step 1: Run Training Job
+# Step 1: Clean up previous jobs
 # ---------------------------------------------------------------------------
 echo ""
-echo "[1/3] Submitting training job..."
-
-# Get the current API image for consistency
-API_IMAGE=$($SSH_CMD@"$INSTANCE_IP" \
-  "sudo k3s kubectl get deployment ml-pipeline-api -n $NAMESPACE -o jsonpath='{.spec.template.spec.containers[0].image}'")
-echo "  Using image: $API_IMAGE"
-
-# Get S3 bucket from configmap
-BUCKET=$($SSH_CMD@"$INSTANCE_IP" \
-  "sudo k3s kubectl get configmap ml-pipeline-config -n $NAMESPACE -o jsonpath='{.data.TRAINING_DATA_BUCKET}' 2>/dev/null" || echo "")
-
-# Clean up previous jobs
-$SSH_CMD@"$INSTANCE_IP" \
-  "sudo k3s kubectl delete job model-training -n $NAMESPACE --ignore-not-found=true"
-
-# Create and apply training job
-$SSH_CMD@"$INSTANCE_IP" "cat <<'JOBEOF' | sudo k3s kubectl apply -f -
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: model-training
-  namespace: $NAMESPACE
-  labels:
-    app.kubernetes.io/name: model-training
-    app.kubernetes.io/component: training
-spec:
-  backoffLimit: 2
-  activeDeadlineSeconds: 600
-  ttlSecondsAfterFinished: 3600
-  template:
-    spec:
-      restartPolicy: Never
-      initContainers:
-      - name: download-data
-        image: amazon/aws-cli:latest
-        command: [\"sh\", \"-c\"]
-        args:
-        - |
-          if [ -n \"$BUCKET\" ]; then
-            echo \"Downloading from S3...\"
-            aws s3 cp \"s3://${BUCKET}/datasets/fraud_detection.csv\" /data/fraud_detection.csv
-          else
-            echo \"ERROR: No S3 bucket configured (TRAINING_DATA_BUCKET not set)\"
-            exit 1
-          fi
-        volumeMounts:
-        - name: training-data
-          mountPath: /data
-        resources:
-          requests:
-            memory: \"64Mi\"
-            cpu: \"50m\"
-          limits:
-            memory: \"128Mi\"
-            cpu: \"100m\"
-      containers:
-      - name: train
-        image: $API_IMAGE
-        command: [\"python\", \"-m\", \"src.models.training.train\"]
-        args: [\"--data-path=/data/fraud_detection.csv\", \"--mlflow-uri=http://mlflow-service:5000\", \"--experiment=$EXPERIMENT\", \"--model-name=fraud_detector\", \"--n-estimators=$N_ESTIMATORS\"$([ -n "$CLASS_WEIGHT" ] && echo ", \"--class-weight=$CLASS_WEIGHT\"")$([ -n "$MAX_DEPTH" ] && echo ", \"--max-depth=$MAX_DEPTH\"")]
-        envFrom:
-        - configMapRef:
-            name: ml-pipeline-config
-        - secretRef:
-            name: ml-pipeline-secrets
-        volumeMounts:
-        - name: training-data
-          mountPath: /data
-        resources:
-          requests:
-            memory: \"1Gi\"
-            cpu: \"500m\"
-          limits:
-            memory: \"2Gi\"
-            cpu: \"1000m\"
-      volumes:
-      - name: training-data
-        emptyDir: {}
-JOBEOF"
-
-echo "  Waiting for training to complete..."
-$SSH_CMD@"$INSTANCE_IP" \
-  "sudo k3s kubectl wait --for=condition=complete job/model-training -n $NAMESPACE --timeout=600s"
-
-echo "  Training logs:"
-$SSH_CMD@"$INSTANCE_IP" \
-  "sudo k3s kubectl logs job/model-training -n $NAMESPACE -c train"
+echo "[1/3] Cleaning up previous jobs..."
+remote "sudo k3s kubectl delete job model-training model-evaluation -n $NAMESPACE --ignore-not-found=true"
 
 # ---------------------------------------------------------------------------
-# Step 2: Run Evaluation Gate (unless auto-promote)
+# Step 2: Run Training Job
+# ---------------------------------------------------------------------------
+echo ""
+echo "[2/3] Running training job ($N_ESTIMATORS estimators)..."
+
+sed "${TRAIN_SED_ARGS[@]}" "$MANIFESTS_DIR/job-model-training.yaml" \
+  | ssh "${SSH_OPTS[@]}" ubuntu@"$INSTANCE_IP" "sudo k3s kubectl apply -f -"
+
+echo "  Waiting for training to complete..."
+if ! remote "sudo k3s kubectl wait --for=condition=complete job/model-training -n $NAMESPACE --timeout=600s"; then
+  echo "ERROR: Training job failed."
+  remote "sudo k3s kubectl logs job/model-training -n $NAMESPACE -c train --tail=20"
+  exit 1
+fi
+
+echo "  Training logs:"
+remote "sudo k3s kubectl logs job/model-training -n $NAMESPACE -c train" | tail -10
+
+# ---------------------------------------------------------------------------
+# Step 3: Run Evaluation Gate (unless auto-promote)
 # ---------------------------------------------------------------------------
 if [ "$AUTO_PROMOTE" = "true" ]; then
   echo ""
-  echo "[2/3] Skipped evaluation gate (--auto-promote)"
+  echo "[3/3] Skipped evaluation gate (--auto-promote)"
 else
   echo ""
-  echo "[2/3] Running evaluation gate..."
+  echo "[3/3] Running evaluation gate..."
 
-  $SSH_CMD@"$INSTANCE_IP" \
-    "sudo k3s kubectl delete job model-evaluation -n $NAMESPACE --ignore-not-found=true"
-
-  $SSH_CMD@"$INSTANCE_IP" "cat <<'JOBEOF' | sudo k3s kubectl apply -f -
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: model-evaluation
-  namespace: $NAMESPACE
-  labels:
-    app.kubernetes.io/name: model-evaluation
-    app.kubernetes.io/component: evaluation
-spec:
-  backoffLimit: 1
-  activeDeadlineSeconds: 120
-  ttlSecondsAfterFinished: 3600
-  template:
-    spec:
-      restartPolicy: Never
-      containers:
-      - name: evaluate
-        image: $API_IMAGE
-        command: [\"python\", \"-m\", \"src.models.evaluation.evaluate_and_promote\"]
-        args: [\"--mlflow-uri=http://mlflow-service:5000\", \"--model-name=fraud_detector\", \"--min-accuracy=0.80\"]
-        envFrom:
-        - configMapRef:
-            name: ml-pipeline-config
-        - secretRef:
-            name: ml-pipeline-secrets
-        resources:
-          requests:
-            memory: \"512Mi\"
-            cpu: \"250m\"
-          limits:
-            memory: \"1Gi\"
-            cpu: \"500m\"
-JOBEOF"
+  cat "$MANIFESTS_DIR/job-model-evaluation.yaml" \
+    | ssh "${SSH_OPTS[@]}" ubuntu@"$INSTANCE_IP" "sudo k3s kubectl apply -f -"
 
   echo "  Waiting for evaluation..."
-  $SSH_CMD@"$INSTANCE_IP" \
-    "sudo k3s kubectl wait --for=condition=complete job/model-evaluation -n $NAMESPACE --timeout=120s" || {
+  if ! remote "sudo k3s kubectl wait --for=condition=complete job/model-evaluation -n $NAMESPACE --timeout=120s"; then
     echo "  Evaluation result: REJECTED"
-    $SSH_CMD@"$INSTANCE_IP" "sudo k3s kubectl logs job/model-evaluation -n $NAMESPACE"
+    remote "sudo k3s kubectl logs job/model-evaluation -n $NAMESPACE"
     exit 1
-  }
+  fi
 
   echo "  Evaluation logs:"
-  $SSH_CMD@"$INSTANCE_IP" \
-    "sudo k3s kubectl logs job/model-evaluation -n $NAMESPACE"
+  remote "sudo k3s kubectl logs job/model-evaluation -n $NAMESPACE" | tail -10
 fi
 
 # ---------------------------------------------------------------------------
-# Step 3: Verify API picked up the model
+# Verify API picked up the model
 # ---------------------------------------------------------------------------
 echo ""
-echo "[3/3] Verifying API model update..."
+echo "Verifying API model update..."
 
 API_URL="http://$INSTANCE_IP:30800"
 echo "  Waiting for API auto-update cycle (up to 30s)..."

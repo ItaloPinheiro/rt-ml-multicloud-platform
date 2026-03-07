@@ -14,7 +14,7 @@
 #
 # Environment variables:
 #   INSTANCE_IP       - Skip auto-discovery, connect to this IP
-#   SSH_KEY      - Path to SSH private key (or use --ssh-key)
+#   SSH_KEY           - Path to SSH private key (default: ~/.ssh/rt-ml-platform-aws-ec2.pem)
 # =============================================================================
 set -euo pipefail
 
@@ -40,11 +40,26 @@ while [[ $# -gt 0 ]]; do
     --ssh-key)           SSH_KEY="$2"; shift 2 ;;
     -h|--help)
       echo "Usage: $0 [--total-events N] [--events-per-second N] [--output-prefix PREFIX] [--ssh-key PATH]"
+      echo "  SSH key: set SSH_KEY env var or use --ssh-key (default: ~/.ssh/rt-ml-platform-aws-ec2.pem)"
       exit 0
       ;;
     *) echo "Unknown option: $1"; exit 1 ;;
   esac
 done
+
+# ---------------------------------------------------------------------------
+# SSH Configuration
+# ---------------------------------------------------------------------------
+SSH_KEY="${SSH_KEY:-$HOME/.ssh/rt-ml-platform-aws-ec2.pem}"
+
+if [ ! -f "$SSH_KEY" ]; then
+  echo "ERROR: SSH key not found at $SSH_KEY"
+  echo "  Place your EC2 key at ~/.ssh/rt-ml-platform-aws-ec2.pem"
+  echo "  or set SSH_KEY / use --ssh-key to the correct path."
+  exit 1
+fi
+
+SSH_OPTS=(-i "$SSH_KEY" -o StrictHostKeyChecking=no)
 
 # Get instance IP
 if [ -z "${INSTANCE_IP:-}" ]; then
@@ -61,21 +76,25 @@ if [ -z "${INSTANCE_IP:-}" ]; then
   fi
 fi
 
-# Build SSH options (key is optional — uses ssh-agent or default key if not set)
-SSH_OPTS=(-o StrictHostKeyChecking=no)
-if [ -n "$SSH_KEY" ]; then
-  SSH_OPTS+=(-i "$SSH_KEY")
-fi
-
 # Helper: run SSH commands on the instance
 remote() {
   ssh "${SSH_OPTS[@]}" ubuntu@"$INSTANCE_IP" "$@"
 }
 
+# Verify SSH connectivity before proceeding
+echo "Verifying SSH connectivity to $INSTANCE_IP..."
+if ! remote "echo ok" >/dev/null 2>&1; then
+  echo "ERROR: Cannot SSH into ubuntu@$INSTANCE_IP"
+  echo "  Key: $SSH_KEY"
+  echo "  Check that the instance is running and the key is correct."
+  exit 1
+fi
+
 # Read config values from the cluster
-STREAM_NAME=$(remote "sudo k3s kubectl get configmap ml-pipeline-config -n $NAMESPACE -o jsonpath='{.data.KINESIS_STREAM_NAME}'" 2>/dev/null || echo "")
-BUCKET=$(remote "sudo k3s kubectl get configmap ml-pipeline-config -n $NAMESPACE -o jsonpath='{.data.TRAINING_DATA_BUCKET}'" 2>/dev/null || echo "")
-REGION=$(remote "sudo k3s kubectl get configmap ml-pipeline-config -n $NAMESPACE -o jsonpath='{.data.AWS_DEFAULT_REGION}'" 2>/dev/null || echo "us-east-1")
+echo "Reading cluster configuration..."
+STREAM_NAME=$(remote "sudo k3s kubectl get configmap ml-pipeline-config -n $NAMESPACE -o jsonpath='{.data.KINESIS_STREAM_NAME}'" || echo "")
+BUCKET=$(remote "sudo k3s kubectl get configmap ml-pipeline-config -n $NAMESPACE -o jsonpath='{.data.TRAINING_DATA_BUCKET}'" || echo "")
+REGION=$(remote "sudo k3s kubectl get configmap ml-pipeline-config -n $NAMESPACE -o jsonpath='{.data.AWS_DEFAULT_REGION}'" || echo "us-east-1")
 
 if [ -z "$STREAM_NAME" ]; then
   echo "ERROR: KINESIS_STREAM_NAME not set in ConfigMap. Did you apply the aws-demo overlay?"
