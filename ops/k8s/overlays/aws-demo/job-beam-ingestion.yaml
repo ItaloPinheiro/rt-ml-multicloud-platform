@@ -32,6 +32,11 @@ spec:
         - "--output-prefix=features"
         - "--runner=DirectRunner"
         - "--initial-position=TRIM_HORIZON"
+        envFrom:
+        - configMapRef:
+            name: ml-pipeline-config
+        - secretRef:
+            name: ml-pipeline-secrets
         env:
         - name: PYTHONPATH
           value: "/app"

@@ -398,6 +398,32 @@ class PrometheusMetrics:
             f"{self.prefix}_cpu_usage_percent", "CPU usage percentage"
         )
 
+        # Feature store ingestion metrics
+        self.feature_store_entities_total = Gauge(
+            f"{self.prefix}_feature_store_entities_total",
+            "Total number of unique entities in the feature store",
+            ["feature_group"],
+        )
+
+        self.feature_store_features_total = Gauge(
+            f"{self.prefix}_feature_store_features_total",
+            "Total number of features stored per group",
+            ["feature_group"],
+        )
+
+        self.feature_ingestion_total = Counter(
+            f"{self.prefix}_feature_ingestion_total",
+            "Total number of feature ingestion operations",
+            ["feature_group", "method", "status"],
+        )
+
+        self.feature_ingestion_duration_seconds = Histogram(
+            f"{self.prefix}_feature_ingestion_duration_seconds",
+            "Feature ingestion duration in seconds",
+            ["feature_group", "method"],
+            buckets=[0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0],
+        )
+
         # Error metrics
         self.errors_total = Counter(
             f"{self.prefix}_errors_total",
@@ -527,6 +553,46 @@ class PrometheusMetrics:
             percent: CPU usage percentage
         """
         self.cpu_usage_percent.set(percent)
+
+    def set_feature_store_entities(self, feature_group: str, count: int) -> None:
+        """Set the number of unique entities in a feature group.
+
+        Args:
+            feature_group: Feature group name
+            count: Number of unique entities
+        """
+        self.feature_store_entities_total.labels(feature_group=feature_group).set(count)
+
+    def set_feature_store_features(self, feature_group: str, count: int) -> None:
+        """Set the total number of features in a feature group.
+
+        Args:
+            feature_group: Feature group name
+            count: Number of features
+        """
+        self.feature_store_features_total.labels(feature_group=feature_group).set(count)
+
+    def record_feature_ingestion(
+        self,
+        feature_group: str,
+        method: str,
+        duration: float,
+        status: str = "success",
+    ) -> None:
+        """Record a feature ingestion operation.
+
+        Args:
+            feature_group: Feature group name
+            method: Ingestion method (put, bulk_put)
+            duration: Operation duration in seconds
+            status: Operation status (success/error)
+        """
+        self.feature_ingestion_total.labels(
+            feature_group=feature_group, method=method, status=status
+        ).inc()
+        self.feature_ingestion_duration_seconds.labels(
+            feature_group=feature_group, method=method
+        ).observe(duration)
 
     def record_error(self, component: str, error_type: str) -> None:
         """Record an error.

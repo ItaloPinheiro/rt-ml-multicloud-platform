@@ -10,7 +10,7 @@ import argparse
 import logging
 import os
 import sys
-from typing import Any, Callable, Dict, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import mlflow
 import mlflow.sklearn
@@ -122,7 +122,10 @@ class ModelTrainer:
     def load_data(self, data_path: str) -> Tuple[pd.DataFrame, pd.Series]:
         """Load and prepare training data using model definition features."""
         logger.info(f"Loading data from {data_path}")
-        df = pd.read_csv(data_path)
+        if data_path.endswith(".parquet"):
+            df = pd.read_parquet(data_path)
+        else:
+            df = pd.read_csv(data_path)
 
         target = self.model_def.features.target
         feature_columns = self.model_def.features.columns
@@ -148,6 +151,153 @@ class ModelTrainer:
 
         logger.info(f"Loaded {len(df)} samples with {len(feature_columns)} features")
         return X, y
+
+    def load_data_from_feature_store(
+        self,
+        feature_groups: List[str],
+        feature_schema: Dict[str, List[str]],
+        labeling_strategy: str = "rule_based",
+        label_field: str = "risk_score",
+        label_threshold: float = 0.5,
+    ) -> Tuple[pd.DataFrame, pd.Series]:
+        """Load training data directly from PostgreSQL feature store.
+
+        Uses SQLAlchemy Core + yield_per for memory-efficient streaming.
+        Pivots EAV format to wide format matching CSV training schema.
+
+        Args:
+            feature_groups: List of feature group names to query.
+            feature_schema: Dict mapping feature_group -> list of feature names.
+            labeling_strategy: How to assign labels ("rule_based" or "file_based").
+            label_field: Feature field to use for rule-based labeling.
+            label_threshold: Threshold for rule-based labeling.
+
+        Returns:
+            Tuple of (X, y) matching the format from load_data().
+        """
+        from sqlalchemy import select
+
+        from src.database.models import FeatureStore as FeatureStoreModel
+        from src.database.session import get_session
+
+        # Compute union of all needed feature names
+        needed_features: set = set()
+        for group_features in feature_schema.values():
+            needed_features.update(group_features)
+
+        logger.info(
+            f"Loading from feature store: groups={feature_groups}, "
+            f"features={len(needed_features)}"
+        )
+
+        # Build Core select statement (lightweight Row tuples, not ORM objects)
+        stmt = select(
+            FeatureStoreModel.entity_id,
+            FeatureStoreModel.feature_name,
+            FeatureStoreModel.feature_value,
+        ).where(
+            FeatureStoreModel.feature_group.in_(feature_groups),
+            FeatureStoreModel.feature_name.in_(list(needed_features)),
+            FeatureStoreModel.is_active.is_(True),
+        )
+
+        # Stream results with yield_per to reduce peak memory
+        with get_session() as session:
+            result = session.execute(stmt).yield_per(10_000)
+            chunks = []
+            for partition in result.partitions():
+                chunk_df = pd.DataFrame(
+                    partition,
+                    columns=["entity_id", "feature_name", "feature_value"],
+                )
+                chunks.append(chunk_df)
+
+        if not chunks:
+            raise ValueError(
+                f"No features found in feature store for groups {feature_groups}"
+            )
+
+        df = pd.concat(chunks, ignore_index=True)
+        logger.info(f"Read {len(df)} feature rows from feature store")
+
+        # Pivot EAV -> wide format
+        wide = df.pivot_table(
+            index="entity_id",
+            columns="feature_name",
+            values="feature_value",
+            aggfunc="first",
+        )
+        del df  # Free EAV DataFrame
+
+        # Cast JSON values to numeric
+        for col in wide.columns:
+            wide[col] = pd.to_numeric(wide[col], errors="coerce")
+
+        wide = wide.reset_index()
+        logger.info(
+            f"Pivoted to {len(wide)} entities x {len(wide.columns) - 1} features"
+        )
+
+        # Apply labeling strategy
+        if labeling_strategy == "rule_based":
+            if label_field in wide.columns:
+                wide["label"] = (wide[label_field] >= label_threshold).astype(int)
+            else:
+                logger.warning(
+                    f"Label field '{label_field}' not found, defaulting to 0"
+                )
+                wide["label"] = 0
+        else:
+            wide["label"] = 0
+
+        # Select feature columns in model definition order
+        target = self.model_def.features.target
+        feature_columns = self.model_def.features.columns
+
+        missing = set(feature_columns) - set(wide.columns)
+        if missing:
+            logger.warning(
+                f"Columns {missing} not found in feature store, "
+                f"falling back to available columns"
+            )
+            feature_columns = [c for c in feature_columns if c in wide.columns]
+
+        X = wide[feature_columns].copy()
+        y = wide[target]
+
+        # Cast integer columns to float64
+        int_columns = X.select_dtypes(include=["int64", "int32"]).columns
+        X[int_columns] = X[int_columns].astype("float64")
+
+        logger.info(
+            f"Feature store data ready: {len(X)} samples, "
+            f"{len(feature_columns)} features"
+        )
+        return X, y
+
+    def _load_feature_schema_from_config(self) -> Dict[str, List[str]]:
+        """Load feature_store.schema from model definition YAML."""
+        from pathlib import Path
+
+        import yaml
+
+        from src.models.model_definition import _DEFAULT_DEFINITIONS_PATH
+
+        yaml_path = (
+            Path(_DEFAULT_DEFINITIONS_PATH) / f"{self.model_def.model_name}.yaml"
+        )
+        with open(yaml_path) as f:
+            raw = yaml.safe_load(f)
+
+        fs_config = raw.get("feature_store", {})
+        schema = fs_config.get("schema", {})
+        if not schema:
+            logger.warning(
+                "No feature_store.schema in model config, using all feature columns"
+            )
+            # Fallback: put all columns in first group
+            schema = {"transaction_features": list(self.model_def.features.columns)}
+        return schema
 
     def train_model(
         self,
@@ -198,17 +348,40 @@ class ModelTrainer:
 
     def train_and_log(
         self,
-        data_path: str,
+        data_path: Optional[str] = None,
         model_name: Optional[str] = None,
         test_size: float = 0.2,
         model_params: Optional[Dict[str, Any]] = None,
         auto_promote: bool = True,
+        use_feature_store: bool = False,
+        feature_groups: Optional[List[str]] = None,
+        feature_schema: Optional[Dict[str, List[str]]] = None,
+        labeling_strategy: str = "rule_based",
+        label_field: str = "risk_score",
+        label_threshold: float = 0.5,
     ):
         """Complete training pipeline with MLflow logging."""
         model_name = model_name or self.model_def.model_name
 
-        # Load data
-        X, y = self.load_data(data_path)
+        # Load data from feature store or file
+        if use_feature_store:
+            if not feature_groups:
+                feature_groups = ["transaction_features", "aggregated_features"]
+            if not feature_schema:
+                feature_schema = self._load_feature_schema_from_config()
+            X, y = self.load_data_from_feature_store(
+                feature_groups=feature_groups,
+                feature_schema=feature_schema,
+                labeling_strategy=labeling_strategy,
+                label_field=label_field,
+                label_threshold=label_threshold,
+            )
+            data_source = "feature_store"
+        else:
+            if data_path is None:
+                raise ValueError("data_path is required when not using feature store")
+            X, y = self.load_data(data_path)
+            data_source = "csv" if data_path.endswith(".csv") else "parquet"
 
         # Split data
         X_train, X_test, y_train, y_test = train_test_split(
@@ -246,6 +419,7 @@ class ModelTrainer:
             mlflow.log_param("algorithm", self.model_def.algorithm.class_path)
             mlflow.log_param("task_type", self.model_def.task_type)
             mlflow.log_param("test_size", test_size)
+            mlflow.log_param("data_source", data_source)
             if params:
                 for param_name, param_value in params.items():
                     mlflow.log_param(param_name, param_value)
@@ -417,6 +591,18 @@ def main():
         default=None,
         help="Maximum depth of trees (None for unlimited)",
     )
+    parser.add_argument(
+        "--use-feature-store",
+        action="store_true",
+        default=False,
+        help="Load training data from feature store instead of CSV/Parquet file",
+    )
+    parser.add_argument(
+        "--feature-groups",
+        type=str,
+        default="transaction_features,aggregated_features",
+        help="Comma-separated feature groups (default: transaction_features,aggregated_features)",
+    )
 
     args = parser.parse_args()
 
@@ -442,12 +628,21 @@ def main():
     model_name = args.model_name or model_def.model_name
 
     try:
-        run_id, metrics = trainer.train_and_log(
-            data_path=args.data_path,
-            model_name=model_name,
-            model_params=model_params,
-            auto_promote=args.auto_promote,
-        )
+        train_kwargs: Dict[str, Any] = {
+            "model_name": model_name,
+            "model_params": model_params,
+            "auto_promote": args.auto_promote,
+        }
+
+        if args.use_feature_store:
+            train_kwargs["use_feature_store"] = True
+            train_kwargs["feature_groups"] = [
+                g.strip() for g in args.feature_groups.split(",")
+            ]
+        else:
+            train_kwargs["data_path"] = args.data_path
+
+        run_id, metrics = trainer.train_and_log(**train_kwargs)
 
         logger.info("Training completed successfully!")
         logger.info(

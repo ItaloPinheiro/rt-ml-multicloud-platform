@@ -50,7 +50,10 @@ from src.api.model_updater import ModelUpdateManager, handle_model_webhook
 from src.api.schemas import (
     BatchPredictionRequest,
     BatchPredictionResponse,
+    EntityFeatures,
     ErrorResponse,
+    FeatureGroupInfo,
+    FeatureStoreStats,
     HealthCheck,
     ModelInfo,
     ModelUpdateRequest,
@@ -631,15 +634,16 @@ class ModelManager:
         return len(keys_to_remove)
 
 
-# Global model manager and update manager
+# Global model manager, update manager, and feature store client
 model_manager = None
 update_manager = None
+feature_store_client = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager."""
-    global model_manager, update_manager
+    global model_manager, update_manager, feature_store_client
 
     # Startup
     logger.info("Starting ML Model API")
@@ -651,6 +655,33 @@ async def lifespan(app: FastAPI):
     redis_password = os.getenv("REDIS_PASSWORD")
 
     model_manager = ModelManager(mlflow_uri, redis_host, redis_port, redis_password)
+
+    # Initialize Feature Store client (non-blocking — API starts even if unavailable)
+    try:
+        from src.feature_store.client import FeatureStoreClient
+        from src.feature_store.store import FeatureStore
+
+        fs_redis = None
+        if redis is not None:
+            try:
+                fs_redis = redis.Redis(
+                    host=redis_host,
+                    port=redis_port,
+                    password=redis_password,
+                    decode_responses=False,
+                    socket_timeout=5,
+                    socket_connect_timeout=5,
+                )
+                fs_redis.ping()
+            except Exception:
+                fs_redis = None
+
+        store = FeatureStore(redis_client=fs_redis)
+        feature_store_client = FeatureStoreClient(feature_store=store)
+        logger.info("Feature Store client initialized")
+    except Exception as e:
+        logger.warning("Feature Store client unavailable", error=str(e))
+        feature_store_client = None
 
     # Preload default models
     try:
@@ -880,19 +911,57 @@ async def predict(request: PredictionRequest, background_tasks: BackgroundTasks)
         raise HTTPException(status_code=500, detail="Model manager not initialized")
 
     try:
+        features = dict(request.features)
+
+        # Fetch features from Feature Store if entity_id is provided
+        if request.entity_id:
+            if not feature_store_client:
+                raise HTTPException(
+                    status_code=503,
+                    detail="Feature Store is not available",
+                )
+
+            groups = request.feature_groups or [
+                "transaction_features",
+                "aggregated_features",
+            ]
+
+            # Fetch features from each group (unprefixed keys)
+            store_features: Dict[str, Any] = {}
+            for group in groups:
+                group_features = await run_in_threadpool(
+                    feature_store_client.feature_store.get_features,
+                    request.entity_id,
+                    group,
+                )
+                store_features.update(group_features)
+
+            # Request body features override store values
+            store_features.update(features)
+            features = store_features
+
+        if not features:
+            raise HTTPException(
+                status_code=400,
+                detail="No features available. Provide features in request body "
+                "or use entity_id to fetch from Feature Store.",
+            )
+
         result = await model_manager.predict(
             model_name=request.model_name,
-            features=request.features,
+            features=features,
             version=request.version,
             return_probabilities=request.return_probabilities,
         )
 
         # Log prediction in background
         background_tasks.add_task(
-            log_prediction, request.model_name, request.features, result["prediction"]
+            log_prediction, request.model_name, features, result["prediction"]
         )
 
         return PredictionResponse(**result)
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error("Prediction failed", error=str(e), model_name=request.model_name)
         raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
@@ -1041,6 +1110,107 @@ async def mlflow_model_webhook(request: Request, background_tasks: BackgroundTas
     except Exception as e:
         logger.error("Failed to process webhook", error=str(e))
         raise HTTPException(status_code=400, detail=str(e))
+
+
+# Feature Store endpoints
+@app.get("/features/groups", response_model=List[FeatureGroupInfo])
+async def list_feature_groups():
+    """List all feature groups with entity and feature counts."""
+    if not feature_store_client:
+        raise HTTPException(status_code=503, detail="Feature Store is not available")
+
+    try:
+        groups = await run_in_threadpool(
+            feature_store_client.feature_store.get_feature_groups
+        )
+        result = []
+        for group_name in groups:
+            stats = await run_in_threadpool(
+                feature_store_client.get_feature_statistics, group_name
+            )
+            result.append(
+                FeatureGroupInfo(
+                    name=group_name,
+                    entity_count=stats.get("unique_entities", 0),
+                    feature_count=stats.get("total_features", 0),
+                )
+            )
+        return result
+    except Exception as e:
+        logger.error("Failed to list feature groups", error=str(e))
+        raise HTTPException(
+            status_code=500, detail=f"Failed to list feature groups: {str(e)}"
+        )
+
+
+@app.get("/features/stats/{feature_group}", response_model=FeatureStoreStats)
+async def get_feature_stats(feature_group: str):
+    """Get statistics for a feature group."""
+    if not feature_store_client:
+        raise HTTPException(status_code=503, detail="Feature Store is not available")
+
+    try:
+        stats = await run_in_threadpool(
+            feature_store_client.get_feature_statistics, feature_group
+        )
+        return FeatureStoreStats(**stats)
+    except Exception as e:
+        logger.error(
+            "Failed to get feature stats",
+            feature_group=feature_group,
+            error=str(e),
+        )
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get feature stats: {str(e)}"
+        )
+
+
+@app.get("/features/{entity_id}", response_model=List[EntityFeatures])
+async def get_entity_features(entity_id: str, group: Optional[str] = None):
+    """Get stored features for an entity."""
+    if not feature_store_client:
+        raise HTTPException(status_code=503, detail="Feature Store is not available")
+
+    try:
+        if group:
+            groups = [group]
+        else:
+            groups = await run_in_threadpool(
+                feature_store_client.feature_store.get_feature_groups
+            )
+
+        result = []
+        for g in groups:
+            features = await run_in_threadpool(
+                feature_store_client.feature_store.get_features, entity_id, g
+            )
+            if features:
+                result.append(
+                    EntityFeatures(
+                        entity_id=entity_id,
+                        feature_group=g,
+                        features=features,
+                        feature_count=len(features),
+                    )
+                )
+
+        if not result:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No features found for entity '{entity_id}'",
+            )
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            "Failed to get entity features",
+            entity_id=entity_id,
+            error=str(e),
+        )
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get entity features: {str(e)}"
+        )
 
 
 # Utility functions

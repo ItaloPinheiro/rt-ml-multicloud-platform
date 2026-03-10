@@ -118,6 +118,23 @@ environments:
     use_public_ips: false
     enable_ip_alias: true
 
+# Feature Store output configuration
+# Used when output_type is "feature_store" or "s3+feature_store"
+output:
+  feature_store:
+    enabled: true
+    feature_group: "transaction_features"
+    aggregated_feature_group: "aggregated_features"
+    entity_key_field: "user_id"
+    ttl_seconds: 86400           # 24 hours
+    write_batch_size: 100
+    # Connection config (overridden by env vars in K8s)
+    redis_host: "${REDIS_HOST:-localhost}"
+    redis_port: 6379
+    db_host: "${DATABASE_HOST:-localhost}"
+    db_port: 5432
+    db_name: "${DATABASE_NAME:-ml_pipeline}"
+
 # Data processing options
 data_processing:
   # Windowing configuration

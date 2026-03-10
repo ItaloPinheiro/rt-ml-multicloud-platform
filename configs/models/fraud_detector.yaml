@@ -42,6 +42,28 @@ mlflow:
 serving:
   confidence_threshold: 0.5
 
+# Feature store integration — schema and labeling config for training from feature store
+feature_store:
+  feature_groups:
+    - transaction_features
+    - aggregated_features
+  schema:
+    transaction_features:
+      - hour_of_day
+      - day_of_week
+      - is_weekend
+      - risk_score
+      - amount
+      - merchant_category_encoded
+      - payment_method_encoded
+    aggregated_features:
+      - transaction_count_24h
+      - avg_amount_30d
+  labeling:
+    strategy: "rule_based"
+    rule_field: "risk_score"
+    threshold: 0.5
+
 # Mapping from Beam pipeline output fields to training feature columns.
 # Used by assemble_training_data to build training CSV from Beam JSON-lines.
 beam_mapping:

@@ -9,10 +9,11 @@
 # Prerequisites:
 #   - EC2 instance running with K3s and aws-demo overlay applied
 #   - SSH key at ~/.ssh/rt-ml-platform-aws-ec2.pem (or set SSH_KEY)
-#   - Training data uploaded to S3 (run trigger-ingestion.sh first)
+#   - Training data available: S3 CSV (default) or Feature Store (--use-feature-store)
 #
 # Usage:
-#   ./trigger-training.sh                              # defaults
+#   ./trigger-training.sh                              # train from S3 CSV
+#   ./trigger-training.sh --use-feature-store           # materialize Feature Store → Parquet, then train
 #   ./trigger-training.sh --n-estimators 200
 #   ./trigger-training.sh --auto-promote
 #   ./trigger-training.sh --ssh-key ~/.ssh/other.pem
@@ -32,6 +33,7 @@ EXPERIMENT="fraud_detection"
 AUTO_PROMOTE=false
 CLASS_WEIGHT=""
 MAX_DEPTH=""
+USE_FEATURE_STORE=false
 SSH_KEY="${SSH_KEY:-}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -44,11 +46,13 @@ while [[ $# -gt 0 ]]; do
     --n-estimators) N_ESTIMATORS="$2"; shift 2 ;;
     --experiment)   EXPERIMENT="$2"; shift 2 ;;
     --auto-promote) AUTO_PROMOTE=true; shift ;;
-    --class-weight) CLASS_WEIGHT="$2"; shift 2 ;;
-    --max-depth)    MAX_DEPTH="$2"; shift 2 ;;
-    --ssh-key)      SSH_KEY="$2"; shift 2 ;;
+    --class-weight)       CLASS_WEIGHT="$2"; shift 2 ;;
+    --max-depth)          MAX_DEPTH="$2"; shift 2 ;;
+    --use-feature-store)  USE_FEATURE_STORE=true; shift ;;
+    --ssh-key)            SSH_KEY="$2"; shift 2 ;;
     -h|--help)
-      echo "Usage: $0 [--n-estimators N] [--max-depth N] [--class-weight balanced] [--experiment NAME] [--auto-promote] [--ssh-key PATH]"
+      echo "Usage: $0 [--n-estimators N] [--max-depth N] [--class-weight balanced] [--experiment NAME] [--auto-promote] [--use-feature-store] [--ssh-key PATH]"
+      echo "  --use-feature-store: Materialize Feature Store to Parquet on S3, then train from it"
       echo "  SSH key: set SSH_KEY env var or use --ssh-key (default: ~/.ssh/rt-ml-platform-aws-ec2.pem)"
       exit 0
       ;;
@@ -102,20 +106,40 @@ fi
 echo "============================================"
 echo "  Training Pipeline - AWS Demo"
 echo "============================================"
-echo "  Instance:     $INSTANCE_IP"
-echo "  SSH key:      $SSH_KEY"
-echo "  Estimators:   $N_ESTIMATORS"
-echo "  Class weight: ${CLASS_WEIGHT:-none}"
-echo "  Max depth:    ${MAX_DEPTH:-unlimited}"
-echo "  Experiment:   $EXPERIMENT"
-echo "  Auto-promote: $AUTO_PROMOTE"
+echo "  Instance:      $INSTANCE_IP"
+echo "  SSH key:       $SSH_KEY"
+echo "  Data source:   $([ "$USE_FEATURE_STORE" = "true" ] && echo "Feature Store -> Parquet" || echo "S3 CSV")"
+echo "  Estimators:    $N_ESTIMATORS"
+echo "  Class weight:  ${CLASS_WEIGHT:-none}"
+echo "  Max depth:     ${MAX_DEPTH:-unlimited}"
+echo "  Experiment:    $EXPERIMENT"
+echo "  Auto-promote:  $AUTO_PROMOTE"
 echo "============================================"
+
+# Compute step numbering (materialization adds one extra step)
+if [ "$USE_FEATURE_STORE" = "true" ]; then
+  TOTAL_STEPS=4
+  STEP_MATERIALIZE=2
+  STEP_TRAIN=3
+  STEP_EVAL=4
+else
+  TOTAL_STEPS=3
+  STEP_MATERIALIZE=0
+  STEP_TRAIN=2
+  STEP_EVAL=3
+fi
 
 # Build training args for sed patching
 # Base manifest has: "--n-estimators=100" and "--experiment=fraud_detection"
 TRAIN_SED_ARGS=()
 TRAIN_SED_ARGS+=(-e "s|--n-estimators=100|--n-estimators=${N_ESTIMATORS}|")
 TRAIN_SED_ARGS+=(-e "s|--experiment=fraud_detection|--experiment=${EXPERIMENT}|")
+
+# When using Feature Store, the materialization job writes Parquet to S3.
+# Patch the training init container and data-path to use .parquet instead of .csv.
+if [ "$USE_FEATURE_STORE" = "true" ]; then
+  TRAIN_SED_ARGS+=(-e "s|fraud_detection.csv|fraud_detection.parquet|g")
+fi
 
 # Add optional args by appending to the args list
 EXTRA_ARGS=""
@@ -138,14 +162,35 @@ fi
 # Step 1: Clean up previous jobs
 # ---------------------------------------------------------------------------
 echo ""
-echo "[1/3] Cleaning up previous jobs..."
-remote "sudo k3s kubectl delete job model-training model-evaluation -n $NAMESPACE --ignore-not-found=true"
+echo "[1/$TOTAL_STEPS] Cleaning up previous jobs..."
+remote "sudo k3s kubectl delete job materialize-training model-training model-evaluation -n $NAMESPACE --ignore-not-found=true"
 
 # ---------------------------------------------------------------------------
-# Step 2: Run Training Job
+# Step 2 (Feature Store only): Materialize Feature Store → Parquet on S3
+# ---------------------------------------------------------------------------
+if [ "$USE_FEATURE_STORE" = "true" ]; then
+  echo ""
+  echo "[$STEP_MATERIALIZE/$TOTAL_STEPS] Materializing Feature Store to Parquet on S3..."
+
+  cat "$MANIFESTS_DIR/job-materialize-training.yaml" \
+    | ssh "${SSH_OPTS[@]}" ubuntu@"$INSTANCE_IP" "sudo k3s kubectl apply -f -"
+
+  echo "  Waiting for materialization to complete..."
+  if ! remote "sudo k3s kubectl wait --for=condition=complete job/materialize-training -n $NAMESPACE --timeout=600s"; then
+    echo "ERROR: Materialization job failed."
+    remote "sudo k3s kubectl logs job/materialize-training -n $NAMESPACE -c materialize --tail=20"
+    exit 1
+  fi
+
+  echo "  Materialization logs:"
+  remote "sudo k3s kubectl logs job/materialize-training -n $NAMESPACE -c materialize" | tail -5
+fi
+
+# ---------------------------------------------------------------------------
+# Step N: Run Training Job
 # ---------------------------------------------------------------------------
 echo ""
-echo "[2/3] Running training job ($N_ESTIMATORS estimators)..."
+echo "[$STEP_TRAIN/$TOTAL_STEPS] Running training job ($N_ESTIMATORS estimators)..."
 
 sed "${TRAIN_SED_ARGS[@]}" "$MANIFESTS_DIR/job-model-training.yaml" \
   | ssh "${SSH_OPTS[@]}" ubuntu@"$INSTANCE_IP" "sudo k3s kubectl apply -f -"
@@ -161,14 +206,14 @@ echo "  Training logs:"
 remote "sudo k3s kubectl logs job/model-training -n $NAMESPACE -c train" | tail -10
 
 # ---------------------------------------------------------------------------
-# Step 3: Run Evaluation Gate (unless auto-promote)
+# Step N: Run Evaluation Gate (unless auto-promote)
 # ---------------------------------------------------------------------------
 if [ "$AUTO_PROMOTE" = "true" ]; then
   echo ""
-  echo "[3/3] Skipped evaluation gate (--auto-promote)"
+  echo "[$STEP_EVAL/$TOTAL_STEPS] Skipped evaluation gate (--auto-promote)"
 else
   echo ""
-  echo "[3/3] Running evaluation gate..."
+  echo "[$STEP_EVAL/$TOTAL_STEPS] Running evaluation gate..."
 
   cat "$MANIFESTS_DIR/job-model-evaluation.yaml" \
     | ssh "${SSH_OPTS[@]}" ubuntu@"$INSTANCE_IP" "sudo k3s kubectl apply -f -"

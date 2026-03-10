@@ -110,6 +110,102 @@ def _read_jsonl(path: str) -> List[Dict[str, Any]]:
     return _read_local_jsonl(path)
 
 
+def _read_from_feature_store(
+    feature_groups: List[str],
+    feature_schema: Dict[str, List[str]],
+) -> tuple:
+    """Read features from PostgreSQL feature store (cold storage).
+
+    Returns per-record and aggregated DataFrames in the same format
+    as _read_jsonl() produces, so downstream join/label/map logic
+    works unchanged.
+    """
+    from sqlalchemy import select
+
+    from src.database.models import FeatureStore as FeatureStoreModel
+    from src.database.session import get_session
+
+    def _query_group(group: str, feature_names: List[str]) -> pd.DataFrame:
+        stmt = select(
+            FeatureStoreModel.entity_id,
+            FeatureStoreModel.feature_name,
+            FeatureStoreModel.feature_value,
+        ).where(
+            FeatureStoreModel.feature_group == group,
+            FeatureStoreModel.feature_name.in_(feature_names),
+            FeatureStoreModel.is_active.is_(True),
+        )
+        with get_session() as session:
+            result = session.execute(stmt).yield_per(10_000)
+            chunks = []
+            for partition in result.partitions():
+                chunks.append(
+                    pd.DataFrame(
+                        partition,
+                        columns=["entity_id", "feature_name", "feature_value"],
+                    )
+                )
+            if not chunks:
+                return pd.DataFrame()
+            df = pd.concat(chunks, ignore_index=True)
+
+        # Pivot EAV -> wide format (same shape as JSON-lines output)
+        wide = df.pivot_table(
+            index="entity_id",
+            columns="feature_name",
+            values="feature_value",
+            aggfunc="first",
+        ).reset_index()
+        # Cast JSON values to numeric
+        for col in wide.columns:
+            if col != "entity_id":
+                wide[col] = pd.to_numeric(wide[col], errors="coerce")
+        wide = wide.rename(columns={"entity_id": "user_id"})
+        return wide
+
+    # Query each group from feature_schema keys
+    # By convention, the first group is per-record, the rest are aggregated
+    per_record_group = feature_groups[0]
+    features_df = _query_group(
+        per_record_group, feature_schema.get(per_record_group, [])
+    )
+
+    aggregated_dfs = []
+    for group in feature_groups[1:]:
+        agg_df = _query_group(group, feature_schema.get(group, []))
+        # Rename "user_id" to "key" to match Beam output format
+        if "user_id" in agg_df.columns:
+            agg_df = agg_df.rename(columns={"user_id": "key"})
+        aggregated_dfs.append(agg_df)
+
+    # Merge all aggregated groups into one DataFrame
+    if aggregated_dfs:
+        aggregated_df = aggregated_dfs[0]
+        for extra_df in aggregated_dfs[1:]:
+            aggregated_df = aggregated_df.merge(extra_df, on="key", how="outer")
+    else:
+        aggregated_df = pd.DataFrame()
+
+    return features_df, aggregated_df
+
+
+def _write_parquet(df: pd.DataFrame, path: str) -> None:
+    """Write DataFrame as Parquet to S3 or local path."""
+    if _is_s3_path(path):
+        import boto3
+
+        buf = io.BytesIO()
+        df.to_parquet(buf, index=False, engine="pyarrow")
+        bucket, key = _parse_s3_url(path)
+        boto3.client("s3").put_object(Bucket=bucket, Key=key, Body=buf.getvalue())
+        logger.info("Wrote %d rows to s3://%s/%s (parquet)", len(df), bucket, key)
+    else:
+        out = Path(path)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        df.to_parquet(out, index=False, engine="pyarrow")
+        logger.info("Wrote %d rows to %s (parquet)", len(df), out)
+
+
 def _write_csv(df: pd.DataFrame, path: str) -> None:
     """Write DataFrame as CSV to S3 or local path."""
     if _is_s3_path(path):
@@ -165,19 +261,23 @@ def _deterministic_hash_encode(value: str, modulo: int) -> int:
 
 
 def assemble_training_data(
-    features_path: str,
-    aggregated_path: str,
     output_path: str,
+    source: str = "beam",
+    output_format: str = "csv",
+    features_path: Optional[str] = None,
+    aggregated_path: Optional[str] = None,
     model_type: str = "fraud_detector",
     labeling_strategy: str = "rule_based",
     labeling_kwargs: Optional[Dict[str, Any]] = None,
 ) -> pd.DataFrame:
-    """Assemble training CSV from Beam feature outputs.
+    """Assemble training data from Beam outputs or Feature Store.
 
     Args:
-        features_path: Path (S3 or local) to per-record feature shards.
-        aggregated_path: Path (S3 or local) to aggregated feature shards.
-        output_path: Destination path (S3 or local) for the training CSV.
+        output_path: Destination path (S3 or local) for the training file.
+        source: Data source — "beam" (JSON-lines) or "feature_store" (PostgreSQL).
+        output_format: Output format — "csv" or "parquet".
+        features_path: Path to per-record feature shards (required for source="beam").
+        aggregated_path: Path to aggregated feature shards (required for source="beam").
         model_type: Model definition name (loads beam_mapping from config).
         labeling_strategy: Labeling strategy name.
         labeling_kwargs: Extra kwargs for the labeling strategy.
@@ -189,14 +289,40 @@ def assemble_training_data(
     beam_mapping = _load_beam_mapping(model_type)
     model_def = load_model_definition(model_type)
 
-    # Read feature shards
-    logger.info("Reading per-record features from %s", features_path)
-    features_raw = _read_jsonl(features_path)
-    features_df = pd.DataFrame(features_raw)
+    if source == "feature_store":
+        # Read from PostgreSQL feature store
+        import yaml
 
-    logger.info("Reading aggregated features from %s", aggregated_path)
-    aggregated_raw = _read_jsonl(aggregated_path)
-    aggregated_df = pd.DataFrame(aggregated_raw)
+        from src.models.model_definition import _DEFAULT_DEFINITIONS_PATH
+
+        yaml_path = Path(_DEFAULT_DEFINITIONS_PATH) / f"{model_type}.yaml"
+        with open(yaml_path) as f:
+            raw = yaml.safe_load(f)
+
+        fs_config = raw.get("feature_store", {})
+        feature_groups = fs_config.get(
+            "feature_groups", ["transaction_features", "aggregated_features"]
+        )
+        feature_schema = fs_config.get("schema", {})
+
+        logger.info("Reading features from feature store: groups=%s", feature_groups)
+        features_df, aggregated_df = _read_from_feature_store(
+            feature_groups, feature_schema
+        )
+    else:
+        # Read from Beam JSON-lines (original path)
+        if not features_path or not aggregated_path:
+            raise ValueError(
+                "--features-path and --aggregated-path are required for source='beam'"
+            )
+
+        logger.info("Reading per-record features from %s", features_path)
+        features_raw = _read_jsonl(features_path)
+        features_df = pd.DataFrame(features_raw)
+
+        logger.info("Reading aggregated features from %s", aggregated_path)
+        aggregated_raw = _read_jsonl(aggregated_path)
+        aggregated_df = pd.DataFrame(aggregated_raw)
 
     # Deduplicate per-record features by message_id (skip if all unknown/missing)
     if "message_id" in features_df.columns:
@@ -263,7 +389,10 @@ def assemble_training_data(
     _validate(training_df, model_def)
 
     # Write output
-    _write_csv(training_df, output_path)
+    if output_format == "parquet":
+        _write_parquet(training_df, output_path)
+    else:
+        _write_csv(training_df, output_path)
 
     return training_df
 
@@ -392,18 +521,28 @@ def main() -> None:
     )
     parser.add_argument(
         "--features-path",
-        required=True,
-        help="Path (S3 or local) to per-record feature shard prefix",
+        help="Path (S3 or local) to per-record feature shard prefix (required for source=beam)",
     )
     parser.add_argument(
         "--aggregated-path",
-        required=True,
-        help="Path (S3 or local) to aggregated feature shard prefix",
+        help="Path (S3 or local) to aggregated feature shard prefix (required for source=beam)",
     )
     parser.add_argument(
         "--output-path",
         required=True,
-        help="Destination path (S3 or local) for training CSV",
+        help="Destination path (S3 or local) for training output",
+    )
+    parser.add_argument(
+        "--source",
+        choices=["beam", "feature_store"],
+        default="beam",
+        help="Data source (default: beam)",
+    )
+    parser.add_argument(
+        "--output-format",
+        choices=["csv", "parquet"],
+        default="csv",
+        help="Output format (default: csv)",
     )
     parser.add_argument(
         "--model-type",
@@ -442,11 +581,19 @@ def main() -> None:
             parser.error("--labels-path is required for file_based strategy")
         labeling_kwargs["labels_path"] = args.labels_path
 
+    # Validate required args for beam source
+    if args.source == "beam" and (not args.features_path or not args.aggregated_path):
+        parser.error(
+            "--features-path and --aggregated-path are required for source=beam"
+        )
+
     try:
         df = assemble_training_data(
+            output_path=args.output_path,
+            source=args.source,
+            output_format=args.output_format,
             features_path=args.features_path,
             aggregated_path=args.aggregated_path,
-            output_path=args.output_path,
             model_type=args.model_type,
             labeling_strategy=args.labeling_strategy,
             labeling_kwargs=labeling_kwargs,

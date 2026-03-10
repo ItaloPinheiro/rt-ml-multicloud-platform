@@ -1,0 +1,47 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: model-training-fs
+  namespace: ml-pipeline
+  labels:
+    app.kubernetes.io/name: model-training-fs
+    app.kubernetes.io/component: training
+    app.kubernetes.io/part-of: ml-pipeline-platform
+spec:
+  backoffLimit: 2
+  activeDeadlineSeconds: 600
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: model-training-fs
+        app.kubernetes.io/component: training
+    spec:
+      restartPolicy: Never
+      imagePullSecrets:
+      - name: ghcr-pull-secret
+      # No init container needed — reads directly from Feature Store
+      containers:
+      - name: train
+        image: ghcr.io/italopinheiro/rt-ml-multicloud-platform/api:main
+        imagePullPolicy: Always
+        command: ["python", "-m", "src.models.training.train"]
+        args:
+        - "--use-feature-store"
+        - "--feature-groups=transaction_features,aggregated_features"
+        - "--mlflow-uri=http://mlflow-service:5000"
+        - "--experiment=fraud_detection"
+        - "--model-name=fraud_detector"
+        - "--n-estimators=100"
+        envFrom:
+        - configMapRef:
+            name: ml-pipeline-config
+        - secretRef:
+            name: ml-pipeline-secrets
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
