@@ -37,7 +37,7 @@ COPY configs ./configs
 COPY scripts ./scripts
 
 # Set environment variables
-ENV PYTHONPATH=/app:$PYTHONPATH
+ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
