@@ -755,8 +755,8 @@ async def lifespan(app: FastAPI):
         from src.database.session import get_database_manager
 
         get_database_manager().close()
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("Failed to close database manager during shutdown", error=str(e))
 
     logger.info("Shutting down ML Model API")
 
