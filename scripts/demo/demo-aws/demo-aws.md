@@ -462,6 +462,38 @@ ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP \
   "sudo k3s kubectl delete job materialize-training model-training model-evaluation -n ml-pipeline --ignore-not-found"
 ```
 
+### PostgreSQL (Database Inspection)
+
+```bash
+# List all tables in the database
+ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP \
+  "sudo k3s kubectl exec deployment/postgres -n ml-pipeline -- psql -U mlflow -d mlflow -c '\dt'"
+
+# Check Feature Store table schema
+ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP \
+  "sudo k3s kubectl exec deployment/postgres -n ml-pipeline -- psql -U mlflow -d mlflow -c '\d feature_store'"
+
+# Check ML experiments table schema
+ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP \
+  "sudo k3s kubectl exec deployment/postgres -n ml-pipeline -- psql -U mlflow -d mlflow -c '\d ml_experiments'"
+
+# Count rows in Feature Store
+ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP \
+  "sudo k3s kubectl exec deployment/postgres -n ml-pipeline -- psql -U mlflow -d mlflow -c 'SELECT count(*) FROM feature_store'"
+
+# List feature groups and entity counts
+ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP \
+  "sudo k3s kubectl exec deployment/postgres -n ml-pipeline -- psql -U mlflow -d mlflow -c 'SELECT feature_group, count(DISTINCT entity_id) AS entities, count(*) AS rows FROM feature_store GROUP BY feature_group'"
+
+# Check prediction logs
+ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP \
+  "sudo k3s kubectl exec deployment/postgres -n ml-pipeline -- psql -U mlflow -d mlflow -c 'SELECT count(*) FROM prediction_logs'"
+
+# List MLflow experiments (MLflow-owned table)
+ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP \
+  "sudo k3s kubectl exec deployment/postgres -n ml-pipeline -- psql -U mlflow -d mlflow -c 'SELECT experiment_id, name, lifecycle_stage FROM experiments'"
+```
+
 ### S3 Data
 
 ```bash

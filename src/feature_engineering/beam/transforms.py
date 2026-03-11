@@ -530,10 +530,15 @@ class WriteToFeatureStore(beam.DoFn):
         )
 
     def setup(self):
-        """Initialize shared Redis connection pool and FeatureStore."""
+        """Initialize shared Redis connection pool, database, and FeatureStore."""
         import redis as redis_lib
 
         try:
+            # Initialize database connection for PostgreSQL persistence
+            from src.database.session import initialize_database
+
+            initialize_database()
+
             pool = redis_lib.ConnectionPool(
                 host=self.redis_host,
                 port=self.redis_port,

@@ -48,7 +48,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     - name: Set up Image Name (Lowercase)
       run: |
@@ -285,7 +285,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     - name: Set up Kustomize
       uses: imranismail/setup-kustomize@v2.1.0
@@ -322,7 +322,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     - name: Set up kubectl
       uses: azure/setup-kubectl@v3
@@ -364,7 +364,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     - name: Set up kubectl
       uses: azure/setup-kubectl@v3
@@ -429,7 +429,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v4
@@ -473,7 +473,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v4

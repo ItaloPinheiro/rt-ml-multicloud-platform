@@ -5,6 +5,7 @@ and batch feature engineering, supporting multiple cloud platforms.
 """
 
 import json
+import os
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
@@ -894,8 +895,16 @@ def create_aws_pipeline_config(
             "initial_position": "TRIM_HORIZON",
         },
         "output_config": {
-            "type": "s3",
+            "type": "s3+feature_store",
             "path": f"s3://{s3_bucket}/{output_prefix}",
+            "feature_store": {
+                "redis_host": os.getenv("REDIS_HOST", "redis-service"),
+                "redis_port": int(os.getenv("REDIS_PORT", "6379")),
+                "redis_password": os.getenv("REDIS_PASSWORD"),
+                "entity_key_field": "user_id",
+                "ttl_seconds": int(os.getenv("FEATURE_STORE_TTL", "86400")),
+                "write_batch_size": 100,
+            },
         },
         "window_config": {"type": "fixed", "size_seconds": 60},
         "feature_config": {
