@@ -630,8 +630,12 @@ class WriteToFeatureStore(beam.DoFn):
         try:
             if hasattr(self, "_feature_store") and self._feature_store:
                 self._feature_store.redis_client.close()
-        except Exception:
-            pass
+        except Exception as e:
+            # Do not raise during teardown, but log the failure for observability.
+            self.logger.error(
+                "Failed to close feature store Redis client during teardown",
+                error=str(e),
+            )
 
 
 class ValidateFeatures(beam.DoFn):
