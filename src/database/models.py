@@ -25,7 +25,7 @@ Base = declarative_base()
 class Experiment(Base):
     """Model for tracking ML experiments."""
 
-    __tablename__ = "experiments"
+    __tablename__ = "ml_experiments"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String(255), nullable=False, unique=True)
@@ -51,9 +51,9 @@ class Experiment(Base):
 
     # Indexes
     __table_args__ = (
-        Index("idx_experiments_name", "name"),
-        Index("idx_experiments_created_at", "created_at"),
-        Index("idx_experiments_is_active", "is_active"),
+        Index("idx_ml_experiments_name", "name"),
+        Index("idx_ml_experiments_created_at", "created_at"),
+        Index("idx_ml_experiments_is_active", "is_active"),
     )
 
     def __repr__(self):
@@ -67,7 +67,7 @@ class ModelRun(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     experiment_id = Column(
-        UUID(as_uuid=True), ForeignKey("experiments.id"), nullable=False
+        UUID(as_uuid=True), ForeignKey("ml_experiments.id"), nullable=False
     )
 
     # Run metadata
