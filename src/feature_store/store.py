@@ -501,8 +501,10 @@ class FeatureStore:
         """Persist features for multiple entities using batch upsert.
 
         Uses INSERT ... ON CONFLICT DO UPDATE for efficient bulk writes
-        instead of individual session.merge() calls.
+        instead of individual session.merge() calls. Chunks large batches
+        to avoid psycopg2 parameter limits.
         """
+        import json as json_mod
         import uuid
 
         rows = []
@@ -515,19 +517,21 @@ class FeatureStore:
                         "entity_id": entity_id,
                         "feature_group": feature_group,
                         "feature_name": feature_name,
-                        "feature_value": feature_value,
+                        "feature_value": json_mod.dumps(feature_value),
                         "data_type": data_type,
                         "event_timestamp": event_timestamp,
                         "ingestion_timestamp": datetime.now(timezone.utc),
                         "ttl_timestamp": ttl_timestamp,
                         "is_active": True,
                         "feature_version": "1.0",
-                        "tags": {},
+                        "tags": "{}",
                     }
                 )
 
         if not rows:
             return
+
+        chunk_size = 500
 
         with get_session() as session:
             # Use batch insert with ON CONFLICT for PostgreSQL
@@ -544,9 +548,9 @@ class FeatureStore:
                         feature_version, tags
                     ) VALUES (
                         :id, :entity_id, :feature_group, :feature_name,
-                        :feature_value, :data_type, :event_timestamp,
+                        CAST(:feature_value AS json), :data_type, :event_timestamp,
                         :ingestion_timestamp, :ttl_timestamp, :is_active,
-                        :feature_version, :tags
+                        :feature_version, CAST(:tags AS json)
                     )
                     ON CONFLICT (entity_id, feature_group, feature_name, event_timestamp)
                     DO UPDATE SET
@@ -557,14 +561,13 @@ class FeatureStore:
                         is_active = EXCLUDED.is_active
                 """
                 )
-                # Convert JSON-incompatible types for raw SQL
-                for row in rows:
-                    row["feature_value"] = str(row["feature_value"])
-                    row["tags"] = "{}"
-                session.execute(stmt, rows)
+                for i in range(0, len(rows), chunk_size):
+                    session.execute(stmt, rows[i : i + chunk_size])
             else:
                 # Fallback for SQLite / other dialects: use ORM bulk
                 for row in rows:
+                    row["feature_value"] = json_mod.loads(row["feature_value"])
+                    row["tags"] = {}
                     record = FeatureStoreModel(**row)
                     session.merge(record)
 
