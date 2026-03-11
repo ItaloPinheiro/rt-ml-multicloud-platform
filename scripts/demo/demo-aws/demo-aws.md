@@ -1,7 +1,8 @@
 # AWS Cloud Demo Guide
 
-This guide details how to run the End-to-End ML Platform demo against a live AWS EC2 instance. 
-Unlike the local demo which runs everything on your machine, this workflow runs the **training and validaton** scripts locally on your laptop, but they communicate with the **remote infrastructure** (MLflow, Redis, API) deployed on AWS.
+End-to-End ML Platform demo on a live AWS EC2 instance. The full pipeline: **stream ingestion → feature engineering → Feature Store → materialization → model training → evaluation → serving with real-time feature lookup**.
+
+All orchestration scripts run from your laptop and execute K8s Jobs on the remote cluster via SSH.
 
 > **Target Environment**: AWS EC2 Instance (Ubuntu + K3s)
 
@@ -70,23 +71,9 @@ ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl g
 ```
 *   You should see `ml-pipeline-api` and `ml-pipeline-mlflow` with status `Running`.
 
-### 4. Upload Training Data to S3
+### 4. Run Feature Engineering Pipeline (Kinesis + Beam)
 
-Upload the demo dataset to the S3 training bucket (created by Terraform):
-
-```bash
-aws s3 cp data/sample/demo/datasets/fraud_detection.csv \
-  s3://rt-ml-platform-training-data-demo/datasets/fraud_detection.csv
-```
-
-Verify the upload:
-```bash
-aws s3 ls s3://rt-ml-platform-training-data-demo/datasets/
-```
-
-### 5. Stream Feature Engineering (Optional — Kinesis + Beam)
-
-Run the Kinesis-to-S3 feature engineering pipeline. This publishes mock transaction events to Kinesis, then the Apache Beam pipeline reads them, extracts features, and writes aggregated results to S3.
+Publish mock transaction events to Kinesis, then run the Apache Beam pipeline to extract features and store them in the Feature Store (Redis + PostgreSQL).
 
 ```bash
 ./scripts/demo/demo-aws/trigger-ingestion.sh --total-events 100
@@ -96,67 +83,87 @@ Run the Kinesis-to-S3 feature engineering pipeline. This publishes mock transact
 1. A Kinesis producer Job publishes 100 mock transaction events to the `rt-ml-platform-demo-kds-stream`.
 2. An Apache Beam Job (DirectRunner) reads all events from the stream using `TRIM_HORIZON`.
 3. Features are extracted, validated, windowed (60s fixed), and aggregated by `user_id`.
-4. Output is written to `s3://rt-ml-platform-training-data-demo/features/`.
-
-**Verify output:**
-```bash
-aws s3 ls s3://rt-ml-platform-training-data-demo/features/ --recursive
-```
+4. Features are written to the Feature Store (Redis for hot cache, PostgreSQL for cold storage).
 
 **Options:**
 - `--total-events N` — number of events to produce (default: 100)
 - `--events-per-second N` — publishing rate (default: 5.0)
-- `--output-prefix PREFIX` — S3 output prefix (default: `features`)
 
 > See `docs/pipeline/kds-apache-beam-deployment.md` for full architecture details and production deployment guidance.
 
+### 5. Inspect Feature Store
+
+Verify that the Feature Store was populated by the Beam pipeline.
+
+**Via API:**
+```bash
+# List feature groups and entity counts
+curl -s "$API_URL/features" | python -m json.tool
+
+# View features for a specific entity
+curl -s "$API_URL/features/user_003" | python -m json.tool
+
+# Feature group statistics
+curl -s "$API_URL/features/stats/transaction_features" | python -m json.tool
+```
+
+**Via CLI:**
+```bash
+python scripts/demo/utilities/list_features.py --summary --redis-host $INSTANCE_IP --db-host $INSTANCE_IP
+```
+
+*   **Success Criteria**: Feature groups `transaction_features` and `aggregated_features` appear with entities populated.
+
 ### 6. Train Model Version 1 (Baseline)
 
-Training now runs as a **K8s Job inside the cluster**, not on your laptop.
-The training Job downloads data from S3, trains, and registers the model in MLflow.
-The evaluation gate then compares it against the current champion and promotes only if it's better.
+Training runs as **K8s Jobs inside the cluster**. With `--use-feature-store`, the script first materializes Feature Store data to a Parquet file on S3, then runs the training Job which downloads and trains from that Parquet file.
 
 We start with a **weak baseline** model: few estimators and shallow trees (max depth 1). This model will have decent accuracy (~80%) but poor fraud detection (f1 near 0) because the shallow trees can't learn complex fraud patterns.
 
 ```bash
-./scripts/demo/demo-aws/trigger-training.sh --n-estimators 10 --max-depth 1 --auto-promote
+./scripts/demo/demo-aws/trigger-training.sh --use-feature-store --n-estimators 10 --max-depth 1 --auto-promote
 ```
 
 > We use `--auto-promote` for v1 since there is no champion to compare against yet.
 
-**Other training options:**
-- **GitHub Actions (CI/CD path):** Actions -> "Train Model" -> Run workflow
-- **Legacy local training:** `python scripts/demo/demo-aws/train.py`
-
-**What to expect:**
-*   Training Job runs inside the cluster (~1-2 minutes)
-*   Model v1 is promoted as the first champion (no prior model to compare against)
-*   API auto-detects the new production model within 10 seconds
+**What happens:**
+1. **Materialization Job** reads from the Feature Store and writes `fraud_detection.parquet` to S3.
+2. **Training Job** init container downloads the Parquet file from S3, then trains a RandomForest model.
+3. Model v1 is registered in MLflow and auto-promoted (no prior champion).
+4. API auto-detects the new production model within 10 seconds.
 
 ### 7. Verify API Prediction (Version 1)
 
-Send a prediction request to the remote API to confirm it is serving the model:
+The API can now serve predictions by looking up features directly from the Feature Store using an `entity_id`:
 
 ```bash
-curl -X POST "$API_URL/predict" \
+curl -s -X POST "$API_URL/predict" \
+  -H "Content-Type: application/json" \
+  -d '{"entity_id": "user_003"}' | python -m json.tool
+```
+
+*   **Success Criteria**: Response contains `"model_version": "1"` and `"features_used"` shows the features fetched from the Feature Store.
+
+You can also send explicit features (without Feature Store lookup):
+```bash
+curl -s -X POST "$API_URL/predict" \
   -H "Content-Type: application/json" \
   -d @data/sample/demo/requests/baseline_prediction_request.json | python -m json.tool
 ```
-
-*   **Success Criteria**: Response contains `"model_version": "1"`.
 
 ### 8. Train & Upgrade Model (Version 2 — Improved)
 
 Now train a **stronger model** with more estimators and unlimited tree depth:
 
 ```bash
-./scripts/demo/demo-aws/trigger-training.sh --n-estimators 200
+./scripts/demo/demo-aws/trigger-training.sh --use-feature-store --n-estimators 200
 ```
 
 **What happens:**
-1.  Training Job runs with 200 estimators and unlimited depth (vs 10 trees at depth 1 in v1).
-2.  Evaluation gate compares v2 against v1 champion on **accuracy** and **f1_score**.
-3.  v2 will have better accuracy (~82% vs ~81%) and much better f1 (~0.40 vs ~0.00), so it gets promoted.
+1.  Materialization runs again (picks up any new features since v1).
+2.  Training Job runs with 200 estimators and unlimited depth (vs 10 trees at depth 1 in v1).
+3.  Evaluation gate compares v2 against v1 champion on **accuracy** and **f1_score**.
+4.  v2 will have better accuracy (~82% vs ~81%) and much better f1 (~0.40 vs ~0.00), so it gets promoted.
 
 > **Tip:** You can also try `--class-weight balanced` to tell the classifier to pay more attention to the minority fraud class, trading some accuracy for better recall.
 
@@ -166,27 +173,39 @@ Now train a **stronger model** with more estimators and unlimited tree depth:
 
 The API polls MLflow every **10 seconds** for changes to the "production" alias.
 
-Check the model version:
+Check the model version using the same entity_id lookup:
 ```bash
-curl -X POST "$API_URL/predict" \
+curl -s -X POST "$API_URL/predict" \
   -H "Content-Type: application/json" \
-  -d @data/sample/demo/requests/baseline_prediction_request.json | python -m json.tool
+  -d '{"entity_id": "user_003"}' | python -m json.tool
 ```
 
 *   **Success Criteria**: Response switches to `"model_version": "2"` without any downtime.
 
-### Training Pipeline Architecture
+### End-to-End Pipeline Architecture
 
 ```
-[S3 Bucket] --> [Init Container: download data] --> [Training Job: train model]
-                                                          |
-                                                   [Register in MLflow]
-                                                          |
-                                               [Evaluation Job: compare vs champion]
-                                                          |
-                                                   [Promote if better]
-                                                          |
-                                               [API auto-detects new model]
+[Kinesis Stream]
+       |
+       v
+[Beam Feature Engineering]  (extract, validate, window, aggregate)
+       |
+       v
+[Feature Store (Redis + PostgreSQL)]
+       |
+       +--> [Materialization Job] --> [Parquet on S3]
+       |                                     |
+       |                              [Init Container: download]
+       |                                     |
+       |                              [Training Job: train model]
+       |                                     |
+       |                              [Register in MLflow]
+       |                                     |
+       |                              [Evaluation Gate: compare vs champion]
+       |                                     |
+       |                              [Promote if better]
+       |                                     |
+       +--> [API: predict by entity_id] <----+  (auto-detects new model)
 ```
 
 ---
@@ -327,11 +346,14 @@ ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl l
 # Beam ingestion job logs
 ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl logs job/beam-ingestion -n ml-pipeline"
 
+# Materialization job logs
+ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl logs job/materialize-training -n ml-pipeline -c materialize"
+
 # Restart a deployment (e.g. after config change)
 ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl rollout restart deployment/ml-pipeline-api -n ml-pipeline"
 
 # Delete completed/failed jobs
-ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl delete job model-training model-evaluation -n ml-pipeline --ignore-not-found"
+ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl delete job materialize-training model-training model-evaluation -n ml-pipeline --ignore-not-found"
 
 # Re-apply kustomize manifests
 ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP "cd /opt/ml-platform && sudo k3s kubectl kustomize ops/k8s/overlays/aws-demo --load-restrictor LoadRestrictionsNone | sudo k3s kubectl apply -f -"
@@ -364,17 +386,17 @@ for exp in client.search_experiments(view_type=mlflow.entities.ViewType.DELETED_
 ### Training
 
 ```bash
-# Train with defaults (100 estimators)
-./scripts/demo/demo-aws/trigger-training.sh
+# Train from Feature Store (materialize → Parquet → train)
+./scripts/demo/demo-aws/trigger-training.sh --use-feature-store --n-estimators 10 --max-depth 1 --auto-promote
 
-# Train weak baseline (for v1 demo)
-./scripts/demo/demo-aws/trigger-training.sh --n-estimators 10 --max-depth 1 --auto-promote
-
-# Train improved model (for v2 demo)
-./scripts/demo/demo-aws/trigger-training.sh --n-estimators 200
+# Train v2 from Feature Store
+./scripts/demo/demo-aws/trigger-training.sh --use-feature-store --n-estimators 200
 
 # Train with class weighting (better fraud recall)
-./scripts/demo/demo-aws/trigger-training.sh --n-estimators 200 --class-weight balanced
+./scripts/demo/demo-aws/trigger-training.sh --use-feature-store --n-estimators 200 --class-weight balanced
+
+# Train from pre-uploaded S3 CSV (legacy, no materialization)
+./scripts/demo/demo-aws/trigger-training.sh --n-estimators 100 --auto-promote
 ```
 
 ### Ingestion (Kinesis + Beam)
@@ -399,13 +421,45 @@ ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl d
 # Health check
 curl -s "$API_URL/health" | python -m json.tool
 
-# Prediction request
+# Predict by entity_id (Feature Store lookup)
+curl -s -X POST "$API_URL/predict" \
+  -H "Content-Type: application/json" \
+  -d '{"entity_id": "user_003"}' | python -m json.tool
+
+# Predict with explicit features (no Feature Store)
 curl -s -X POST "$API_URL/predict" \
   -H "Content-Type: application/json" \
   -d @data/sample/demo/requests/baseline_prediction_request.json | python -m json.tool
 
 # API docs (open in browser)
 echo "$API_URL/docs"
+```
+
+### Feature Store
+
+```bash
+# List feature groups (API)
+curl -s "$API_URL/features" | python -m json.tool
+
+# Feature group statistics (API)
+curl -s "$API_URL/features/stats/transaction_features" | python -m json.tool
+
+# Entity features (API)
+curl -s "$API_URL/features/user_003" | python -m json.tool
+
+# Inspect via CLI (detailed output)
+python scripts/demo/utilities/list_features.py --summary --redis-host $INSTANCE_IP --db-host $INSTANCE_IP
+python scripts/demo/utilities/list_features.py --groups --redis-host $INSTANCE_IP --db-host $INSTANCE_IP
+python scripts/demo/utilities/list_features.py --features user_003 transaction_features --redis-host $INSTANCE_IP --db-host $INSTANCE_IP
+python scripts/demo/utilities/list_features.py --stats transaction_features --redis-host $INSTANCE_IP --db-host $INSTANCE_IP
+
+# Materialization job logs (runs automatically via --use-feature-store)
+ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP \
+  "sudo k3s kubectl logs job/materialize-training -n ml-pipeline"
+
+# Clean up all pipeline jobs
+ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP \
+  "sudo k3s kubectl delete job materialize-training model-training model-evaluation -n ml-pipeline --ignore-not-found"
 ```
 
 ### S3 Data

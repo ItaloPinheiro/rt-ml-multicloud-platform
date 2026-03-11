@@ -480,6 +480,164 @@ class AggregateFeatures(beam.DoFn):
             yield TaggedOutput("errors", error_info)
 
 
+class WriteToFeatureStore(beam.DoFn):
+    """Write features to the Feature Store (Redis + PostgreSQL).
+
+    Buffers elements internally and flushes in batches for efficiency.
+    Uses FeatureStore.bulk_put_features() for batched Redis pipeline
+    and PostgreSQL upserts.
+    """
+
+    def __init__(
+        self,
+        redis_host: str = "localhost",
+        redis_port: int = 6379,
+        redis_password: Optional[str] = None,
+        db_host: Optional[str] = None,
+        db_port: Optional[int] = None,
+        db_name: Optional[str] = None,
+        feature_group: str = "transaction_features",
+        entity_key_field: str = "user_id",
+        ttl_seconds: int = 86400,
+        write_batch_size: int = 100,
+    ):
+        """Initialize WriteToFeatureStore DoFn.
+
+        Args:
+            redis_host: Redis server host.
+            redis_port: Redis server port.
+            redis_password: Redis password (optional).
+            db_host: PostgreSQL host (uses config default if None).
+            db_port: PostgreSQL port (uses config default if None).
+            db_name: PostgreSQL database name (uses config default if None).
+            feature_group: Feature group name for storage.
+            entity_key_field: Field name to extract entity_id from elements.
+            ttl_seconds: TTL for cached features.
+            write_batch_size: Number of elements to buffer before flushing.
+        """
+        self.redis_host = redis_host
+        self.redis_port = redis_port
+        self.redis_password = redis_password
+        self.db_host = db_host
+        self.db_port = db_port
+        self.db_name = db_name
+        self.feature_group = feature_group
+        self.entity_key_field = entity_key_field
+        self.ttl_seconds = ttl_seconds
+        self.write_batch_size = write_batch_size
+        self.logger = logger.bind(
+            component="WriteToFeatureStore", feature_group=feature_group
+        )
+
+    def setup(self):
+        """Initialize shared Redis connection pool and FeatureStore."""
+        import redis as redis_lib
+
+        try:
+            pool = redis_lib.ConnectionPool(
+                host=self.redis_host,
+                port=self.redis_port,
+                password=self.redis_password,
+                max_connections=10,
+                decode_responses=False,
+            )
+            redis_client = redis_lib.Redis(connection_pool=pool)
+
+            from src.feature_store.store import FeatureStore
+
+            self._feature_store = FeatureStore(redis_client=redis_client)
+            self._buffer: list = []
+            self.logger.info(
+                "WriteToFeatureStore initialized",
+                redis_host=self.redis_host,
+            )
+        except Exception as e:
+            self.logger.error("Failed to initialize WriteToFeatureStore", error=str(e))
+            raise
+
+    def process(self, element: Dict[str, Any]) -> Iterable[Dict[str, Any]]:
+        """Buffer element and flush when batch size is reached."""
+        try:
+            entity_id = element.get(self.entity_key_field)
+            if entity_id is None or entity_id == "unknown":
+                yield TaggedOutput(
+                    "dead_letter",
+                    {
+                        "error": f"Missing or unknown {self.entity_key_field}",
+                        "element": str(element)[:500],
+                        "transform": "WriteToFeatureStore",
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    },
+                )
+                return
+
+            # Exclude metadata fields from stored features
+            exclude_fields = {
+                "message_id",
+                "timestamp",
+                "processed_at",
+                self.entity_key_field,
+            }
+            features = {k: v for k, v in element.items() if k not in exclude_fields}
+
+            self._buffer.append((str(entity_id), features))
+
+            if len(self._buffer) >= self.write_batch_size:
+                self._flush_batch()
+
+        except Exception as e:
+            self.logger.error("WriteToFeatureStore process error", error=str(e))
+            yield TaggedOutput(
+                "dead_letter",
+                {
+                    "error": str(e),
+                    "element": str(element)[:500],
+                    "transform": "WriteToFeatureStore",
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                },
+            )
+
+    def _flush_batch(self) -> None:
+        """Flush buffered elements to the Feature Store."""
+        if not self._buffer:
+            return
+
+        try:
+            self._feature_store.bulk_put_features(
+                entities=self._buffer,
+                feature_group=self.feature_group,
+                ttl_seconds=self.ttl_seconds,
+            )
+            self.logger.debug(
+                "Flushed batch to feature store",
+                batch_size=len(self._buffer),
+            )
+        except Exception as e:
+            self.logger.error(
+                "Failed to flush batch to feature store",
+                batch_size=len(self._buffer),
+                error=str(e),
+            )
+        finally:
+            self._buffer.clear()
+
+    def finish_bundle(self):
+        """Flush remaining buffered elements at end of bundle."""
+        self._flush_batch()
+
+    def teardown(self):
+        """Clean up connections."""
+        try:
+            if hasattr(self, "_feature_store") and self._feature_store:
+                self._feature_store.redis_client.close()
+        except Exception as e:
+            # Do not raise during teardown, but log the failure for observability.
+            self.logger.error(
+                "Failed to close feature store Redis client during teardown",
+                error=str(e),
+            )
+
+
 class ValidateFeatures(beam.DoFn):
     """Validate feature quality and completeness.
 

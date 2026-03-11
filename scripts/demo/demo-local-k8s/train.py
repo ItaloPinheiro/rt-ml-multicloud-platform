@@ -65,7 +65,41 @@ def main():
         default="fraud_detector",
         help="Model definition name from configs/models/ (default: fraud_detector)",
     )
+    parser.add_argument(
+        "--use-feature-store",
+        action="store_true",
+        default=False,
+        help="Load training data from Feature Store instead of CSV",
+    )
+    parser.add_argument(
+        "--feature-groups",
+        type=str,
+        default="transaction_features,aggregated_features",
+        help="Comma-separated feature groups for Feature Store mode",
+    )
     args = parser.parse_args()
+
+    # Feature Store mode: delegate to ModelTrainer
+    if args.use_feature_store:
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../.."))
+        from src.models.training.train import ModelTrainer
+
+        trainer = ModelTrainer(
+            mlflow_tracking_uri=os.getenv(
+                "MLFLOW_TRACKING_URI", "http://localhost:30000"
+            ),
+            model_type=args.model_type,
+        )
+        feature_groups = [g.strip() for g in args.feature_groups.split(",")]
+        run_id, metrics = trainer.train_and_log(
+            use_feature_store=True,
+            feature_groups=feature_groups,
+            model_params={"n_estimators": args.n_estimators},
+            auto_promote=True,
+        )
+        print(f"Feature Store training completed. Run ID: {run_id}")
+        print(f"Metrics: {metrics}")
+        return
 
     # Create Pipeline (Scaler + Model)
     # This ensures the model expects raw feature inputs (with column names) and scales them internally

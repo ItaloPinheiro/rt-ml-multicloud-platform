@@ -1,17 +1,28 @@
 """Feature store implementation for real-time feature serving."""
 
 import pickle
+import time
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import redis
 import structlog
+from sqlalchemy import text
 
 from ..database.models import FeatureStore as FeatureStoreModel
 from ..database.session import get_session
 from ..utils.config import get_config
 
 logger = structlog.get_logger()
+
+# Optional Prometheus metrics
+_prometheus_metrics = None
+
+
+def set_prometheus_metrics(metrics) -> None:
+    """Set the PrometheusMetrics instance for feature store instrumentation."""
+    global _prometheus_metrics
+    _prometheus_metrics = metrics
 
 
 class FeatureStore:
@@ -67,6 +78,7 @@ class FeatureStore:
         if ttl_seconds is None:
             ttl_seconds = self.default_ttl
 
+        start_time = time.monotonic()
         try:
             # Store in Redis for fast access
             cache_key = self._build_cache_key(entity_id, feature_group)
@@ -86,6 +98,12 @@ class FeatureStore:
                 entity_id, feature_group, features, event_timestamp, ttl_seconds
             )
 
+            duration = time.monotonic() - start_time
+            if _prometheus_metrics:
+                _prometheus_metrics.record_feature_ingestion(
+                    feature_group, "put", duration, "success"
+                )
+
             self.logger.debug(
                 "Features stored",
                 entity_id=entity_id,
@@ -95,6 +113,11 @@ class FeatureStore:
             )
 
         except Exception as e:
+            duration = time.monotonic() - start_time
+            if _prometheus_metrics:
+                _prometheus_metrics.record_feature_ingestion(
+                    feature_group, "put", duration, "error"
+                )
             self.logger.error(
                 "Failed to store features",
                 entity_id=entity_id,
@@ -377,6 +400,173 @@ class FeatureStore:
         except Exception as e:
             self.logger.error("Failed to get health status", error=str(e))
             raise
+
+    def bulk_put_features(
+        self,
+        entities: List[Tuple[str, Dict[str, Any]]],
+        feature_group: str,
+        event_timestamp: Optional[datetime] = None,
+        ttl_seconds: Optional[int] = None,
+    ) -> int:
+        """Store features for multiple entities in batched operations.
+
+        Uses INSERT ... ON CONFLICT DO UPDATE for PostgreSQL bulk upserts
+        and Redis pipeline for batched cache writes. Much more efficient
+        than calling put_features() in a loop.
+
+        Args:
+            entities: List of (entity_id, features_dict) tuples.
+            feature_group: Feature group name.
+            event_timestamp: Timestamp of the event (defaults to now).
+            ttl_seconds: TTL for cached features (defaults to config value).
+
+        Returns:
+            Number of entities written.
+        """
+        if not entities:
+            return 0
+
+        if event_timestamp is None:
+            event_timestamp = datetime.now(timezone.utc)
+        if ttl_seconds is None:
+            ttl_seconds = self.default_ttl
+
+        ttl_timestamp = datetime.now(timezone.utc) + timedelta(seconds=ttl_seconds)
+        written = 0
+        start_time = time.monotonic()
+
+        try:
+            # --- Redis batch write via pipeline ---
+            try:
+                pipe = self.redis_client.pipeline(transaction=False)
+                for entity_id, features in entities:
+                    cache_key = self._build_cache_key(entity_id, feature_group)
+                    cached_data = {
+                        "features": features,
+                        "event_timestamp": event_timestamp.isoformat(),
+                        "feature_group": feature_group,
+                        "entity_id": entity_id,
+                    }
+                    serialized = pickle.dumps(cached_data)
+                    pipe.setex(cache_key, ttl_seconds, serialized)
+                pipe.execute()
+            except Exception as e:
+                self.logger.warning(
+                    "Redis bulk write failed, continuing with DB write",
+                    feature_group=feature_group,
+                    error=str(e),
+                )
+
+            # --- PostgreSQL batch upsert via raw SQL ---
+            self._bulk_persist_features(
+                entities, feature_group, event_timestamp, ttl_timestamp
+            )
+            written = len(entities)
+
+            duration = time.monotonic() - start_time
+            if _prometheus_metrics:
+                _prometheus_metrics.record_feature_ingestion(
+                    feature_group, "bulk_put", duration, "success"
+                )
+
+            self.logger.debug(
+                "Bulk features stored",
+                feature_group=feature_group,
+                entity_count=written,
+            )
+
+        except Exception as e:
+            duration = time.monotonic() - start_time
+            if _prometheus_metrics:
+                _prometheus_metrics.record_feature_ingestion(
+                    feature_group, "bulk_put", duration, "error"
+                )
+            self.logger.error(
+                "Failed to bulk store features",
+                feature_group=feature_group,
+                entity_count=len(entities),
+                error=str(e),
+            )
+            raise
+
+        return written
+
+    def _bulk_persist_features(
+        self,
+        entities: List[Tuple[str, Dict[str, Any]]],
+        feature_group: str,
+        event_timestamp: datetime,
+        ttl_timestamp: datetime,
+    ) -> None:
+        """Persist features for multiple entities using batch upsert.
+
+        Uses INSERT ... ON CONFLICT DO UPDATE for efficient bulk writes
+        instead of individual session.merge() calls.
+        """
+        import uuid
+
+        rows = []
+        for entity_id, features in entities:
+            for feature_name, feature_value in features.items():
+                data_type = self._determine_data_type(feature_value)
+                rows.append(
+                    {
+                        "id": str(uuid.uuid4()),
+                        "entity_id": entity_id,
+                        "feature_group": feature_group,
+                        "feature_name": feature_name,
+                        "feature_value": feature_value,
+                        "data_type": data_type,
+                        "event_timestamp": event_timestamp,
+                        "ingestion_timestamp": datetime.now(timezone.utc),
+                        "ttl_timestamp": ttl_timestamp,
+                        "is_active": True,
+                        "feature_version": "1.0",
+                        "tags": {},
+                    }
+                )
+
+        if not rows:
+            return
+
+        with get_session() as session:
+            # Use batch insert with ON CONFLICT for PostgreSQL
+            bind = session.get_bind()
+            dialect = bind.dialect.name if hasattr(bind, "dialect") else "unknown"
+
+            if dialect == "postgresql":
+                stmt = text(
+                    """
+                    INSERT INTO feature_store (
+                        id, entity_id, feature_group, feature_name,
+                        feature_value, data_type, event_timestamp,
+                        ingestion_timestamp, ttl_timestamp, is_active,
+                        feature_version, tags
+                    ) VALUES (
+                        :id, :entity_id, :feature_group, :feature_name,
+                        :feature_value, :data_type, :event_timestamp,
+                        :ingestion_timestamp, :ttl_timestamp, :is_active,
+                        :feature_version, :tags
+                    )
+                    ON CONFLICT (entity_id, feature_group, feature_name, event_timestamp)
+                    DO UPDATE SET
+                        feature_value = EXCLUDED.feature_value,
+                        data_type = EXCLUDED.data_type,
+                        ingestion_timestamp = EXCLUDED.ingestion_timestamp,
+                        ttl_timestamp = EXCLUDED.ttl_timestamp,
+                        is_active = EXCLUDED.is_active
+                """
+                )
+                # Convert JSON-incompatible types for raw SQL
+                for row in rows:
+                    row["feature_value"] = str(row["feature_value"])
+                    row["tags"] = "{}"
+                session.execute(stmt, rows)
+            else:
+                # Fallback for SQLite / other dialects: use ORM bulk
+                for row in rows:
+                    record = FeatureStoreModel(**row)
+                    session.merge(record)
 
     def _build_cache_key(self, entity_id: str, feature_group: str) -> str:
         """Build Redis cache key.

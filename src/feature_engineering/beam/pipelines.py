@@ -41,6 +41,7 @@ from src.feature_engineering.beam.transforms import (
     AggregateFeatures,
     FeatureExtraction,
     ValidateFeatures,
+    WriteToFeatureStore,
 )
 
 logger = structlog.get_logger()
@@ -618,6 +619,63 @@ class FeatureEngineeringPipeline:
                     topic=output_config.get("aggregated_topic", "ml-aggregated"),
                 )
             )
+
+        elif output_type in ("feature_store", "s3+feature_store"):
+            fs_config = output_config.get("feature_store", {})
+            fs_kwargs = {
+                "redis_host": fs_config.get("redis_host", "localhost"),
+                "redis_port": fs_config.get("redis_port", 6379),
+                "redis_password": fs_config.get("redis_password"),
+                "db_host": fs_config.get("db_host"),
+                "db_port": fs_config.get("db_port"),
+                "db_name": fs_config.get("db_name"),
+                "entity_key_field": fs_config.get("entity_key_field", "user_id"),
+                "ttl_seconds": fs_config.get("ttl_seconds", 86400),
+                "write_batch_size": fs_config.get("write_batch_size", 100),
+            }
+
+            # Write per-record features to feature store
+            features | "WriteFeaturesToFeatureStore" >> beam.ParDo(
+                WriteToFeatureStore(
+                    feature_group=fs_config.get(
+                        "feature_group", "transaction_features"
+                    ),
+                    **fs_kwargs,
+                )
+            ).with_outputs("dead_letter", main="written")
+
+            # Write aggregated features to feature store
+            aggregated | "WriteAggregatedToFeatureStore" >> beam.ParDo(
+                WriteToFeatureStore(
+                    feature_group=fs_config.get(
+                        "aggregated_feature_group", "aggregated_features"
+                    ),
+                    **fs_kwargs,
+                )
+            ).with_outputs("dead_letter", main="written")
+
+            # Dual-write: also write to S3 when output_type is s3+feature_store
+            if output_type == "s3+feature_store":
+                s3_path = output_config.get("path")
+                if s3_path:
+                    (
+                        features
+                        | "SerializeFeaturesForS3FS" >> beam.Map(_numpy_safe_json)
+                        | "WriteFeaturesToS3FS"
+                        >> WriteToText(
+                            file_path_prefix=f"{s3_path}/features",
+                            file_name_suffix=".json",
+                        )
+                    )
+                    (
+                        aggregated
+                        | "SerializeAggregatedForS3FS" >> beam.Map(_numpy_safe_json)
+                        | "WriteAggregatedToS3FS"
+                        >> WriteToText(
+                            file_path_prefix=f"{s3_path}/aggregated",
+                            file_name_suffix=".json",
+                        )
+                    )
 
     def _parse_json_safely(self, json_string: str) -> Optional[Dict[str, Any]]:
         """Safely parse JSON string.

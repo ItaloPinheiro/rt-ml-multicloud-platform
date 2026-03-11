@@ -60,6 +60,7 @@ For a quick-start on running the pipeline locally, see [apache-beam-kinesis-to-s
    - Unique merchant/channel/payment-method counts
    - Weekend/night/business-hours transaction ratios
 7. **WriteToText** writes JSON shards to S3: `features/` and `aggregated/` prefixes
+8. **WriteToFeatureStore** (optional) writes features to the Feature Store via batched bulk upserts. Enabled by setting `output.type` to `feature_store` or `s3+feature_store` in pipeline config
 
 ### Error Routing
 
@@ -156,7 +157,7 @@ The pipeline runs as two sequential K8s Jobs (applied inline by `trigger-ingesti
 
 ```bash
 # Set EC2 IP
-export EC2_IP=$(aws ec2 describe-instances \
+export INSTANCE_IP=$(aws ec2 describe-instances \
   --filters "Name=tag:Name,Values=rt-ml-platform-demo-instance" \
             "Name=instance-state-name,Values=running" \
   --query "Reservations[*].Instances[*].PublicIpAddress" \
@@ -183,14 +184,14 @@ export EC2_IP=$(aws ec2 describe-instances \
 aws s3 ls s3://rt-ml-platform-training-data-demo/features/ --recursive
 
 # Check Job logs
-ssh ubuntu@$EC2_IP "sudo k3s kubectl logs job/kinesis-producer -n ml-pipeline"
-ssh ubuntu@$EC2_IP "sudo k3s kubectl logs job/beam-ingestion -n ml-pipeline"
+ssh ubuntu@$INSTANCE_IP "sudo k3s kubectl logs job/kinesis-producer -n ml-pipeline"
+ssh ubuntu@$INSTANCE_IP "sudo k3s kubectl logs job/beam-ingestion -n ml-pipeline"
 ```
 
 ### Full Demo Sequence (Ingestion + Training)
 
 ```bash
-export EC2_IP=$INSTANCE_IP
+export INSTANCE_IP=$INSTANCE_IP
 
 # Step 1: Upload training data
 aws s3 cp data/sample/demo/datasets/fraud_detection.csv \
@@ -348,7 +349,7 @@ When increasing KDS shard count, the Beam pipeline automatically distributes rea
 | `num_workers` | `2` | DirectRunner thread count |
 | `input_config.type` | `kinesis` | Source type |
 | `input_config.initial_position` | `TRIM_HORIZON` | KDS start position |
-| `output_config.type` | `s3` | Sink type |
+| `output_config.type` | `s3` | Sink type (`s3`, `feature_store`, `s3+feature_store`) |
 | `window_config.type` | `fixed` | Window type (`fixed`, `sliding`, `session`) |
 | `window_config.size_seconds` | `60` | Window duration |
 
@@ -374,7 +375,7 @@ In Docker, the Beam image installs `--only main,processing` which includes `apac
 Verify the EC2 hop limit allows container access:
 ```bash
 # Test from inside a pod
-ssh ubuntu@$EC2_IP "sudo k3s kubectl run aws-test --rm -it --restart=Never \
+ssh ubuntu@$INSTANCE_IP "sudo k3s kubectl run aws-test --rm -it --restart=Never \
   --image=amazon/aws-cli:latest -n ml-pipeline \
   -- s3 ls s3://rt-ml-platform-training-data-demo/ 2>&1 | head -5"
 ```
@@ -413,7 +414,7 @@ terraform apply
 
 Ensure the `ghcr-pull-secret` exists in the namespace:
 ```bash
-ssh ubuntu@$EC2_IP "sudo k3s kubectl get secret ghcr-pull-secret -n ml-pipeline"
+ssh ubuntu@$INSTANCE_IP "sudo k3s kubectl get secret ghcr-pull-secret -n ml-pipeline"
 ```
 
 If missing, re-run the bootstrap script or manually create it (see `demo-aws.md` step 1).
@@ -425,7 +426,7 @@ If missing, re-run the bootstrap script or manually create it (see `demo-aws.md`
 | File | Description |
 |---|---|
 | `src/feature_engineering/beam/pipelines.py` | Pipeline orchestration, source/sink configuration |
-| `src/feature_engineering/beam/transforms.py` | FeatureExtraction, ValidateFeatures, AggregateFeatures DoFns |
+| `src/feature_engineering/beam/transforms.py` | FeatureExtraction, ValidateFeatures, AggregateFeatures, WriteToFeatureStore DoFns |
 | `scripts/demo/demo-aws/ingest_kinesis_s3.py` | CLI entry point for the pipeline |
 | `scripts/data_generation/publish_kinesis_events.py` | Mock event producer |
 | `scripts/demo/demo-aws/trigger-ingestion.sh` | K8s Job orchestration script |

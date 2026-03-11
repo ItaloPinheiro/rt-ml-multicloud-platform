@@ -163,10 +163,30 @@ feature_store = create_dashboard(
                 ],
             },
         ),
-        timeseries_panel(
-            "Cache Hits vs Misses",
+        stat_panel(
+            "Total Entities",
             6,
             0,
+            "sum(ml_pipeline_feature_store_entities_total)",
+        ),
+        stat_panel(
+            "Total Features",
+            12,
+            0,
+            "sum(ml_pipeline_feature_store_features_total)",
+        ),
+        stat_panel(
+            "Ingestion Rate",
+            18,
+            0,
+            'sum(rate(ml_pipeline_feature_ingestion_total{status="success"}[5m]))',
+            unit="ops",
+            decimals=1,
+        ),
+        timeseries_panel(
+            "Cache Hits vs Misses",
+            0,
+            6,
             [
                 {"expr": "sum(rate(redis_keyspace_hits_total[5m]))", "legend": "Hits"},
                 {
@@ -174,7 +194,45 @@ feature_store = create_dashboard(
                     "legend": "Misses",
                 },
             ],
-            w=18,
+        ),
+        timeseries_panel(
+            "Feature Ingestion Throughput",
+            12,
+            6,
+            [
+                {
+                    "expr": 'sum(rate(ml_pipeline_feature_ingestion_total{method="put"}[5m])) by (feature_group)',
+                    "legend": "put {{feature_group}}",
+                },
+                {
+                    "expr": 'sum(rate(ml_pipeline_feature_ingestion_total{method="bulk_put"}[5m])) by (feature_group)',
+                    "legend": "bulk_put {{feature_group}}",
+                },
+            ],
+            unit="ops",
+        ),
+        timeseries_panel(
+            "Ingestion Latency (P95)",
+            0,
+            14,
+            [
+                {
+                    "expr": "histogram_quantile(0.95, sum(rate(ml_pipeline_feature_ingestion_duration_seconds_bucket[5m])) by (le, feature_group))",
+                    "legend": "{{feature_group}}",
+                },
+            ],
+            unit="s",
+        ),
+        timeseries_panel(
+            "Entities per Feature Group",
+            12,
+            14,
+            [
+                {
+                    "expr": "ml_pipeline_feature_store_entities_total",
+                    "legend": "{{feature_group}}",
+                },
+            ],
         ),
     ],
 )

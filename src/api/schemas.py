@@ -14,8 +14,8 @@ class PredictionRequest(BaseModel):
     """Schema for single prediction requests."""
 
     features: Dict[str, Any] = Field(
-        ...,
-        description="Feature dictionary for prediction",
+        default_factory=dict,
+        description="Feature dictionary for prediction. Can be empty when entity_id is provided.",
         json_schema_extra={
             "example": {
                 "amount": 250.00,
@@ -25,6 +25,19 @@ class PredictionRequest(BaseModel):
                 "risk_score": 0.3,
             }
         },
+    )
+
+    entity_id: Optional[str] = Field(
+        default=None,
+        description="Entity ID to fetch features from Feature Store. "
+        "When provided, features are fetched automatically.",
+        json_schema_extra={"example": "user_003"},
+    )
+
+    feature_groups: Optional[List[str]] = Field(
+        default=None,
+        description="Feature groups to fetch from Feature Store",
+        json_schema_extra={"example": ["transaction_features", "aggregated_features"]},
     )
 
     model_name: str = Field(
@@ -46,9 +59,9 @@ class PredictionRequest(BaseModel):
     @field_validator("features")
     @classmethod
     def validate_features(cls, v):
-        """Validate that features is a non-empty dictionary."""
-        if not isinstance(v, dict) or len(v) == 0:
-            raise ValueError("Features must be a non-empty dictionary")
+        """Validate features — allow empty dict when entity_id is provided."""
+        if not isinstance(v, dict):
+            raise ValueError("Features must be a dictionary")
         return v
 
 
@@ -299,3 +312,38 @@ class APIConfig(BaseModel):
     enable_metrics: bool = Field(default=True, description="Enable metrics collection")
     log_level: str = Field(default="INFO", description="Logging level")
     cors_origins: List[str] = Field(default=["*"], description="CORS allowed origins")
+
+
+# Feature Store schemas
+class FeatureGroupInfo(BaseModel):
+    """Schema for feature group information."""
+
+    name: str = Field(..., description="Feature group name")
+    entity_count: int = Field(..., description="Number of unique entities")
+    feature_count: int = Field(..., description="Total number of feature rows")
+
+
+class FeatureStoreStats(BaseModel):
+    """Schema for feature store statistics."""
+
+    feature_group: str = Field(..., description="Feature group name")
+    unique_entities: int = Field(..., description="Number of unique entities")
+    total_features: int = Field(..., description="Total feature rows")
+    feature_counts: Dict[str, int] = Field(..., description="Feature counts by name")
+    data_type_distribution: Dict[str, int] = Field(
+        ..., description="Distribution of data types"
+    )
+    timestamp: datetime = Field(..., description="Statistics timestamp")
+
+    @field_serializer("timestamp")
+    def serialize_timestamp(self, timestamp: datetime, _info):
+        return timestamp.isoformat()
+
+
+class EntityFeatures(BaseModel):
+    """Schema for entity features response."""
+
+    entity_id: str = Field(..., description="Entity identifier")
+    feature_group: str = Field(..., description="Feature group name")
+    features: Dict[str, Any] = Field(..., description="Feature name-value pairs")
+    feature_count: int = Field(..., description="Number of features")
