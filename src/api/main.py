@@ -656,6 +656,16 @@ async def lifespan(app: FastAPI):
 
     model_manager = ModelManager(mlflow_uri, redis_host, redis_port, redis_password)
 
+    # Initialize database for Feature Store persistence
+    try:
+        from src.database.session import initialize_database
+
+        db_manager = initialize_database()
+        db_manager.create_tables()
+        logger.info("Database initialized and tables created")
+    except Exception as e:
+        logger.warning("Database initialization failed", error=str(e))
+
     # Initialize Feature Store client (non-blocking — API starts even if unavailable)
     try:
         from src.feature_store.client import FeatureStoreClient
@@ -739,6 +749,14 @@ async def lifespan(app: FastAPI):
             await update_task
         except asyncio.CancelledError:
             pass  # Expected when cancelling the update task during shutdown
+
+    # Close database connections
+    try:
+        from src.database.session import get_database_manager
+
+        get_database_manager().close()
+    except Exception:
+        pass
 
     logger.info("Shutting down ML Model API")
 
