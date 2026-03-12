@@ -98,10 +98,10 @@ Verify that the Feature Store was populated by the Beam pipeline.
 **Via API:**
 ```bash
 # List feature groups and entity counts
-curl -s "$API_URL/features" | python -m json.tool
+curl -s "$API_URL/features/groups" | python -m json.tool
 
 # View features for a specific entity
-curl -s "$API_URL/features/user_003" | python -m json.tool
+curl -s "$API_URL/features/user_1" | python -m json.tool
 
 # Feature group statistics
 curl -s "$API_URL/features/stats/transaction_features" | python -m json.tool
@@ -139,7 +139,7 @@ The API can now serve predictions by looking up features directly from the Featu
 ```bash
 curl -s -X POST "$API_URL/predict" \
   -H "Content-Type: application/json" \
-  -d '{"entity_id": "user_003"}' | python -m json.tool
+  -d '{"entity_id": "user_1"}' | python -m json.tool
 ```
 
 *   **Success Criteria**: Response contains `"model_version": "1"` and `"features_used"` shows the features fetched from the Feature Store.
@@ -439,18 +439,18 @@ echo "$API_URL/docs"
 
 ```bash
 # List feature groups (API)
-curl -s "$API_URL/features" | python -m json.tool
+curl -s "$API_URL/features/groups" | python -m json.tool
 
 # Feature group statistics (API)
 curl -s "$API_URL/features/stats/transaction_features" | python -m json.tool
 
 # Entity features (API)
-curl -s "$API_URL/features/user_003" | python -m json.tool
+curl -s "$API_URL/features/user_1" | python -m json.tool
 
 # Inspect via CLI (detailed output)
 python scripts/demo/utilities/list_features.py --summary --redis-host $INSTANCE_IP --db-host $INSTANCE_IP
 python scripts/demo/utilities/list_features.py --groups --redis-host $INSTANCE_IP --db-host $INSTANCE_IP
-python scripts/demo/utilities/list_features.py --features user_003 transaction_features --redis-host $INSTANCE_IP --db-host $INSTANCE_IP
+python scripts/demo/utilities/list_features.py --features user_1 transaction_features --redis-host $INSTANCE_IP --db-host $INSTANCE_IP
 python scripts/demo/utilities/list_features.py --stats transaction_features --redis-host $INSTANCE_IP --db-host $INSTANCE_IP
 
 # Materialization job logs (runs automatically via --use-feature-store)

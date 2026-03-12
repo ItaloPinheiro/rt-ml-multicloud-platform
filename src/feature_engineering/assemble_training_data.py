@@ -587,6 +587,13 @@ def main() -> None:
             "--features-path and --aggregated-path are required for source=beam"
         )
 
+    # Initialize database when reading from feature store
+    if args.source == "feature_store":
+        from src.database.session import initialize_database
+
+        initialize_database()
+        logger.info("Database initialized for feature store access")
+
     try:
         df = assemble_training_data(
             output_path=args.output_path,
