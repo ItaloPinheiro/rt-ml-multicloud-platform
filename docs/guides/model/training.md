@@ -26,7 +26,7 @@ This document describes the training process for the **Fraud Detection Model** u
 
 ## 2. Training Pipeline
 
-The training script (`scripts/demo/demo-aws/train.py`) implements a Scikit-Learn Pipeline with the following stages:
+The training script (`src/models/training/train.py`) implements a Scikit-Learn Pipeline with the following stages:
 
 1.  **Data Loading & Cleaning**:
     *   Loads CSV data.
@@ -71,13 +71,13 @@ To train the model (assuming you are in the project root):
 
 ### Default Training (Baseline)
 ```bash
-python scripts/demo/demo-aws/train.py
+python -m src.models.training.train
 ```
 
 ### Hyperparameter Tuning (Improved Model)
 To simulate a model upgrade, increase the number of estimators:
 ```bash
-python scripts/demo/demo-aws/train.py --n-estimators 200
+python -m src.models.training.train --n-estimators 200
 ```
 
 ## 5. Verification

@@ -288,29 +288,15 @@ http://$INSTANCE_IP:30900/graph?g0.expr=up{job="ml-pipeline-api-service"}&g0.ran
 
 ## Cleanup
 
-### Reset MLflow (Re-run Demo)
+### Reset Demo (Full Clean Slate)
 
-To reset the model registry and re-run the v1 vs v2 demo without destroying the cluster:
+To wipe all state and rerun the demo from scratch without destroying the cluster:
 
 ```bash
-export MLFLOW_TRACKING_URI="http://$INSTANCE_IP:30500"
-python scripts/demo/utilities/cleanup_models.py --all --force
+./scripts/demo/demo-aws/reset-demo.sh
 ```
 
-This deletes all registered models and experiments from MLflow. The API will temporarily have no model to serve, then auto-loads the new one within 10 seconds after you re-train and promote v1.
-
-> **Important:** After cleanup, you must restore the soft-deleted experiment before retraining:
-> ```bash
-> python -c "
-> import mlflow
-> mlflow.set_tracking_uri('$MLFLOW_TRACKING_URI')
-> client = mlflow.MlflowClient()
-> for exp in client.search_experiments(view_type=mlflow.entities.ViewType.DELETED_ONLY):
->     client.restore_experiment(exp.experiment_id)
->     print(f'Restored: {exp.name}')
-> "
-> ```
-> MLflow's `delete_experiment` is a soft-delete — the experiment stays in "deleted" state and blocks re-creation with the same name. Restoring it makes it usable again.
+This deletes all K8s Jobs, clears MLflow (models + experiments), flushes the Feature Store (Redis + PostgreSQL), and removes S3 data.
 
 ### Destroy Infrastructure & Secrets
 

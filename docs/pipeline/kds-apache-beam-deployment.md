@@ -137,7 +137,7 @@ The pipeline runs as two sequential K8s Jobs (applied inline by `trigger-ingesti
 
 **beam-ingestion Job:**
 - Image: beam GHCR image
-- Command: `python /app/scripts/demo/demo-aws/ingest_kinesis_s3.py`
+- Command: `python -m src.feature_engineering.beam`
 - Resources: 512Mi request / 1Gi limit
 - Timeout: 600s
 - Reads all events (TRIM_HORIZON), processes, writes to S3, then terminates
@@ -237,7 +237,7 @@ poetry run python scripts/data_generation/publish_kinesis_events.py \
 
 **Run the pipeline (terminal 2):**
 ```bash
-poetry run python scripts/demo/demo-aws/ingest_kinesis_s3.py \
+poetry run python -m src.feature_engineering.beam \
   --stream-name rt-ml-platform-demo-kds-stream \
   --s3-bucket rt-ml-platform-training-data-demo \
   --runner DirectRunner \
@@ -279,7 +279,7 @@ For production workloads, switch to `FlinkRunner` targeting AWS Managed Service 
 - Managed infrastructure (no cluster operations)
 
 ```bash
-poetry run python scripts/demo/demo-aws/ingest_kinesis_s3.py \
+poetry run python -m src.feature_engineering.beam \
   --stream-name prod-ingestion-stream \
   --s3-bucket prod-ml-features \
   --runner FlinkRunner
@@ -427,7 +427,7 @@ If missing, re-run the bootstrap script or manually create it (see `demo-aws.md`
 |---|---|
 | `src/feature_engineering/beam/pipelines.py` | Pipeline orchestration, source/sink configuration |
 | `src/feature_engineering/beam/transforms.py` | FeatureExtraction, ValidateFeatures, AggregateFeatures, WriteToFeatureStore DoFns |
-| `scripts/demo/demo-aws/ingest_kinesis_s3.py` | CLI entry point for the pipeline |
+| `src/feature_engineering/beam/__main__.py` | CLI entry point for the pipeline |
 | `scripts/data_generation/publish_kinesis_events.py` | Mock event producer |
 | `scripts/demo/demo-aws/trigger-ingestion.sh` | K8s Job orchestration script |
 | `ops/docker/beam/Dockerfile` | Beam runner container image |

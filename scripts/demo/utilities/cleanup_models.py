@@ -130,6 +130,20 @@ def cleanup_models(
                         print(f"  Experiment {exp.name} deleted successfully")
 
                     print(f"\nDeleted {len(experiments_to_delete)} experiment(s)")
+
+                    # Restore soft-deleted experiments so they can be reused.
+                    # MLflow's delete_experiment is a soft-delete — the experiment
+                    # stays in "deleted" state and blocks re-creation with the
+                    # same name. Restoring makes it usable again for the next run.
+                    restored = 0
+                    for exp in client.search_experiments(
+                        view_type=mlflow.entities.ViewType.DELETED_ONLY
+                    ):
+                        client.restore_experiment(exp.experiment_id)
+                        print(f"  Restored soft-deleted experiment: {exp.name}")
+                        restored += 1
+                    if restored:
+                        print(f"Restored {restored} experiment(s) for reuse")
                 else:
                     print("Experiment deletion cancelled")
             else:

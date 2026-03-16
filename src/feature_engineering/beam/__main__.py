@@ -1,14 +1,14 @@
-#!/usr/bin/env python
-import argparse
-import os
-import sys
+"""CLI entrypoint for running Beam feature engineering pipelines.
 
-# Add project root to python path
-sys.path.append(
-    os.path.dirname(
-        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    )
-)
+Usage:
+  python -m src.feature_engineering.beam \
+    --stream-name rt-ml-platform-demo-kds-stream \
+    --s3-bucket rt-ml-platform-training-data-demo \
+    --region us-east-1
+"""
+
+import argparse
+import sys
 
 from src.feature_engineering.beam.pipelines import (
     FeatureEngineeringPipeline,
@@ -60,7 +60,6 @@ def main():
     print(f"Source: Kinesis stream '{args.stream_name}' in region '{args.region}'")
     print(f"Target: s3://{args.s3_bucket}/{args.output_prefix}")
 
-    # Generate AWS pipeline config incorporating Kinesis and S3 locations
     config = create_aws_pipeline_config(
         stream_name=args.stream_name,
         region=args.region,
@@ -68,16 +67,12 @@ def main():
         output_prefix=args.output_prefix,
     )
 
-    # Override runner and initial position from CLI args
     config["runner"] = args.runner
     config["input_config"]["initial_position"] = args.initial_position
 
     try:
-        # Initialize pipeline orchestrator
         pipeline = FeatureEngineeringPipeline(config)
-
-        # Run streaming pipeline mapping Kinesis -> Beam -> Features -> S3
-        print("\nExecuting feature engineering pipeline...")
+        print(f"\nExecuting feature engineering pipeline...")
         print(f"Initial position: {args.initial_position} | Runner: {args.runner}")
 
         result = pipeline.run_streaming_pipeline()
@@ -90,8 +85,7 @@ def main():
         sys.exit(1)
     except KeyboardInterrupt:
         print("\nPipeline execution cancelled by user. Shutting down gracefully...")
-        # attempt to cancel if the runner supports it
-        if hasattr(result, "cancel"):
+        if "result" in locals() and hasattr(result, "cancel"):
             result.cancel()
     except Exception as e:
         print(f"\n[Error] Pipeline failed: {str(e)}")
