@@ -24,7 +24,7 @@ spec:
       - name: beam-runner
         image: ghcr.io/italopinheiro/rt-ml-multicloud-platform/beam:main
         imagePullPolicy: Always
-        command: ["python", "/app/scripts/demo/demo-aws/ingest_kinesis_s3.py"]
+        command: ["python", "-m", "src.feature_engineering.beam"]
         args:
         - "--stream-name=$(KINESIS_STREAM_NAME)"
         - "--s3-bucket=$(TRAINING_DATA_BUCKET)"

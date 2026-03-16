@@ -62,12 +62,12 @@ poetry run python scripts/data_generation/publish_kinesis_events.py \
 ```
 
 ### Executing The Pipeline script
-A complete demo script exists to simplify orchestrating Beam: `scripts/demo/demo-aws/ingest_kinesis_s3.py`.
+The Beam pipeline CLI entrypoint is `python -m src.feature_engineering.beam`.
 Run this alongside the data generator.
 
 ### Example Invocation
 ```bash
-poetry run python scripts/demo/demo-aws/ingest_kinesis_s3.py \
+poetry run python -m src.feature_engineering.beam \
     --stream-name my-demo-kinesis-stream \
     --s3-bucket my-training-bucket-ml \
     --region us-east-1 \
@@ -107,7 +107,7 @@ To scale horizontally and run production throughput workloads, you can switch th
 
 When invoking the demo script, adjusting the runner accomplishes this:
 ```bash
-poetry run python scripts/demo/demo-aws/ingest_kinesis_s3.py \
+poetry run python -m src.feature_engineering.beam \
     --stream-name prod-ingestion-stream \
     --s3-bucket prod-ml-featured-data \
     --runner FlinkRunner
