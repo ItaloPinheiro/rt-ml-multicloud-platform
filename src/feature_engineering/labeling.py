@@ -59,7 +59,20 @@ class RuleBasedLabeling(LabelingStrategy):
         self.threshold = threshold
 
     def assign_labels(self, df: pd.DataFrame) -> pd.Series:
-        """Assign fraud labels based on accumulated risk factors."""
+        """Assign fraud labels based on accumulated risk factors.
+
+        When a pre-computed ``risk_score`` column is present (e.g. from the
+        Kinesis producer which already combines user risk profile with
+        transaction-level factors), it is used directly.  The heuristic
+        accumulation is only applied when ``risk_score`` is absent.
+        """
+        # If the data already carries a composite risk_score (produced by the
+        # event generator), use it directly to avoid double-counting.
+        if "risk_score" in df.columns:
+            risk = df["risk_score"].astype(float).clip(upper=1.0)
+            return (risk >= self.threshold).astype(int)
+
+        # Fallback: accumulate risk from individual heuristic factors.
         risk = pd.Series(0.0, index=df.index)
 
         # Merchant base rate
@@ -86,10 +99,6 @@ class RuleBasedLabeling(LabelingStrategy):
                 df["merchant_category"] == "cash_advance"
             )
             risk += weekend_cash.astype(float) * 0.3
-
-        # User-level risk score
-        if "risk_score" in df.columns:
-            risk += df["risk_score"]
 
         risk = risk.clip(upper=1.0)
         return (risk >= self.threshold).astype(int)

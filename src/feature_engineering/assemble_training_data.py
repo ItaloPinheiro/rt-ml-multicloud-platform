@@ -19,13 +19,13 @@ import io
 import json
 import logging
 import sys
-import zlib
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
 
 from src.feature_engineering.labeling import get_labeling_strategy
+from src.feature_engineering.transforms import bool_to_int, hash_encode
 from src.models.model_definition import load_model_definition
 
 logger = logging.getLogger(__name__)
@@ -257,7 +257,7 @@ def _load_beam_mapping(model_type: str) -> Dict[str, Any]:
 
 def _deterministic_hash_encode(value: str, modulo: int) -> int:
     """Encode a string categorically using deterministic CRC32 hash."""
-    return zlib.crc32(value.encode()) % modulo
+    return hash_encode(value, modulo)
 
 
 def assemble_training_data(
@@ -446,7 +446,7 @@ def _map_columns(
                     lambda v, m=modulo: _deterministic_hash_encode(str(v), m)
                 )
             elif transform_type == "bool_to_int" and source_field in df.columns:
-                result[target_col] = df[source_field].astype(int)
+                result[target_col] = df[source_field].apply(bool_to_int)
             else:
                 logger.warning(
                     "Cannot apply transform '%s' for '%s'", transform_type, target_col

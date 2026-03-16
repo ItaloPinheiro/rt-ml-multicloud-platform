@@ -44,8 +44,10 @@ from uuid import uuid4
 import numpy as np
 import pandas as pd
 import structlog
+import yaml
 
 from src import __version__
+from src.feature_engineering.transforms import transform_features
 from src.api.model_updater import ModelUpdateManager, handle_model_webhook
 from src.api.schemas import (
     BatchPredictionRequest,
@@ -404,8 +406,9 @@ class ModelManager:
             # Load model
             model = await self.load_model(model_name, version)
 
-            # Prepare features
-            features_df = pd.DataFrame([features])
+            # Prepare features — cast all columns to float64 to match the
+            # MLflow model signature (training casts int cols to float64).
+            features_df = pd.DataFrame([features]).astype("float64")
 
             # Make prediction
             prediction = model.predict(features_df)
@@ -507,8 +510,8 @@ class ModelManager:
             # Load model
             model = await self.load_model(model_name, version)
 
-            # Prepare features
-            features_df = pd.DataFrame(instances)
+            # Prepare features — cast to float64 to match MLflow model signature
+            features_df = pd.DataFrame(instances).astype("float64")
 
             # Make predictions
             predictions = model.predict(features_df)
@@ -639,6 +642,56 @@ model_manager = None
 update_manager = None
 feature_store_client = None
 
+# ---------------------------------------------------------------------------
+# Feature transformation for serving
+# ---------------------------------------------------------------------------
+
+_model_configs: Dict[str, dict] = {}
+
+
+def _load_model_config(model_name: str) -> Optional[dict]:
+    """Load model config YAML (cached)."""
+    if model_name in _model_configs:
+        return _model_configs[model_name]
+    config_path = os.path.join("configs", "models", f"{model_name}.yaml")
+    if not os.path.exists(config_path):
+        return None
+    with open(config_path) as f:
+        cfg = yaml.safe_load(f)
+    _model_configs[model_name] = cfg
+    return cfg
+
+
+def _transform_features_for_model(
+    raw_features: Dict[str, Any], model_name: str
+) -> Dict[str, Any]:
+    """Apply beam_mapping transforms to raw Feature Store features.
+
+    Delegates to the shared transform module (src.feature_engineering.transforms)
+    which is the single source of truth for model-dependent encoding logic,
+    used identically at both training and serving time.
+    """
+    cfg = _load_model_config(model_name)
+    if cfg is None:
+        return raw_features
+
+    beam_mapping = cfg.get("beam_mapping")
+    if beam_mapping is None:
+        return raw_features
+
+    expected_columns = cfg.get("features", {}).get("columns", [])
+    if not expected_columns:
+        return raw_features
+
+    # Check whether features already match the model schema (e.g. explicit
+    # features sent in the request body) — skip transformation if so.
+    if set(expected_columns).issubset(raw_features.keys()):
+        extra = set(raw_features.keys()) - set(expected_columns)
+        if len(extra) <= 2:  # allow model_name, entity_id etc.
+            return raw_features
+
+    return transform_features(raw_features, beam_mapping, expected_columns)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -743,12 +796,16 @@ async def lifespan(app: FastAPI):
     # Shutdown
     if update_task:
         update_task.cancel()
-    if health_task:
-        health_task.cancel()
         try:
             await update_task
         except asyncio.CancelledError:
-            pass  # Expected when cancelling the update task during shutdown
+            pass
+    if health_task:
+        health_task.cancel()
+        try:
+            await health_task
+        except asyncio.CancelledError:
+            pass
 
     # Close database connections
     try:
@@ -957,6 +1014,11 @@ async def predict(request: PredictionRequest, background_tasks: BackgroundTasks)
             # Request body features override store values
             store_features.update(features)
             features = store_features
+
+            # Transform raw Feature Store features to match model schema
+            features = _transform_features_for_model(
+                features, request.model_name
+            )
 
         if not features:
             raise HTTPException(
