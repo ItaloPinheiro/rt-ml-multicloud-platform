@@ -97,12 +97,12 @@ beam_mapping:
 
 validation:
   test_input:
-    hour_of_day: 12.0
-    day_of_week: 1.0
+    hour_of_day: 12
+    day_of_week: 1
     is_weekend: false
-    transaction_count_24h: 5.0
+    transaction_count_24h: 5
     avg_amount_30d: 100.0
     risk_score: 0.5
     amount: 50.0
-    merchant_category_encoded: 1.0
-    payment_method_encoded: 1.0
+    merchant_category_encoded: 1
+    payment_method_encoded: 1

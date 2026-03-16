@@ -2,7 +2,9 @@
 """
 Compare models across experiments and find the best one for production.
 """
+import argparse
 import os
+import sys
 from typing import Optional
 
 import mlflow
@@ -167,6 +169,22 @@ def promote_best_model(
 
 def main():
     """Main function to compare models and promote the best one."""
+    parser = argparse.ArgumentParser(
+        description="Compare models across experiments and optionally promote the best."
+    )
+    parser.add_argument(
+        "--promote",
+        action="store_true",
+        default=False,
+        help="Automatically promote the best model (no interactive prompt).",
+    )
+    parser.add_argument(
+        "--model-name",
+        default="fraud_detector",
+        help="Registered model name for promotion (default: fraud_detector).",
+    )
+    args = parser.parse_args()
+
     print("=" * 60)
     print("Model Comparison and Promotion Tool")
     print("=" * 60)
@@ -209,15 +227,15 @@ def main():
             print(f"  Accuracy: {best_model['accuracy']:.4f}")
             print(f"  Run ID: {best_model['run_id']}")
 
-            # Ask to promote
-            response = input("\nPromote this model to production? (y/n): ")
-            if response.lower() == "y":
-                model_name = input(
-                    "Enter model name (default: fraud_detector): "
-                ).strip()
-                if not model_name:
-                    model_name = "fraud_detector"
-                promote_best_model(model_name, experiment_names)
+            should_promote = args.promote
+            if not should_promote and sys.stdin.isatty():
+                response = input("\nPromote this model to production? (y/n): ")
+                should_promote = response.lower() == "y"
+
+            if should_promote:
+                promote_best_model(args.model_name, experiment_names)
+            elif not sys.stdin.isatty():
+                print("\nSkipping promotion (non-interactive mode). Use --promote to auto-promote.")
     else:
         print("\nNo experiments found. Train some models first!")
 

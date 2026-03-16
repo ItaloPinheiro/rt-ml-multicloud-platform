@@ -382,7 +382,7 @@ class TestDatabaseSession:
         table_names = [table.name for table in metadata.sorted_tables]
 
         expected_tables = [
-            "experiments",
+            "ml_experiments",
             "model_runs",
             "feature_store",
             "prediction_logs",

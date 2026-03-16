@@ -22,11 +22,11 @@ import io
 import json
 import logging
 import sys
-import zlib
 from typing import Any, Dict, List
 
 import pandas as pd
 
+from src.feature_engineering.transforms import bool_to_int, hash_encode
 from src.models.model_definition import load_model_definition
 
 logging.basicConfig(
@@ -101,19 +101,17 @@ def extract_features(transaction: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "hour_of_day": features.get("hour_of_day", 0),
         "day_of_week": features.get("day_of_week", 0),
-        "is_weekend": int(features.get("is_weekend", False)),
+        "is_weekend": bool_to_int(features.get("is_weekend", False)),
         "transaction_count_24h": features.get("transaction_count_24h", 0),
         "avg_amount_30d": features.get("avg_amount_30d", 0.0),
         "risk_score": features.get("risk_score", 0.0),
         "amount": transaction.get("amount", 0.0),
-        "merchant_category_encoded": zlib.crc32(
-            transaction.get("merchant_category", "").encode()
-        )
-        % 100,
-        "payment_method_encoded": zlib.crc32(
-            transaction.get("payment_method", "").encode()
-        )
-        % 10,
+        "merchant_category_encoded": hash_encode(
+            transaction.get("merchant_category", ""), 100
+        ),
+        "payment_method_encoded": hash_encode(
+            transaction.get("payment_method", ""), 10
+        ),
         "label": transaction.get("label", 0),
     }
 

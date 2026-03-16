@@ -100,8 +100,8 @@ Verify that the Feature Store was populated by the Beam pipeline.
 # List feature groups and entity counts
 curl -s "$API_URL/features/groups" | python -m json.tool
 
-# View features for a specific entity
-curl -s "$API_URL/features/user_1" | python -m json.tool
+# View features for a specific entity (pick any entity_id from the groups output)
+curl -s "$API_URL/features/$ENTITY_ID" | python -m json.tool
 
 # Feature group statistics
 curl -s "$API_URL/features/stats/transaction_features" | python -m json.tool
@@ -113,6 +113,15 @@ python scripts/demo/utilities/list_features.py --summary --redis-host $INSTANCE_
 ```
 
 *   **Success Criteria**: Feature groups `transaction_features` and `aggregated_features` appear with entities populated.
+
+Pick an entity ID from the Feature Store output for use in the prediction steps:
+```bash
+ENTITY_ID=$(curl -s "$API_URL/features/stats/transaction_features" | python -c "import sys,json; d=json.load(sys.stdin); print(list(d.get('feature_counts',{}).keys())[0] if d else '')" 2>/dev/null || echo "")
+# Or query PostgreSQL directly:
+ENTITY_ID=$(ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP \
+  "sudo k3s kubectl exec deployment/postgres -n ml-pipeline -- psql -U mlflow -d mlflow -t -A -c 'SELECT entity_id FROM feature_store LIMIT 1'")
+echo "Using entity: $ENTITY_ID"
+```
 
 ### 6. Train Model Version 1 (Baseline)
 
@@ -139,7 +148,7 @@ The API can now serve predictions by looking up features directly from the Featu
 ```bash
 curl -s -X POST "$API_URL/predict" \
   -H "Content-Type: application/json" \
-  -d '{"entity_id": "user_1"}' | python -m json.tool
+  -d "{\"entity_id\": \"$ENTITY_ID\"}" | python -m json.tool
 ```
 
 *   **Success Criteria**: Response contains `"model_version": "1"` and `"features_used"` shows the features fetched from the Feature Store.
@@ -177,7 +186,7 @@ Check the model version using the same entity_id lookup:
 ```bash
 curl -s -X POST "$API_URL/predict" \
   -H "Content-Type: application/json" \
-  -d '{"entity_id": "user_003"}' | python -m json.tool
+  -d "{\"entity_id\": \"$ENTITY_ID\"}" | python -m json.tool
 ```
 
 *   **Success Criteria**: Response switches to `"model_version": "2"` without any downtime.
@@ -424,7 +433,7 @@ curl -s "$API_URL/health" | python -m json.tool
 # Predict by entity_id (Feature Store lookup)
 curl -s -X POST "$API_URL/predict" \
   -H "Content-Type: application/json" \
-  -d '{"entity_id": "user_003"}' | python -m json.tool
+  -d "{\"entity_id\": \"$ENTITY_ID\"}" | python -m json.tool
 
 # Predict with explicit features (no Feature Store)
 curl -s -X POST "$API_URL/predict" \
@@ -445,12 +454,12 @@ curl -s "$API_URL/features/groups" | python -m json.tool
 curl -s "$API_URL/features/stats/transaction_features" | python -m json.tool
 
 # Entity features (API)
-curl -s "$API_URL/features/user_1" | python -m json.tool
+curl -s "$API_URL/features/$ENTITY_ID" | python -m json.tool
 
 # Inspect via CLI (detailed output)
 python scripts/demo/utilities/list_features.py --summary --redis-host $INSTANCE_IP --db-host $INSTANCE_IP
 python scripts/demo/utilities/list_features.py --groups --redis-host $INSTANCE_IP --db-host $INSTANCE_IP
-python scripts/demo/utilities/list_features.py --features user_1 transaction_features --redis-host $INSTANCE_IP --db-host $INSTANCE_IP
+python scripts/demo/utilities/list_features.py --features $ENTITY_ID transaction_features --redis-host $INSTANCE_IP --db-host $INSTANCE_IP
 python scripts/demo/utilities/list_features.py --stats transaction_features --redis-host $INSTANCE_IP --db-host $INSTANCE_IP
 
 # Materialization job logs (runs automatically via --use-feature-store)
