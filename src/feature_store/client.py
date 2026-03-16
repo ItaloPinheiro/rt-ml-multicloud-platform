@@ -373,6 +373,9 @@ class FeatureStoreClient:
     def get_feature_statistics(self, feature_group: str) -> Dict[str, Any]:
         """Get statistics about features in a feature group.
 
+        JSONB model: extracts feature names from the JSON `features` column
+        and counts entities rather than individual EAV rows.
+
         Args:
             feature_group: Feature group name
 
@@ -386,20 +389,6 @@ class FeatureStoreClient:
             from ..database.session import get_session
 
             with get_session() as session:
-                # Get feature count by name
-                feature_counts = (
-                    session.query(
-                        FeatureStoreModel.feature_name,
-                        func.count(FeatureStoreModel.id).label("count"),
-                    )
-                    .filter(
-                        FeatureStoreModel.feature_group == feature_group,
-                        FeatureStoreModel.is_active.is_(True),
-                    )
-                    .group_by(FeatureStoreModel.feature_name)
-                    .all()
-                )
-
                 # Get unique entity count
                 entity_count = (
                     session.query(
@@ -412,28 +401,39 @@ class FeatureStoreClient:
                     .scalar()
                 )
 
-                # Get data type distribution
-                data_type_counts = (
-                    session.query(
-                        FeatureStoreModel.data_type,
-                        func.count(FeatureStoreModel.id).label("count"),
-                    )
+                # Get total row count
+                row_count = (
+                    session.query(func.count(FeatureStoreModel.id))
                     .filter(
                         FeatureStoreModel.feature_group == feature_group,
                         FeatureStoreModel.is_active.is_(True),
                     )
-                    .group_by(FeatureStoreModel.data_type)
+                    .scalar()
+                )
+
+                # Extract feature names from JSONB by reading a sample of rows
+                records = (
+                    session.query(FeatureStoreModel.features)
+                    .filter(
+                        FeatureStoreModel.feature_group == feature_group,
+                        FeatureStoreModel.is_active.is_(True),
+                    )
                     .all()
                 )
+
+                # Count how many entities have each feature key
+                feature_counts: Dict[str, int] = {}
+                for (features_json,) in records:
+                    if features_json:
+                        for key in features_json:
+                            feature_counts[key] = feature_counts.get(key, 0) + 1
 
                 statistics = {
                     "feature_group": feature_group,
                     "unique_entities": entity_count,
-                    "feature_counts": {name: count for name, count in feature_counts},
-                    "data_type_distribution": {
-                        dtype: count for dtype, count in data_type_counts
-                    },
-                    "total_features": sum(count for _, count in feature_counts),
+                    "feature_counts": feature_counts,
+                    "total_features": sum(feature_counts.values()),
+                    "row_count": row_count,
                     "timestamp": datetime.now(timezone.utc).isoformat(),
                 }
 

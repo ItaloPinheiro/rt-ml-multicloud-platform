@@ -162,8 +162,9 @@ class ModelTrainer:
     ) -> Tuple[pd.DataFrame, pd.Series]:
         """Load training data directly from PostgreSQL feature store.
 
-        Uses SQLAlchemy Core + yield_per for memory-efficient streaming.
-        Pivots EAV format to wide format matching CSV training schema.
+        JSONB model: each row contains all features as a single JSON object,
+        so no EAV pivot is needed. Streams results with yield_per for memory
+        efficiency.
 
         Args:
             feature_groups: List of feature group names to query.
@@ -180,63 +181,46 @@ class ModelTrainer:
         from src.database.models import FeatureStore as FeatureStoreModel
         from src.database.session import get_session
 
-        # Compute union of all needed feature names
-        needed_features: set = set()
-        for group_features in feature_schema.values():
-            needed_features.update(group_features)
-
         logger.info(
-            f"Loading from feature store: groups={feature_groups}, "
-            f"features={len(needed_features)}"
+            f"Loading from feature store: groups={feature_groups}"
         )
 
-        # Build Core select statement (lightweight Row tuples, not ORM objects)
+        # JSONB model: select entity_id + features JSON per row
         stmt = select(
             FeatureStoreModel.entity_id,
-            FeatureStoreModel.feature_name,
-            FeatureStoreModel.feature_value,
+            FeatureStoreModel.features,
         ).where(
             FeatureStoreModel.feature_group.in_(feature_groups),
-            FeatureStoreModel.feature_name.in_(list(needed_features)),
             FeatureStoreModel.is_active.is_(True),
         )
 
         # Stream results with yield_per to reduce peak memory
+        rows = []
         with get_session() as session:
             result = session.execute(stmt).yield_per(10_000)
-            chunks = []
             for partition in result.partitions():
-                chunk_df = pd.DataFrame(
-                    partition,
-                    columns=["entity_id", "feature_name", "feature_value"],
-                )
-                chunks.append(chunk_df)
+                for entity_id, features in partition:
+                    if features:
+                        row = dict(features)
+                        row["entity_id"] = entity_id
+                        rows.append(row)
 
-        if not chunks:
+        if not rows:
             raise ValueError(
                 f"No features found in feature store for groups {feature_groups}"
             )
 
-        df = pd.concat(chunks, ignore_index=True)
-        logger.info(f"Read {len(df)} feature rows from feature store")
-
-        # Pivot EAV -> wide format
-        wide = df.pivot_table(
-            index="entity_id",
-            columns="feature_name",
-            values="feature_value",
-            aggfunc="first",
+        # Already wide format — no pivot needed
+        wide = pd.DataFrame(rows)
+        logger.info(
+            f"Read {len(wide)} entities x {len(wide.columns) - 1} features "
+            f"from feature store"
         )
-        del df  # Free EAV DataFrame
 
         # Cast JSON values to numeric
         for col in wide.columns:
-            wide[col] = pd.to_numeric(wide[col], errors="coerce")
-
-        wide = wide.reset_index()
-        logger.info(
-            f"Pivoted to {len(wide)} entities x {len(wide.columns) - 1} features"
-        )
+            if col != "entity_id":
+                wide[col] = pd.to_numeric(wide[col], errors="coerce")
 
         # Apply labeling strategy
         if labeling_strategy == "rule_based":
