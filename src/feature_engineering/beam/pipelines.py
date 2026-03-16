@@ -193,60 +193,63 @@ class FeatureEngineeringPipeline:
         feature_config = self.config.get("feature_config", {})
         window_config = self.config.get("window_config", {})
 
-        with beam.Pipeline(options=self.pipeline_options) as pipeline:
-            # Read from input source
-            raw_events = self._create_input_source(pipeline, input_config)
+        pipeline = beam.Pipeline(options=self.pipeline_options)
 
-            # Feature extraction with error handling
-            features_and_errors = raw_events | "ExtractFeatures" >> beam.ParDo(
-                FeatureExtraction(feature_config)
-            ).with_outputs("errors", main="features")
+        # Read from input source
+        raw_events = self._create_input_source(pipeline, input_config)
 
-            features = features_and_errors["features"]
-            extraction_errors = features_and_errors["errors"]
+        # Feature extraction with error handling
+        features_and_errors = raw_events | "ExtractFeatures" >> beam.ParDo(
+            FeatureExtraction(feature_config)
+        ).with_outputs("errors", main="features")
 
-            # Validate features
-            validated_and_invalid = features | "ValidateFeatures" >> beam.ParDo(
-                ValidateFeatures(feature_config.get("validation", {}))
-            ).with_outputs("invalid", "errors", main="valid")
+        features = features_and_errors["features"]
+        extraction_errors = features_and_errors["errors"]
 
-            valid_features = validated_and_invalid["valid"]
-            invalid_features = validated_and_invalid["invalid"]
-            validation_errors = validated_and_invalid["errors"]
+        # Validate features
+        validated_and_invalid = features | "ValidateFeatures" >> beam.ParDo(
+            ValidateFeatures(feature_config.get("validation", {}))
+        ).with_outputs("invalid", "errors", main="valid")
 
-            # Apply windowing for aggregations
-            windowed_features = self._apply_windowing(valid_features, window_config)
+        valid_features = validated_and_invalid["valid"]
+        invalid_features = validated_and_invalid["invalid"]
+        validation_errors = validated_and_invalid["errors"]
 
-            # Aggregate features by key (e.g., user_id)
-            aggregated_features = (
-                windowed_features
-                | "GroupByKey" >> beam.GroupBy(lambda x: x.get("user_id", "unknown"))
-                | "AggregateFeatures"
-                >> beam.ParDo(AggregateFeatures()).with_outputs(
-                    "errors", main="aggregated"
-                )
+        # Apply windowing for aggregations
+        windowed_features = self._apply_windowing(valid_features, window_config)
+
+        # Aggregate features by key (e.g., user_id)
+        aggregated_features = (
+            windowed_features
+            | "GroupByKey" >> beam.GroupBy(lambda x: x.get("user_id", "unknown"))
+            | "AggregateFeatures"
+            >> beam.ParDo(AggregateFeatures()).with_outputs(
+                "errors", main="aggregated"
             )
+        )
 
-            final_aggregated = aggregated_features["aggregated"]
-            aggregation_errors = aggregated_features["errors"]
+        final_aggregated = aggregated_features["aggregated"]
+        aggregation_errors = aggregated_features["errors"]
 
-            # Write outputs
-            self._write_outputs(
-                pipeline=pipeline,
-                features=valid_features,
-                aggregated=final_aggregated,
-                errors={
-                    "extraction": extraction_errors,
-                    "validation": validation_errors,
-                    "aggregation": aggregation_errors,
-                },
-                invalid=invalid_features,
-                output_config=output_config,
-            )
+        # Write outputs
+        self._write_outputs(
+            pipeline=pipeline,
+            features=valid_features,
+            aggregated=final_aggregated,
+            errors={
+                "extraction": extraction_errors,
+                "validation": validation_errors,
+                "aggregation": aggregation_errors,
+            },
+            invalid=invalid_features,
+            output_config=output_config,
+        )
 
-            self.logger.info("Streaming pipeline created successfully")
+        self.logger.info("Streaming pipeline created successfully")
 
-        return pipeline.run()
+        result = pipeline.run()
+        result.wait_until_finish()
+        return result
 
     def run_batch_pipeline(
         self, input_path: str, output_path: str

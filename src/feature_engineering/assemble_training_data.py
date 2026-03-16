@@ -394,6 +394,11 @@ def assemble_training_data(
     else:
         _write_csv(training_df, output_path)
 
+        # Also write Parquet alongside CSV for training pipelines that
+        # prefer columnar format (e.g. trigger-training.sh materialization).
+        parquet_path = output_path.rsplit(".", 1)[0] + ".parquet"
+        _write_parquet(training_df, parquet_path)
+
     return training_df
 
 

@@ -75,8 +75,7 @@ def main():
         print(f"\nExecuting feature engineering pipeline...")
         print(f"Initial position: {args.initial_position} | Runner: {args.runner}")
 
-        result = pipeline.run_streaming_pipeline()
-        result.wait_until_finish()
+        pipeline.run_streaming_pipeline()
 
     except ImportError as e:
         print(f"\n[Error] Missing dependencies: {e}")
@@ -85,8 +84,6 @@ def main():
         sys.exit(1)
     except KeyboardInterrupt:
         print("\nPipeline execution cancelled by user. Shutting down gracefully...")
-        if "result" in locals() and hasattr(result, "cancel"):
-            result.cancel()
     except Exception as e:
         print(f"\n[Error] Pipeline failed: {str(e)}")
         sys.exit(1)
