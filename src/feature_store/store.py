@@ -500,41 +500,36 @@ class FeatureStore:
     ) -> None:
         """Persist features for multiple entities using batch upsert.
 
-        Uses INSERT ... ON CONFLICT DO UPDATE for efficient bulk writes
-        instead of individual session.merge() calls. Chunks large batches
-        to avoid psycopg2 parameter limits.
+        JSONB model: one row per entity (not per feature), with all features
+        stored as a single JSON object. Uses INSERT ... ON CONFLICT with JSONB
+        merge (||) for PostgreSQL, or ORM merge for other dialects.
         """
         import json as json_mod
         import uuid
 
         rows = []
         for entity_id, features in entities:
-            for feature_name, feature_value in features.items():
-                data_type = self._determine_data_type(feature_value)
-                rows.append(
-                    {
-                        "id": str(uuid.uuid4()),
-                        "entity_id": entity_id,
-                        "feature_group": feature_group,
-                        "feature_name": feature_name,
-                        "feature_value": json_mod.dumps(feature_value),
-                        "data_type": data_type,
-                        "event_timestamp": event_timestamp,
-                        "ingestion_timestamp": datetime.now(timezone.utc),
-                        "ttl_timestamp": ttl_timestamp,
-                        "is_active": True,
-                        "feature_version": "1.0",
-                        "tags": "{}",
-                    }
-                )
+            rows.append(
+                {
+                    "id": str(uuid.uuid4()),
+                    "entity_id": entity_id,
+                    "feature_group": feature_group,
+                    "features": json_mod.dumps(features),
+                    "event_timestamp": event_timestamp,
+                    "ingestion_timestamp": datetime.now(timezone.utc),
+                    "ttl_timestamp": ttl_timestamp,
+                    "is_active": True,
+                    "feature_version": "1.0",
+                    "tags": "{}",
+                }
+            )
 
         if not rows:
             return
 
-        chunk_size = 500
+        chunk_size = 5000  # 1 row per entity now (up from 500)
 
         with get_session() as session:
-            # Use batch insert with ON CONFLICT for PostgreSQL
             bind = session.get_bind()
             dialect = bind.dialect.name if hasattr(bind, "dialect") else "unknown"
 
@@ -542,31 +537,30 @@ class FeatureStore:
                 stmt = text(
                     """
                     INSERT INTO feature_store (
-                        id, entity_id, feature_group, feature_name,
-                        feature_value, data_type, event_timestamp,
-                        ingestion_timestamp, ttl_timestamp, is_active,
-                        feature_version, tags
+                        id, entity_id, feature_group, features,
+                        event_timestamp, ingestion_timestamp, ttl_timestamp,
+                        is_active, feature_version, tags
                     ) VALUES (
-                        :id, :entity_id, :feature_group, :feature_name,
-                        CAST(:feature_value AS json), :data_type, :event_timestamp,
-                        :ingestion_timestamp, :ttl_timestamp, :is_active,
-                        :feature_version, CAST(:tags AS json)
+                        :id, :entity_id, :feature_group,
+                        CAST(:features AS jsonb), :event_timestamp,
+                        :ingestion_timestamp, :ttl_timestamp,
+                        :is_active, :feature_version, CAST(:tags AS jsonb)
                     )
-                    ON CONFLICT (entity_id, feature_group, feature_name, event_timestamp)
+                    ON CONFLICT (entity_id, feature_group)
                     DO UPDATE SET
-                        feature_value = EXCLUDED.feature_value,
-                        data_type = EXCLUDED.data_type,
+                        features = feature_store.features || EXCLUDED.features,
+                        event_timestamp = EXCLUDED.event_timestamp,
                         ingestion_timestamp = EXCLUDED.ingestion_timestamp,
                         ttl_timestamp = EXCLUDED.ttl_timestamp,
-                        is_active = EXCLUDED.is_active
+                        is_active = true
                 """
                 )
                 for i in range(0, len(rows), chunk_size):
                     session.execute(stmt, rows[i : i + chunk_size])
             else:
-                # Fallback for SQLite / other dialects: use ORM bulk
+                # Fallback for SQLite / other dialects: use ORM merge
                 for row in rows:
-                    row["feature_value"] = json_mod.loads(row["feature_value"])
+                    row["features"] = json_mod.loads(row["features"])
                     row["tags"] = {}
                     record = FeatureStoreModel(**row)
                     session.merge(record)
@@ -593,6 +587,9 @@ class FeatureStore:
     ) -> None:
         """Persist features to database.
 
+        JSONB model: upserts a single row per (entity_id, feature_group),
+        merging incoming features into the existing JSON object.
+
         Args:
             entity_id: Entity identifier
             feature_group: Feature group name
@@ -600,25 +597,72 @@ class FeatureStore:
             event_timestamp: Event timestamp
             ttl_seconds: TTL in seconds
         """
+        import json as json_mod
+        import uuid
+
         ttl_timestamp = datetime.now(timezone.utc) + timedelta(seconds=ttl_seconds)
 
         with get_session() as session:
-            for feature_name, feature_value in features.items():
-                # Determine data type
-                data_type = self._determine_data_type(feature_value)
+            bind = session.get_bind()
+            dialect = bind.dialect.name if hasattr(bind, "dialect") else "unknown"
 
-                # Create or update feature record
-                feature_record = FeatureStoreModel(
-                    entity_id=entity_id,
-                    feature_group=feature_group,
-                    feature_name=feature_name,
-                    feature_value=feature_value,
-                    data_type=data_type,
-                    event_timestamp=event_timestamp,
-                    ttl_timestamp=ttl_timestamp,
+            if dialect == "postgresql":
+                stmt = text(
+                    """
+                    INSERT INTO feature_store (
+                        id, entity_id, feature_group, features,
+                        event_timestamp, ingestion_timestamp, ttl_timestamp, is_active
+                    ) VALUES (
+                        :id, :entity_id, :feature_group,
+                        CAST(:features AS jsonb), :event_timestamp,
+                        now(), :ttl_timestamp, true
+                    )
+                    ON CONFLICT (entity_id, feature_group)
+                    DO UPDATE SET
+                        features = feature_store.features || EXCLUDED.features,
+                        event_timestamp = EXCLUDED.event_timestamp,
+                        ingestion_timestamp = now(),
+                        ttl_timestamp = EXCLUDED.ttl_timestamp,
+                        is_active = true
+                """
                 )
-
-                session.merge(feature_record)
+                session.execute(
+                    stmt,
+                    {
+                        "id": str(uuid.uuid4()),
+                        "entity_id": entity_id,
+                        "feature_group": feature_group,
+                        "features": json_mod.dumps(features),
+                        "event_timestamp": event_timestamp,
+                        "ttl_timestamp": ttl_timestamp,
+                    },
+                )
+            else:
+                # Fallback for SQLite / other dialects: use ORM merge
+                # Try to find existing record and merge features
+                existing = (
+                    session.query(FeatureStoreModel)
+                    .filter(
+                        FeatureStoreModel.entity_id == entity_id,
+                        FeatureStoreModel.feature_group == feature_group,
+                    )
+                    .first()
+                )
+                if existing:
+                    merged = {**(existing.features or {}), **features}
+                    existing.features = merged
+                    existing.event_timestamp = event_timestamp
+                    existing.ttl_timestamp = ttl_timestamp
+                    existing.is_active = True
+                else:
+                    record = FeatureStoreModel(
+                        entity_id=entity_id,
+                        feature_group=feature_group,
+                        features=features,
+                        event_timestamp=event_timestamp,
+                        ttl_timestamp=ttl_timestamp,
+                    )
+                    session.add(record)
 
     def _get_features_from_db(
         self,
@@ -627,6 +671,8 @@ class FeatureStore:
         feature_names: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
         """Retrieve features from database.
+
+        Single-row fetch: returns the JSONB `features` column directly.
 
         Args:
             entity_id: Entity identifier
@@ -637,19 +683,22 @@ class FeatureStore:
             Feature dictionary
         """
         with get_session() as session:
-            query = session.query(FeatureStoreModel).filter(
-                FeatureStoreModel.entity_id == entity_id,
-                FeatureStoreModel.feature_group == feature_group,
-                FeatureStoreModel.is_active.is_(True),
+            record = (
+                session.query(FeatureStoreModel)
+                .filter(
+                    FeatureStoreModel.entity_id == entity_id,
+                    FeatureStoreModel.feature_group == feature_group,
+                    FeatureStoreModel.is_active.is_(True),
+                )
+                .first()
             )
 
+            if record is None:
+                return {}
+
+            features = record.features or {}
             if feature_names:
-                query = query.filter(FeatureStoreModel.feature_name.in_(feature_names))
-
-            features = {}
-            for record in query.all():
-                features[record.feature_name] = record.feature_value
-
+                return {k: v for k, v in features.items() if k in feature_names}
             return features
 
     def _get_batch_features_from_db(
@@ -660,6 +709,8 @@ class FeatureStore:
     ) -> Dict[str, Dict[str, Any]]:
         """Retrieve batch features from database.
 
+        Single row per entity: no multi-row reconstruction needed.
+
         Args:
             entity_ids: List of entity identifiers
             feature_group: Feature group name
@@ -669,40 +720,22 @@ class FeatureStore:
             Dictionary mapping entity_id -> feature dictionary
         """
         with get_session() as session:
-            query = session.query(FeatureStoreModel).filter(
-                FeatureStoreModel.entity_id.in_(entity_ids),
-                FeatureStoreModel.feature_group == feature_group,
-                FeatureStoreModel.is_active.is_(True),
+            records = (
+                session.query(FeatureStoreModel)
+                .filter(
+                    FeatureStoreModel.entity_id.in_(entity_ids),
+                    FeatureStoreModel.feature_group == feature_group,
+                    FeatureStoreModel.is_active.is_(True),
+                )
+                .all()
             )
 
-            if feature_names:
-                query = query.filter(FeatureStoreModel.feature_name.in_(feature_names))
-
             result = {}
-            for record in query.all():
-                entity_id = record.entity_id
-                if entity_id not in result:
-                    result[entity_id] = {}
-                result[entity_id][record.feature_name] = record.feature_value
+            for record in records:
+                features = record.features or {}
+                if feature_names:
+                    features = {k: v for k, v in features.items() if k in feature_names}
+                result[record.entity_id] = features
 
             return result
 
-    def _determine_data_type(self, value: Any) -> str:
-        """Determine data type for a feature value.
-
-        Args:
-            value: Feature value
-
-        Returns:
-            Data type string
-        """
-        if isinstance(value, (int, float)):
-            return "numeric"
-        elif isinstance(value, bool):
-            return "boolean"
-        elif isinstance(value, str):
-            return "categorical"
-        elif isinstance(value, datetime):
-            return "datetime"
-        else:
-            return "text"

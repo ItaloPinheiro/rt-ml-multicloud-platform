@@ -135,7 +135,12 @@ class ModelRun(Base):
 
 
 class FeatureStore(Base):
-    """Model for feature store data persistence."""
+    """Model for feature store data persistence.
+
+    Uses a JSONB column model: one row per (entity_id, feature_group) with all
+    features stored as a single JSON object. This eliminates the EAV row explosion
+    (N entities x M features) and enables O(1) reads per entity.
+    """
 
     __tablename__ = "feature_store"
 
@@ -144,13 +149,9 @@ class FeatureStore(Base):
     # Feature identification
     entity_id = Column(String(255), nullable=False)
     feature_group = Column(String(255), nullable=False)
-    feature_name = Column(String(255), nullable=False)
 
-    # Feature data
-    feature_value = Column(JSON, nullable=False)
-    data_type = Column(
-        String(50), nullable=False
-    )  # numeric, categorical, text, datetime
+    # All features as a single JSON object (replaces per-feature EAV rows)
+    features = Column(JSON, nullable=False)
 
     # Timing and versioning
     event_timestamp = Column(DateTime, nullable=False)
@@ -167,39 +168,19 @@ class FeatureStore(Base):
     ttl_timestamp = Column(DateTime)
     is_active = Column(Boolean, default=True, nullable=False)
 
-    # Indexes
+    # Indexes and constraints
     __table_args__ = (
-        Index("idx_feature_store_entity_id", "entity_id"),
-        Index("idx_feature_store_feature_group", "feature_group"),
-        Index("idx_feature_store_feature_name", "feature_name"),
-        Index("idx_feature_store_event_timestamp", "event_timestamp"),
-        Index("idx_feature_store_ingestion_timestamp", "ingestion_timestamp"),
-        Index("idx_feature_store_ttl_timestamp", "ttl_timestamp"),
-        Index(
-            "idx_feature_store_entity_feature",
-            "entity_id",
-            "feature_group",
-            "feature_name",
-        ),
         UniqueConstraint(
             "entity_id",
             "feature_group",
-            "feature_name",
-            "event_timestamp",
-            name="uq_feature_store_entity_feature_time",
+            name="uq_feature_store_entity_group",
         ),
+        Index("idx_feature_store_group", "feature_group"),
+        Index("idx_feature_store_ttl_active", "ttl_timestamp"),
     )
 
-    @validates("data_type")
-    def validate_data_type(self, key, data_type):
-        """Validate data type values."""
-        valid_types = ["numeric", "categorical", "text", "datetime", "boolean"]
-        if data_type not in valid_types:
-            raise ValueError(f"Data type must be one of {valid_types}")
-        return data_type
-
     def __repr__(self):
-        return f"<FeatureStore(entity_id='{self.entity_id}', feature_group='{self.feature_group}', feature_name='{self.feature_name}')>"
+        return f"<FeatureStore(entity_id='{self.entity_id}', feature_group='{self.feature_group}')>"
 
 
 class PredictionLog(Base):

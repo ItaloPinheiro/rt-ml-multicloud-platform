@@ -91,8 +91,9 @@ class TestFeatureStore:
     @patch("src.feature_store.store.get_session")
     def test_delete_features(self, mock_get_session, mock_redis, test_config):
         """Test feature deletion."""
-        # Mock database session
+        # Mock database session — DB fallback returns no record
         mock_session = MagicMock()
+        mock_session.query.return_value.filter.return_value.first.return_value = None
         mock_get_session.return_value.__enter__.return_value = mock_session
 
         store = FeatureStore(redis_client=mock_redis)
@@ -105,15 +106,16 @@ class TestFeatureStore:
         store.put_features(entity_id, feature_group, features)
         store.delete_features(entity_id, feature_group)
 
-        # Should not find features in cache
+        # Should not find features in cache (DB returns None)
         retrieved = store.get_features(entity_id, feature_group)
         assert retrieved == {}
 
     @patch("src.feature_store.store.get_session")
     def test_ttl_functionality(self, mock_get_session, mock_redis, test_config):
         """Test TTL functionality."""
-        # Mock database session
+        # Mock database session — DB fallback returns no record
         mock_session = MagicMock()
+        mock_session.query.return_value.filter.return_value.first.return_value = None
         mock_get_session.return_value.__enter__.return_value = mock_session
 
         store = FeatureStore(redis_client=mock_redis)
@@ -132,7 +134,7 @@ class TestFeatureStore:
         # Mock Redis expiration
         mock_redis.delete(store._build_cache_key(entity_id, feature_group))
 
-        # Should not find in cache after expiration
+        # Should not find in cache after expiration (DB returns None)
         retrieved = store.get_features(entity_id, feature_group)
         assert retrieved == {}
 

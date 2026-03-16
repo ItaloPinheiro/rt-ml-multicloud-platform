@@ -47,16 +47,15 @@ class TestFeatureStoreIntegration:
         retrieved_from_cache = feature_store.get_features(entity_id, feature_group)
         assert retrieved_from_cache == features
 
-        # Verify in database
-        db_features = (
+        # Verify in database — JSONB model: single row per (entity, group)
+        db_record = (
             db_session.query(FeatureStoreModel)
             .filter_by(entity_id=entity_id, feature_group=feature_group)
-            .all()
+            .first()
         )
 
-        assert len(db_features) == 3
-        feature_dict = {f.feature_name: f.feature_value for f in db_features}
-        assert feature_dict == features
+        assert db_record is not None
+        assert db_record.features == features
 
     def test_cache_miss_fallback_to_database(
         self, feature_store, mock_redis, db_session
@@ -340,9 +339,11 @@ class TestFeatureStoreClientIntegration:
 
         assert stats["feature_group"] == feature_group
         assert stats["unique_entities"] == 4
-        assert stats["total_features"] == 12  # 4 entities * 3 features each
+        assert stats["row_count"] == 4  # JSONB: 1 row per entity
+        # total_features counts each feature key across all entities
+        assert stats["total_features"] == 12  # 4 entities * 3 feature keys each
 
-        # Check feature counts
+        # Check per-key counts (each key appears in all 4 entities)
         assert stats["feature_counts"]["age"] == 4
         assert stats["feature_counts"]["income"] == 4
         assert stats["feature_counts"]["category"] == 4

@@ -328,11 +328,11 @@ class FeatureStoreStats(BaseModel):
 
     feature_group: str = Field(..., description="Feature group name")
     unique_entities: int = Field(..., description="Number of unique entities")
-    total_features: int = Field(..., description="Total feature rows")
-    feature_counts: Dict[str, int] = Field(..., description="Feature counts by name")
-    data_type_distribution: Dict[str, int] = Field(
-        ..., description="Distribution of data types"
+    total_features: int = Field(..., description="Total feature key occurrences")
+    feature_counts: Dict[str, int] = Field(
+        ..., description="Count of entities per feature key"
     )
+    row_count: int = Field(..., description="Number of rows (one per entity)")
     timestamp: datetime = Field(..., description="Statistics timestamp")
 
     @field_serializer("timestamp")

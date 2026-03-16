@@ -111,9 +111,7 @@ class TestDatabaseModels:
         feature = FeatureStore(
             entity_id="user_123",
             feature_group="demographics",
-            feature_name="age",
-            feature_value=25,
-            data_type="numeric",
+            features={"age": 25, "income": 50000},
             event_timestamp=datetime.now(timezone.utc),
             source_system="user_service",
             tags={"version": "1.0"},
@@ -125,36 +123,32 @@ class TestDatabaseModels:
         # Verify feature was created
         retrieved = (
             db_session.query(FeatureStore)
-            .filter_by(entity_id="user_123", feature_name="age")
+            .filter_by(entity_id="user_123", feature_group="demographics")
             .first()
         )
         assert retrieved is not None
-        assert retrieved.feature_value == 25
-        assert retrieved.data_type == "numeric"
+        assert retrieved.features["age"] == 25
+        assert retrieved.features["income"] == 50000
 
     def test_feature_store_unique_constraint(self, db_session):
         """Test feature store uniqueness constraint."""
         timestamp = datetime.now(timezone.utc)
 
-        # Create first feature
+        # Create first feature row
         feature1 = FeatureStore(
             entity_id="user_123",
             feature_group="demographics",
-            feature_name="age",
-            feature_value=25,
-            data_type="numeric",
+            features={"age": 25},
             event_timestamp=timestamp,
         )
         db_session.add(feature1)
         db_session.commit()
 
-        # Try to create duplicate feature (same entity, group, name, timestamp)
+        # Try to create duplicate (same entity_id + feature_group)
         feature2 = FeatureStore(
             entity_id="user_123",
             feature_group="demographics",
-            feature_name="age",
-            feature_value=30,
-            data_type="numeric",
+            features={"age": 30},
             event_timestamp=timestamp,
         )
         db_session.add(feature2)
@@ -164,23 +158,6 @@ class TestDatabaseModels:
 
         # Rollback after error
         db_session.rollback()
-
-    def test_feature_store_data_type_validation(self, db_session):
-        """Test feature store data type validation."""
-        feature = FeatureStore(
-            entity_id="user_123",
-            feature_group="test",
-            feature_name="test_feature",
-            feature_value="test",
-            data_type="categorical",
-            event_timestamp=datetime.now(timezone.utc),
-        )
-        db_session.add(feature)
-        db_session.commit()
-
-        # Invalid data type should raise error
-        with pytest.raises(ValueError, match="Data type must be one of"):
-            feature.data_type = "invalid_type"
 
     def test_prediction_log_creation(self, db_session):
         """Test prediction log creation."""
@@ -469,37 +446,32 @@ class TestDatabaseIndexes:
 
     def test_feature_store_indexes(self, db_session):
         """Test feature store table indexes."""
-        # Create multiple features
+        # Create features — one row per (entity, group) with JSONB
         entities = ["user_1", "user_2", "user_3"]
         feature_groups = ["demographics", "behavior"]
-        feature_names = ["age", "income", "clicks"]
 
         for entity in entities:
             for group in feature_groups:
-                for name in feature_names:
-                    feature = FeatureStore(
-                        entity_id=entity,
-                        feature_group=group,
-                        feature_name=name,
-                        feature_value=42,
-                        data_type="numeric",
-                        event_timestamp=datetime.now(timezone.utc),
-                    )
-                    db_session.add(feature)
+                feature = FeatureStore(
+                    entity_id=entity,
+                    feature_group=group,
+                    features={"age": 42, "income": 50000, "clicks": 10},
+                    event_timestamp=datetime.now(timezone.utc),
+                )
+                db_session.add(feature)
         db_session.commit()
 
-        # Test entity_id index
+        # Test entity_id filter
         user_1_features = (
             db_session.query(FeatureStore).filter_by(entity_id="user_1").all()
         )
-        assert len(user_1_features) == 6  # 2 groups * 3 features
+        assert len(user_1_features) == 2  # 2 groups
 
-        # Test composite index (entity_id, feature_group, feature_name)
+        # Test (entity_id, feature_group) lookup
         specific_feature = (
             db_session.query(FeatureStore)
-            .filter_by(
-                entity_id="user_2", feature_group="demographics", feature_name="age"
-            )
+            .filter_by(entity_id="user_2", feature_group="demographics")
             .first()
         )
         assert specific_feature is not None
+        assert specific_feature.features["age"] == 42

@@ -116,9 +116,10 @@ def _read_from_feature_store(
 ) -> tuple:
     """Read features from PostgreSQL feature store (cold storage).
 
-    Returns per-record and aggregated DataFrames in the same format
-    as _read_jsonl() produces, so downstream join/label/map logic
-    works unchanged.
+    JSONB model: each row contains all features as a single JSON object,
+    so no EAV pivot is needed. Returns per-record and aggregated DataFrames
+    in the same format as _read_jsonl() produces, so downstream join/label/map
+    logic works unchanged.
     """
     from sqlalchemy import select
 
@@ -128,39 +129,36 @@ def _read_from_feature_store(
     def _query_group(group: str, feature_names: List[str]) -> pd.DataFrame:
         stmt = select(
             FeatureStoreModel.entity_id,
-            FeatureStoreModel.feature_name,
-            FeatureStoreModel.feature_value,
+            FeatureStoreModel.features,
         ).where(
             FeatureStoreModel.feature_group == group,
-            FeatureStoreModel.feature_name.in_(feature_names),
             FeatureStoreModel.is_active.is_(True),
         )
+        rows = []
         with get_session() as session:
             result = session.execute(stmt).yield_per(10_000)
-            chunks = []
             for partition in result.partitions():
-                chunks.append(
-                    pd.DataFrame(
-                        partition,
-                        columns=["entity_id", "feature_name", "feature_value"],
-                    )
-                )
-            if not chunks:
-                return pd.DataFrame()
-            df = pd.concat(chunks, ignore_index=True)
+                for entity_id, features in partition:
+                    if features:
+                        row = dict(features)
+                        row["user_id"] = entity_id
+                        rows.append(row)
 
-        # Pivot EAV -> wide format (same shape as JSON-lines output)
-        wide = df.pivot_table(
-            index="entity_id",
-            columns="feature_name",
-            values="feature_value",
-            aggfunc="first",
-        ).reset_index()
+        if not rows:
+            return pd.DataFrame()
+
+        wide = pd.DataFrame(rows)
+
+        # Filter to requested feature names (+ user_id)
+        if feature_names:
+            keep = ["user_id"] + [c for c in feature_names if c in wide.columns]
+            wide = wide[keep]
+
         # Cast JSON values to numeric
         for col in wide.columns:
-            if col != "entity_id":
+            if col != "user_id":
                 wide[col] = pd.to_numeric(wide[col], errors="coerce")
-        wide = wide.rename(columns={"entity_id": "user_id"})
+
         return wide
 
     # Query each group from feature_schema keys
