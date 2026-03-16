@@ -583,6 +583,7 @@ class FeatureEngineeringPipeline:
                 >> WriteToText(
                     file_path_prefix=f"{output_path}/features",
                     file_name_suffix=".json",
+                    num_shards=1,
                 )
             )
 
@@ -594,6 +595,7 @@ class FeatureEngineeringPipeline:
                 >> WriteToText(
                     file_path_prefix=f"{output_path}/aggregated",
                     file_name_suffix=".json",
+                    num_shards=1,
                 )
             )
 
@@ -669,6 +671,7 @@ class FeatureEngineeringPipeline:
                         >> WriteToText(
                             file_path_prefix=f"{s3_path}/features",
                             file_name_suffix=".json",
+                            num_shards=1,
                         )
                     )
                     (
@@ -678,6 +681,7 @@ class FeatureEngineeringPipeline:
                         >> WriteToText(
                             file_path_prefix=f"{s3_path}/aggregated",
                             file_name_suffix=".json",
+                            num_shards=1,
                         )
                     )
 
