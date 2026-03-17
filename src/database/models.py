@@ -16,7 +16,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import declarative_base, relationship, validates
 
 Base = declarative_base()
@@ -150,8 +150,8 @@ class FeatureStore(Base):
     entity_id = Column(String(255), nullable=False)
     feature_group = Column(String(255), nullable=False)
 
-    # All features as a single JSON object (replaces per-feature EAV rows)
-    features = Column(JSON, nullable=False)
+    # All features as a single JSONB object (replaces per-feature EAV rows)
+    features = Column(JSONB, nullable=False)
 
     # Timing and versioning
     event_timestamp = Column(DateTime, nullable=False)
@@ -162,7 +162,7 @@ class FeatureStore(Base):
 
     # Metadata
     source_system = Column(String(255))
-    tags = Column(JSON, default=dict)
+    tags = Column(JSONB, default=dict)
 
     # TTL and lifecycle
     ttl_timestamp = Column(DateTime)
