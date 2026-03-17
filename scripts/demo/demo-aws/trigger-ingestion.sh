@@ -117,11 +117,14 @@ echo "  Output:       s3://${BUCKET}/${OUTPUT_PREFIX}"
 echo "============================================"
 
 # ---------------------------------------------------------------------------
-# Step 1: Clean up previous jobs
+# Step 1: Clean up previous jobs and pull fresh images
 # ---------------------------------------------------------------------------
 echo ""
 echo "[1/5] Cleaning up previous jobs..."
 remote "sudo k3s kubectl delete job kinesis-producer beam-ingestion assemble-training-data -n $NAMESPACE --ignore-not-found=true"
+
+echo "  Pulling latest Beam image..."
+remote "sudo k3s crictl pull ghcr.io/italopinheiro/rt-ml-multicloud-platform/beam:main" || true
 
 # ---------------------------------------------------------------------------
 # Step 2: Run Kinesis producer (wait for completion)

@@ -248,6 +248,9 @@ jobs:
           sudo k3s kubectl set image deployment/mlflow \
             mlflow=${REGISTRY}/mlflow:${IMAGE_TAG} -n ml-pipeline
 
+          echo "Pre-pulling Beam image for Jobs..."
+          sudo k3s crictl pull ${REGISTRY}/beam:main || true
+
           echo "Waiting for MLflow rollout..."
           sudo k3s kubectl rollout status deployment/mlflow \
             -n ml-pipeline --timeout=600s
