@@ -123,6 +123,10 @@ echo ""
 echo "[1/5] Cleaning up previous jobs..."
 remote "sudo k3s kubectl delete job kinesis-producer beam-ingestion assemble-training-data -n $NAMESPACE --ignore-not-found=true"
 
+echo "  Cleaning stale S3 feature files..."
+aws s3 rm "s3://${BUCKET}/${OUTPUT_PREFIX}/" --recursive --quiet 2>/dev/null || true
+aws s3 rm "s3://${BUCKET}/datasets/" --recursive --quiet 2>/dev/null || true
+
 echo "  Pulling latest Beam image..."
 remote "sudo k3s crictl pull ghcr.io/italopinheiro/rt-ml-multicloud-platform/beam:main" || true
 
