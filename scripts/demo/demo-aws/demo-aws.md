@@ -117,7 +117,7 @@ python scripts/demo/utilities/list_features.py --summary --redis-host $INSTANCE_
 Pick an entity ID from the Feature Store output for use in the prediction steps:
 ```bash
 ENTITY_ID=$(curl -s "$API_URL/features/stats/transaction_features" | python -c "import sys,json; d=json.load(sys.stdin); print(list(d.get('feature_counts',{}).keys())[0] if d else '')" 2>/dev/null || echo "")
-# Or query PostgreSQL directly:
+
 ENTITY_ID=$(ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP \
   "sudo k3s kubectl exec deployment/postgres -n ml-pipeline -- psql -U mlflow -d mlflow -t -A -c 'SELECT entity_id FROM feature_store LIMIT 1'")
 echo "Using entity: $ENTITY_ID"
