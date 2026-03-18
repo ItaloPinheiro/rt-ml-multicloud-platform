@@ -10,7 +10,6 @@
     "is_weekend",
     "transaction_count_24h",
     "avg_amount_30d",
-    "risk_score",
     "merchant_category_encoded",
     "payment_method_encoded"
   ],

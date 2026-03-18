@@ -15,9 +15,9 @@ echo ""
 
 # Define a few sample requests that we'll repeat
 SAMPLE_REQUESTS=(
-    '{"model_name":"fraud_detector","features":{"amount":150.0,"merchant_category_encoded":73,"payment_method_encoded":4,"hour_of_day":23,"day_of_week":6,"is_weekend":1,"transaction_count_24h":5,"avg_amount_30d":231.04,"risk_score":0.3}}'
-    '{"model_name":"fraud_detector","features":{"amount":2500.0,"merchant_category_encoded":5,"payment_method_encoded":3,"hour_of_day":22,"day_of_week":6,"is_weekend":1,"transaction_count_24h":15,"avg_amount_30d":450.75,"risk_score":0.85}}'
-    '{"model_name":"fraud_detector","features":{"amount":500.0,"merchant_category_encoded":10,"payment_method_encoded":2,"hour_of_day":14,"day_of_week":3,"is_weekend":0,"transaction_count_24h":8,"avg_amount_30d":320.50,"risk_score":0.45}}'
+    '{"model_name":"fraud_detector","features":{"amount":150.0,"merchant_category_encoded":73,"payment_method_encoded":4,"hour_of_day":23,"day_of_week":6,"is_weekend":1,"transaction_count_24h":5,"avg_amount_30d":231.04}}'
+    '{"model_name":"fraud_detector","features":{"amount":2500.0,"merchant_category_encoded":5,"payment_method_encoded":3,"hour_of_day":22,"day_of_week":6,"is_weekend":1,"transaction_count_24h":15,"avg_amount_30d":450.75}}'
+    '{"model_name":"fraud_detector","features":{"amount":500.0,"merchant_category_encoded":10,"payment_method_encoded":2,"hour_of_day":14,"day_of_week":3,"is_weekend":0,"transaction_count_24h":8,"avg_amount_30d":320.50}}'
 )
 
 echo "Phase 1: Initial requests (no cache hits)"

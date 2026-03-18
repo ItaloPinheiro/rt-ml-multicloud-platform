@@ -24,7 +24,6 @@ features:
     - "is_weekend"
     - "transaction_count_24h"
     - "avg_amount_30d"
-    - "risk_score"
     - "amount"
     - "merchant_category_encoded"
     - "payment_method_encoded"
@@ -52,7 +51,6 @@ feature_store:
       - hour_of_day
       - day_of_week
       - is_weekend
-      - risk_score
       - amount
       - merchant_category_encoded
       - payment_method_encoded
@@ -61,7 +59,6 @@ feature_store:
       - avg_amount_30d
   labeling:
     strategy: "rule_based"
-    rule_field: "risk_score"
     threshold: 0.5
 
 # Mapping from Beam pipeline output fields to training feature columns.
@@ -71,7 +68,6 @@ beam_mapping:
   per_record_fields:
     hour_of_day: "hour_of_day"
     day_of_week: "day_of_week"
-    risk_score: "risk_score"
     amount: "amount"
 
   # Aggregated feature fields (from Beam AggregateFeatures output, keyed by user_id)
@@ -102,7 +98,6 @@ validation:
     is_weekend: false
     transaction_count_24h: 5
     avg_amount_30d: 100.0
-    risk_score: 0.5
     amount: 50.0
     merchant_category_encoded: 1
     payment_method_encoded: 1

@@ -88,7 +88,7 @@ def write_csv(df: pd.DataFrame, path: str) -> None:
 
 
 def extract_features(transaction: Dict[str, Any]) -> Dict[str, Any]:
-    """Extract the 9 training features + label from a raw transaction record.
+    """Extract the 8 training features + label from a raw transaction record.
 
     Applies the same feature engineering logic as generate_data.py:
     - Temporal features from the pre-computed features dict
@@ -104,7 +104,6 @@ def extract_features(transaction: Dict[str, Any]) -> Dict[str, Any]:
         "is_weekend": bool_to_int(features.get("is_weekend", False)),
         "transaction_count_24h": features.get("transaction_count_24h", 0),
         "avg_amount_30d": features.get("avg_amount_30d", 0.0),
-        "risk_score": features.get("risk_score", 0.0),
         "amount": transaction.get("amount", 0.0),
         "merchant_category_encoded": hash_encode(
             transaction.get("merchant_category", ""), 100

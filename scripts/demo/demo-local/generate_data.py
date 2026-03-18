@@ -135,8 +135,6 @@ def generate_transactions(users: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         if is_weekend and merchant_category == "cash_advance":
             risk_factors += 0.3
 
-        risk_score = min(risk_factors + user["risk_profile"]["risk_score"], 1.0)
-
         # Determine if fraudulent (base risk from merchant + situational factors, capped by FRAUD_RATE)
         fraud_probability = min(
             MERCHANT_CATEGORIES[merchant_category] + risk_factors, 1.0
@@ -179,7 +177,6 @@ def generate_transactions(users: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
                 "is_weekend": is_weekend,
                 "transaction_count_24h": random.randint(1, 10),
                 "avg_amount_30d": round(random.uniform(50, 300), 2),
-                "risk_score": round(risk_score, 3),
             },
             "label": 1 if is_fraud else 0,
         }

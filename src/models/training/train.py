@@ -157,7 +157,6 @@ class ModelTrainer:
         feature_groups: List[str],
         feature_schema: Dict[str, List[str]],
         labeling_strategy: str = "rule_based",
-        label_field: str = "risk_score",
         label_threshold: float = 0.5,
     ) -> Tuple[pd.DataFrame, pd.Series]:
         """Load training data directly from PostgreSQL feature store.
@@ -170,7 +169,6 @@ class ModelTrainer:
             feature_groups: List of feature group names to query.
             feature_schema: Dict mapping feature_group -> list of feature names.
             labeling_strategy: How to assign labels ("rule_based" or "file_based").
-            label_field: Feature field to use for rule-based labeling.
             label_threshold: Threshold for rule-based labeling.
 
         Returns:
@@ -222,17 +220,11 @@ class ModelTrainer:
             if col != "entity_id":
                 wide[col] = pd.to_numeric(wide[col], errors="coerce")
 
-        # Apply labeling strategy
-        if labeling_strategy == "rule_based":
-            if label_field in wide.columns:
-                wide["label"] = (wide[label_field] >= label_threshold).astype(int)
-            else:
-                logger.warning(
-                    f"Label field '{label_field}' not found, defaulting to 0"
-                )
-                wide["label"] = 0
-        else:
-            wide["label"] = 0
+        # Apply labeling strategy via the labeling module
+        from src.feature_engineering.labeling import get_labeling_strategy
+
+        labeler = get_labeling_strategy(labeling_strategy, threshold=label_threshold)
+        wide["label"] = labeler.assign_labels(wide)
 
         # Select feature columns in model definition order
         target = self.model_def.features.target
@@ -341,7 +333,6 @@ class ModelTrainer:
         feature_groups: Optional[List[str]] = None,
         feature_schema: Optional[Dict[str, List[str]]] = None,
         labeling_strategy: str = "rule_based",
-        label_field: str = "risk_score",
         label_threshold: float = 0.5,
     ):
         """Complete training pipeline with MLflow logging."""
@@ -357,7 +348,6 @@ class ModelTrainer:
                 feature_groups=feature_groups,
                 feature_schema=feature_schema,
                 labeling_strategy=labeling_strategy,
-                label_field=label_field,
                 label_threshold=label_threshold,
             )
             data_source = "feature_store"
