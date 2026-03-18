@@ -37,8 +37,8 @@ class RuleBasedLabeling(LabelingStrategy):
         - Weekend cash advance: +0.3
 
     A record is labeled fraud (1) when the accumulated risk exceeds a
-    configurable threshold (default 0.5).  The threshold is tuned to
-    produce ~5 % fraud rate on realistic transaction distributions.
+    configurable threshold (default 0.65).  The threshold is tuned to
+    produce ~10-15 % fraud rate on realistic transaction distributions.
     """
 
     MERCHANT_BASE_RATES: Dict[str, float] = {
@@ -57,7 +57,7 @@ class RuleBasedLabeling(LabelingStrategy):
     HIGH_RISK_CATEGORIES = {"jewelry", "cash_advance"}
 
     def __init__(
-        self, threshold: float = 0.5, noise_std: float = 0.15, seed: int = 42
+        self, threshold: float = 0.65, noise_std: float = 0.05, seed: int = 42
     ) -> None:
         self.threshold = threshold
         self.noise_std = noise_std
