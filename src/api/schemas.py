@@ -22,7 +22,6 @@ class PredictionRequest(BaseModel):
                 "merchant_category": "electronics",
                 "hour_of_day": 14,
                 "is_weekend": False,
-                "risk_score": 0.3,
             }
         },
     )

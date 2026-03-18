@@ -68,7 +68,6 @@ async def simple_predict(request: SimplePredictionRequest):
             "is_weekend",
             "transaction_count_24h",
             "avg_amount_30d",
-            "risk_score",
             "amount",
             "merchant_category_encoded",
             "payment_method_encoded",

@@ -14,7 +14,6 @@
         "is_weekend": false,
         "transaction_count_24h": 8.0,
         "avg_amount_30d": 75.18,
-        "risk_score": 0.572,
         "amount": 467.37,
         "merchant_category_encoded": 31.0,
         "payment_method_encoded": 7.0

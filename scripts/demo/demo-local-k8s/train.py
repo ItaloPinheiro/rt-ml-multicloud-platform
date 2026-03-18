@@ -203,7 +203,6 @@ def main():
             "is_weekend": False,
             "transaction_count_24h": 4.0,
             "avg_amount_30d": 170.75,
-            "risk_score": 0.283,
             "amount": 395.67,
             "merchant_category_encoded": 0.0,
             "payment_method_encoded": 1.0,
