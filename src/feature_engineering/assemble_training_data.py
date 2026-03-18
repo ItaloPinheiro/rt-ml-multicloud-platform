@@ -565,8 +565,8 @@ def main() -> None:
     parser.add_argument(
         "--labeling-threshold",
         type=float,
-        default=0.5,
-        help="Risk threshold for rule_based labeling (default: 0.5)",
+        default=0.65,
+        help="Risk threshold for rule_based labeling (default: 0.65)",
     )
 
     args = parser.parse_args()
