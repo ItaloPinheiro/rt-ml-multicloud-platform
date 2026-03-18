@@ -7,6 +7,7 @@ Production-realistic: labels never arrive with raw events.
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional
 
+import numpy as np
 import pandas as pd
 
 
@@ -55,16 +56,21 @@ class RuleBasedLabeling(LabelingStrategy):
 
     HIGH_RISK_CATEGORIES = {"jewelry", "cash_advance"}
 
-    def __init__(self, threshold: float = 0.5) -> None:
+    def __init__(
+        self, threshold: float = 0.5, noise_std: float = 0.15, seed: int = 42
+    ) -> None:
         self.threshold = threshold
+        self.noise_std = noise_std
+        self.seed = seed
 
     def assign_labels(self, df: pd.DataFrame) -> pd.Series:
-        """Assign fraud labels based on accumulated risk factors.
+        """Assign fraud labels based on accumulated risk factors with noise.
 
         Accumulates risk from observable transaction features (merchant
-        category, time of day, amount, weekend interactions).  The model
-        trains on these same features in encoded/transformed form, so
-        natural information loss prevents perfect accuracy.
+        category, time of day, amount, weekend interactions), then adds
+        Gaussian noise before thresholding.  The noise prevents any model
+        from achieving perfect accuracy because the label is no longer a
+        deterministic function of the training features.
         """
         risk = pd.Series(0.0, index=df.index)
 
@@ -94,7 +100,15 @@ class RuleBasedLabeling(LabelingStrategy):
             risk += weekend_cash.astype(float) * 0.3
 
         risk = risk.clip(upper=1.0)
-        return (risk >= self.threshold).astype(int)
+
+        # Add Gaussian noise to simulate real-world label uncertainty.
+        # This prevents the model from perfectly learning the deterministic
+        # rules and forces it to generalize from feature patterns.
+        rng = np.random.default_rng(self.seed)
+        noise = rng.normal(0, self.noise_std, size=len(risk))
+        noisy_risk = (risk + noise).clip(0.0, 1.0)
+
+        return (noisy_risk >= self.threshold).astype(int)
 
 
 class FileBasedLabeling(LabelingStrategy):

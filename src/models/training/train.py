@@ -357,9 +357,9 @@ class ModelTrainer:
             X, y = self.load_data(data_path)
             data_source = "csv" if data_path.endswith(".csv") else "parquet"
 
-        # Split data
+        # Stratified split to preserve class balance in train/test
         X_train, X_test, y_train, y_test = train_test_split(
-            X, y, test_size=test_size, random_state=42
+            X, y, test_size=test_size, random_state=42, stratify=y
         )
 
         params = {**self.model_def.algorithm.default_params, **(model_params or {})}
