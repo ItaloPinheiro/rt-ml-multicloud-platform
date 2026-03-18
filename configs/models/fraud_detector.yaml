@@ -59,7 +59,7 @@ feature_store:
       - avg_amount_30d
   labeling:
     strategy: "rule_based"
-    threshold: 0.5
+    threshold: 0.65
 
 # Mapping from Beam pipeline output fields to training feature columns.
 # Used by assemble_training_data to build training CSV from Beam JSON-lines.
