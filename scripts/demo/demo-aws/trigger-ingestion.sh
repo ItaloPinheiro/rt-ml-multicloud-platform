@@ -23,7 +23,7 @@ set -euo pipefail
 # ---------------------------------------------------------------------------
 NAMESPACE="ml-pipeline"
 TOTAL_EVENTS=100
-EVENTS_PER_SECOND=5.0
+EVENTS_PER_SECOND=0
 OUTPUT_PREFIX="features"
 SSH_KEY="${SSH_KEY:-}"
 
@@ -112,7 +112,7 @@ echo "  Instance:     $INSTANCE_IP"
 echo "  Stream:       $STREAM_NAME"
 echo "  S3 bucket:    $BUCKET"
 echo "  Region:       $REGION"
-echo "  Events:       $TOTAL_EVENTS at ${EVENTS_PER_SECOND}/s"
+echo "  Events:       $TOTAL_EVENTS at $([ "$EVENTS_PER_SECOND" = "0" ] && echo "max throughput (batch)" || echo "${EVENTS_PER_SECOND}/s")"
 echo "  Output:       s3://${BUCKET}/${OUTPUT_PREFIX}"
 echo "============================================"
 
@@ -130,13 +130,15 @@ remote "sudo k3s crictl pull ghcr.io/italopinheiro/rt-ml-multicloud-platform/bea
 # Step 2: Run Kinesis producer (wait for completion)
 # ---------------------------------------------------------------------------
 echo ""
-echo "[2/5] Running Kinesis producer ($TOTAL_EVENTS events at ${EVENTS_PER_SECOND}/s)..."
+echo "[2/5] Running Kinesis producer ($TOTAL_EVENTS events, $([ "$EVENTS_PER_SECOND" = "0" ] && echo "batch mode" || echo "${EVENTS_PER_SECOND}/s"))..."
 
 # Patch the manifest with CLI overrides and apply via stdin
-sed \
-  -e "s|value: \"5.0\"|value: \"${EVENTS_PER_SECOND}\"|" \
-  -e "s|value: \"100\"|value: \"${TOTAL_EVENTS}\"|" \
-  "$MANIFESTS_DIR/job-kinesis-producer.yaml" \
+# Use awk for precise env-var patching (sed single-line is fragile with generic values)
+awk -v eps="$EVENTS_PER_SECOND" -v total="$TOTAL_EVENTS" '
+  /name: EVENTS_PER_SECOND/ { print; getline; sub(/"[^"]*"/, "\"" eps "\""); print; next }
+  /name: TOTAL_EVENTS/      { print; getline; sub(/"[^"]*"/, "\"" total "\""); print; next }
+  { print }
+' "$MANIFESTS_DIR/job-kinesis-producer.yaml" \
   | ssh "${SSH_OPTS[@]}" ubuntu@"$INSTANCE_IP" "sudo k3s kubectl apply -f -"
 
 echo "  Waiting for producer to complete..."

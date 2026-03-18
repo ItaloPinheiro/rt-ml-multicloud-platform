@@ -44,7 +44,7 @@ spec:
               name: ml-pipeline-config
               key: AWS_DEFAULT_REGION
         - name: EVENTS_PER_SECOND
-          value: "5.0"
+          value: "0"
         - name: TOTAL_EVENTS
           value: "100"
         resources:
