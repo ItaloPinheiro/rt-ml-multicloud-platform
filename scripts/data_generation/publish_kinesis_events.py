@@ -4,7 +4,7 @@ import json
 import random
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import boto3
 import structlog
@@ -14,14 +14,39 @@ logger = structlog.get_logger()
 
 
 def generate_transaction() -> dict:
-    """Generate a realistic transaction event for feature engineering."""
+    """Generate a realistic transaction event for feature engineering.
+
+    Timestamps are randomized across a 30-day window so Beam extracts
+    diverse temporal features (hour_of_day, day_of_week, is_weekend).
+    Merchant categories match the labeling heuristic in labeling.py so
+    high-risk categories and interaction rules fire as expected.
+    """
+    random_offset = timedelta(
+        days=random.randint(0, 30),
+        hours=random.randint(0, 23),
+        minutes=random.randint(0, 59),
+        seconds=random.randint(0, 59),
+    )
+    timestamp = datetime.now(timezone.utc) - random_offset
+
     return {
         "event_id": str(uuid.uuid4()),
         "user_id": f"user_{random.randint(1, 1000)}",
         "amount": round(random.uniform(1.0, 5000.0), 2),
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": timestamp.isoformat(),
         "merchant_category": random.choice(
-            ["retail", "travel", "food", "entertainment", "utilities"]
+            [
+                "grocery",
+                "gas_station",
+                "restaurant",
+                "pharmacy",
+                "clothing",
+                "online_retail",
+                "electronics",
+                "travel",
+                "jewelry",
+                "cash_advance",
+            ]
         ),
         "payment_method": random.choice(
             ["credit_card", "debit_card", "digital_wallet", "bank_transfer"]
