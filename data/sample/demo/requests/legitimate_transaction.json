@@ -6,8 +6,8 @@
     "transaction_count_24h": 2,
     "avg_amount_30d": 75.0,
     "amount": 42.50,
-    "merchant_category_encoded": 1,
-    "payment_method_encoded": 1
+    "merchant_category_encoded": 75,
+    "payment_method_encoded": 5
   },
   "model_name": "fraud_detector",
   "return_probabilities": true
