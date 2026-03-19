@@ -216,7 +216,7 @@ def create_sample_request_file(transactions: List[Dict[str, Any]]) -> None:
 
     # Save baseline request
     with open(
-        os.path.join(DEMO_REQUESTS_DIR, "baseline_prediction_request.json"), "w"
+        os.path.join(DEMO_REQUESTS_DIR, "legitimate_transaction.json"), "w"
     ) as f:
         json.dump(sample_request, f, indent=2)
 
