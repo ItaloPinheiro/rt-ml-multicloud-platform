@@ -53,7 +53,7 @@ Visit [http://localhost:5000](http://localhost:5000). You should see a new exper
 ```bash
 curl -X POST http://localhost:8000/predict \
   -H "Content-Type: application/json" \
-  -d @data/sample/demo/requests/baseline_prediction_request.json
+  -d @data/sample/demo/requests/legitimate_transaction.json
 ```
 
 **Batch Prediction:**

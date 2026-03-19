@@ -24,8 +24,8 @@ Contains curated data specifically for running demos and quick tests:
 - **datasets/**: Training data for model development
   - `fraud_detection.csv`: Sample fraud detection training data
 - **requests/**: API request payloads for testing
-  - `baseline_prediction_request.json`: Request for testing initial model
-  - `improved_prediction_request.json`: Request for testing improved model
+  - `legitimate_transaction.json`: Legitimate transaction (expect not-fraud)
+  - `fraud_transaction.json`: Fraudulent transaction (expect fraud)
 - **expected/**: Expected outcomes for validation
 - **demo.env**: Environment configuration for demos
 
@@ -110,13 +110,13 @@ python scripts/demo/load_sample_data.py
   - Size: ~40KB
 
 ### Demo Requests
-- **baseline_prediction_request.json**: Standard prediction request
-  - Single transaction features
-  - Used for v1 model testing
+- **legitimate_transaction.json**: Low-risk transaction request
+  - Grocery purchase, business hours, low amount
+  - Expected prediction: not-fraud (0)
 
-- **improved_prediction_request.json**: Enhanced prediction request
-  - Additional features for v2 model
-  - Demonstrates model versioning
+- **fraud_transaction.json**: High-risk transaction request
+  - Cash advance, 3 AM weekend, high amount
+  - Expected prediction: fraud (1)
 
 ## Maintenance
 

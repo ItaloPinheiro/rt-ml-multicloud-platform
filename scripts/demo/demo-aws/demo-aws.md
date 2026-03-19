@@ -153,12 +153,23 @@ curl -s -X POST "$API_URL/predict" \
 
 *   **Success Criteria**: Response contains `"model_version": "1"` and `"features_used"` shows the features fetched from the Feature Store.
 
-You can also send explicit features (without Feature Store lookup):
+**Test both outcomes** — send explicit features to demonstrate the model distinguishes fraud from legitimate transactions:
+
+**Legitimate transaction** (grocery, business hours, low amount — expect `prediction: 0`):
 ```bash
 curl -s -X POST "$API_URL/predict" \
   -H "Content-Type: application/json" \
-  -d @data/sample/demo/requests/baseline_prediction_request.json | python -m json.tool
+  -d @data/sample/demo/requests/legitimate_transaction.json | python -m json.tool
 ```
+
+**Fraudulent transaction** (cash advance, 3 AM weekend, high amount — expect `prediction: 1`):
+```bash
+curl -s -X POST "$API_URL/predict" \
+  -H "Content-Type: application/json" \
+  -d @data/sample/demo/requests/fraud_transaction.json | python -m json.tool
+```
+
+> **Note:** v1 (shallow trees) may misclassify some fraud cases. The upgrade to v2 should improve fraud recall significantly.
 
 ### 8. Train & Upgrade Model (Version 2 — Improved)
 
@@ -172,7 +183,7 @@ Now train a **stronger model** with more estimators and unlimited tree depth:
 1.  Materialization runs again (picks up any new features since v1).
 2.  Training Job runs with 200 estimators and unlimited depth (vs 10 trees at depth 1 in v1).
 3.  Evaluation gate compares v2 against v1 champion on **accuracy** and **f1_score**.
-4.  v2 will have better accuracy (~82% vs ~81%) and much better f1 (~0.40 vs ~0.00), so it gets promoted.
+4.  v2 will have better accuracy (~95% vs ~89%) and much better fraud recall, so it gets promoted.
 
 > **Tip:** You can also try `--class-weight balanced` to tell the classifier to pay more attention to the minority fraud class, trading some accuracy for better recall.
 
@@ -182,14 +193,26 @@ Now train a **stronger model** with more estimators and unlimited tree depth:
 
 The API polls MLflow every **10 seconds** for changes to the "production" alias.
 
-Check the model version using the same entity_id lookup:
+Re-run the same predictions to verify the model upgrade and compare results:
+
 ```bash
+# Feature Store lookup — should now show model_version: 2
 curl -s -X POST "$API_URL/predict" \
   -H "Content-Type: application/json" \
   -d "{\"entity_id\": \"$ENTITY_ID\"}" | python -m json.tool
+
+# Legitimate transaction — should remain prediction: 0 with higher confidence
+curl -s -X POST "$API_URL/predict" \
+  -H "Content-Type: application/json" \
+  -d @data/sample/demo/requests/legitimate_transaction.json | python -m json.tool
+
+# Fraud transaction — should now correctly return prediction: 1
+curl -s -X POST "$API_URL/predict" \
+  -H "Content-Type: application/json" \
+  -d @data/sample/demo/requests/fraud_transaction.json | python -m json.tool
 ```
 
-*   **Success Criteria**: Response switches to `"model_version": "2"` without any downtime.
+*   **Success Criteria**: All responses show `"model_version": "2"`. The fraud transaction is correctly flagged. The legitimate transaction remains not-fraud.
 
 ### End-to-End Pipeline Architecture
 
@@ -421,10 +444,15 @@ curl -s -X POST "$API_URL/predict" \
   -H "Content-Type: application/json" \
   -d "{\"entity_id\": \"$ENTITY_ID\"}" | python -m json.tool
 
-# Predict with explicit features (no Feature Store)
+# Predict with explicit features — legitimate transaction (expect not-fraud)
 curl -s -X POST "$API_URL/predict" \
   -H "Content-Type: application/json" \
-  -d @data/sample/demo/requests/baseline_prediction_request.json | python -m json.tool
+  -d @data/sample/demo/requests/legitimate_transaction.json | python -m json.tool
+
+# Predict with explicit features — fraud transaction (expect fraud)
+curl -s -X POST "$API_URL/predict" \
+  -H "Content-Type: application/json" \
+  -d @data/sample/demo/requests/fraud_transaction.json | python -m json.tool
 
 # API docs (open in browser)
 echo "$API_URL/docs"
