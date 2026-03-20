@@ -154,10 +154,15 @@ def _read_from_feature_store(
             keep = ["user_id"] + [c for c in feature_names if c in wide.columns]
             wide = wide[keep]
 
-        # Cast JSON values to numeric
+        # Cast numeric-looking JSON values to numeric, preserve strings
         for col in wide.columns:
             if col != "user_id":
-                wide[col] = pd.to_numeric(wide[col], errors="coerce")
+                converted = pd.to_numeric(wide[col], errors="coerce")
+                # Only apply if conversion didn't turn most values to NaN
+                non_null_ratio = converted.notna().mean()
+                if non_null_ratio > 0.5:
+                    wide[col] = converted
+                # else: keep original (string) values
 
         return wide
 
