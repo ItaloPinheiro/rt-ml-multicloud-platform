@@ -293,7 +293,7 @@ def assemble_training_data(
     model_def = load_model_definition(model_type)
 
     if source == "feature_store":
-        # Read from PostgreSQL feature store
+        # Read per-record features from PostgreSQL feature store
         import yaml
 
         from src.models.model_definition import _DEFAULT_DEFINITIONS_PATH
@@ -304,7 +304,7 @@ def assemble_training_data(
 
         fs_config = raw.get("feature_store", {})
         feature_groups = fs_config.get(
-            "feature_groups", ["transaction_features", "aggregated_features"]
+            "feature_groups", ["transaction_features"]
         )
         feature_schema = fs_config.get("schema", {})
 
@@ -312,6 +312,16 @@ def assemble_training_data(
         features_df, aggregated_df = _read_from_feature_store(
             feature_groups, feature_schema
         )
+
+        # Read aggregated features from S3 if available (they are not
+        # reliably persisted to the Feature Store due to Beam pipeline
+        # write ordering / deadlocks).
+        if aggregated_path:
+            logger.info(
+                "Reading aggregated features from S3: %s", aggregated_path
+            )
+            aggregated_raw = _read_jsonl(aggregated_path)
+            aggregated_df = pd.DataFrame(aggregated_raw)
     else:
         # Read from Beam JSON-lines (original path)
         if not features_path or not aggregated_path:
