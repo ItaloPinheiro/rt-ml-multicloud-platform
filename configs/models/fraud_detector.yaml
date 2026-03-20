@@ -45,18 +45,14 @@ serving:
 feature_store:
   feature_groups:
     - transaction_features
-    - aggregated_features
   schema:
     transaction_features:
       - hour_of_day
       - day_of_week
       - is_weekend
       - amount
-      - merchant_category_encoded
-      - payment_method_encoded
-    aggregated_features:
-      - transaction_count_24h
-      - avg_amount_30d
+      - merchant_category
+      - payment_method
   labeling:
     strategy: "rule_based"
     threshold: 0.65
