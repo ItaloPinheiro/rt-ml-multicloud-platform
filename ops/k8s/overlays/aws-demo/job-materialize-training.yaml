@@ -27,6 +27,7 @@ spec:
         command: ["python", "-m", "src.feature_engineering.assemble_training_data"]
         args:
         - "--source=feature_store"
+        - "--aggregated-path=s3://$(TRAINING_DATA_BUCKET)/features/aggregated"
         - "--output-format=parquet"
         - "--output-path=s3://$(TRAINING_DATA_BUCKET)/datasets/fraud_detection.parquet"
         - "--model-type=fraud_detector"
