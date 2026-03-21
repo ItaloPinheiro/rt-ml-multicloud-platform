@@ -115,18 +115,20 @@ make_request() {
         fi
     fi
 
-    local start_ms
-    start_ms=$(date +%s%3N 2>/dev/null || python -c "import time; print(int(time.time()*1000))")
+    local response
+    response=$(curl -s -w "\n%{http_code}" -X POST "$API_URL/predict" \
+        -H "Content-Type: application/json" \
+        -d "$payload" --max-time 10 2>/dev/null || echo -e "\n000")
 
     local http_code
-    http_code=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$API_URL/predict" \
-        -H "Content-Type: application/json" \
-        -d "$payload" --max-time 10 2>/dev/null || echo "000")
+    http_code=$(echo "$response" | tail -1)
+    local body
+    body=$(echo "$response" | sed '$d')
 
-    local end_ms
-    end_ms=$(date +%s%3N 2>/dev/null || python -c "import time; print(int(time.time()*1000))")
+    # Extract server-side latency_ms from response body
+    local latency
+    latency=$(echo "$body" | python -c "import sys,json; print(int(json.load(sys.stdin).get('latency_ms',0)))" 2>/dev/null || echo "0")
 
-    local latency=$((end_ms - start_ms))
     echo "$latency $http_code" > "$RESULTS_DIR/$id.txt"
 }
 
@@ -198,7 +200,7 @@ if [ "$N" -gt 0 ]; then
     echo "Total time:   ${TOTAL_MS}ms"
     echo "Throughput:   $(python -c "print(f'{$N / ($TOTAL_MS / 1000):.1f}')" 2>/dev/null || echo "N/A") req/s"
     echo ""
-    echo "Latency:"
+    echo "Server-Side Latency (from API response):"
     echo "  Min:  ${MIN}ms"
     echo "  Avg:  ${AVG}ms"
     echo "  P50:  ${P50}ms"
