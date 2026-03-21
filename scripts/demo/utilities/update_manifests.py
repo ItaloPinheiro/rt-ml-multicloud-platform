@@ -41,7 +41,6 @@ kust["configMapGenerator"].extend(
                 "../../monitoring/grafana/dashboards/model-performance.json",
                 "../../monitoring/grafana/dashboards/feature-store.json",
                 "../../monitoring/grafana/dashboards/system-resources.json",
-                "../../monitoring/grafana/dashboards/data-ingestion.json",
                 "../../monitoring/grafana/dashboards/error-tracking.json",
                 "../../monitoring/grafana/dashboards/apps-uptime.json",
             ],
