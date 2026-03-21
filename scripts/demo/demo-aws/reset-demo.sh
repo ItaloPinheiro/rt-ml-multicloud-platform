@@ -81,35 +81,61 @@ if ! remote "echo ok" >/dev/null 2>&1; then
   exit 1
 fi
 
+# Read stream name and region from K8s ConfigMap
+STREAM_NAME=$(remote "sudo k3s kubectl get configmap ml-pipeline-config -n $NAMESPACE -o jsonpath='{.data.KINESIS_STREAM_NAME}'" 2>/dev/null || echo "")
+REGION=$(remote "sudo k3s kubectl get configmap ml-pipeline-config -n $NAMESPACE -o jsonpath='{.data.AWS_DEFAULT_REGION}'" 2>/dev/null || echo "us-east-1")
+
 echo "============================================"
 echo "  Reset Demo - Full Clean Slate"
 echo "============================================"
 echo "  Instance:  $INSTANCE_IP"
 echo "  S3 bucket: $S3_BUCKET"
+echo "  Stream:    ${STREAM_NAME:-not found}"
+echo "  Region:    $REGION"
 echo "============================================"
 echo
 
 # ---------------------------------------------------------------------------
 # 1. Delete all K8s Jobs
 # ---------------------------------------------------------------------------
-echo "[1/4] Deleting all K8s Jobs..."
+echo "[1/5] Deleting all K8s Jobs..."
 remote "sudo k3s kubectl delete jobs --all -n $NAMESPACE --ignore-not-found" 2>&1 || true
 echo "  Done."
 echo
 
 # ---------------------------------------------------------------------------
-# 2. Clean up MLflow (models + experiments, auto-restores for reuse)
+# 2. Recreate Kinesis stream (purge old events)
 # ---------------------------------------------------------------------------
-echo "[2/4] Cleaning up MLflow (models + experiments)..."
+if [ -n "$STREAM_NAME" ]; then
+  echo "[2/5] Recreating Kinesis stream (purging retained events)..."
+  # Delete the stream
+  aws kinesis delete-stream --stream-name "$STREAM_NAME" --region "$REGION" 2>&1 || true
+  echo "  Waiting for stream deletion..."
+  aws kinesis wait stream-not-exists --stream-name "$STREAM_NAME" --region "$REGION" 2>&1 || true
+
+  # Recreate with same config (1 shard, 24h retention)
+  aws kinesis create-stream --stream-name "$STREAM_NAME" --shard-count 1 --region "$REGION" 2>&1
+  echo "  Waiting for stream to become active..."
+  aws kinesis wait stream-exists --stream-name "$STREAM_NAME" --region "$REGION" 2>&1
+  echo "  Stream recreated."
+else
+  echo "[2/5] Skipping Kinesis reset (stream name not found in ConfigMap)."
+fi
+echo
+
+# ---------------------------------------------------------------------------
+# 3. Clean up MLflow (models + experiments, auto-restores for reuse)
+# ---------------------------------------------------------------------------
+echo "[3/5] Cleaning up MLflow (models + experiments)..."
 export MLFLOW_TRACKING_URI="http://$INSTANCE_IP:30500"
 cd "$PROJECT_ROOT"
 python scripts/demo/utilities/cleanup_models.py --all --force
 echo
 
 # ---------------------------------------------------------------------------
-# 3. Flush Feature Store (Redis + PostgreSQL)
+# 4. Flush Feature Store (Redis + PostgreSQL)
 # ---------------------------------------------------------------------------
-echo "[3/4] Flushing Feature Store..."
+echo "[4/5] Flushing Feature Store..."
 
 # Redis (requires auth)
 REDIS_PASS=$(remote \
@@ -124,9 +150,9 @@ echo "  PostgreSQL tables truncated."
 echo
 
 # ---------------------------------------------------------------------------
-# 4. Clear S3 data
+# 5. Clear S3 data
 # ---------------------------------------------------------------------------
-echo "[4/4] Clearing S3 data..."
+echo "[5/5] Clearing S3 data..."
 aws s3 rm "s3://$S3_BUCKET/features/" --recursive --quiet 2>&1 || true
 aws s3 rm "s3://$S3_BUCKET/datasets/" --recursive --quiet 2>&1 || true
 echo "  S3 cleared."
