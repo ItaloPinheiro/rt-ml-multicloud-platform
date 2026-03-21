@@ -68,22 +68,21 @@ if [ "$HTTP_CODE" != "200" ]; then
 fi
 echo "API is healthy."
 
+# Derive INSTANCE_IP from API_URL if not set
+if [ -z "${INSTANCE_IP:-}" ]; then
+    INSTANCE_IP=$(echo "$API_URL" | sed -E 's|https?://([^:/]+).*|\1|')
+fi
+
 # Fetch entity IDs if needed
 ENTITY_IDS=()
 if [ "$USE_ENTITY_IDS" = true ]; then
     echo "Fetching entity IDs from Feature Store..."
-    ENTITY_IDS_RAW=$(curl -s "$API_URL/features/groups" | python3 -c "
-import sys, json
-groups = json.load(sys.stdin)
-if not groups:
-    sys.exit(1)
-" 2>/dev/null && \
-    ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem "ubuntu@${INSTANCE_IP}" \
+    ENTITY_IDS_RAW=$(ssh -o ConnectTimeout=5 -i ~/.ssh/rt-ml-platform-aws-ec2.pem "ubuntu@${INSTANCE_IP}" \
         "sudo k3s kubectl exec deployment/postgres -n ml-pipeline -- psql -U mlflow -d mlflow -t -A -c \
         'SELECT entity_id FROM feature_store WHERE feature_group = '\''transaction_features'\'' ORDER BY RANDOM() LIMIT 50'" 2>/dev/null || true)
 
     if [ -z "$ENTITY_IDS_RAW" ]; then
-        echo "WARNING: Could not fetch entity IDs. Falling back to explicit features."
+        echo "WARNING: Could not fetch entity IDs via SSH. Falling back to explicit features."
         USE_ENTITY_IDS=false
     else
         IFS=$'\n' read -r -d '' -a ENTITY_IDS <<< "$ENTITY_IDS_RAW" || true
@@ -117,7 +116,7 @@ make_request() {
     fi
 
     local start_ms
-    start_ms=$(date +%s%3N 2>/dev/null || python3 -c "import time; print(int(time.time()*1000))")
+    start_ms=$(date +%s%3N 2>/dev/null || python -c "import time; print(int(time.time()*1000))")
 
     local http_code
     http_code=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$API_URL/predict" \
@@ -125,7 +124,7 @@ make_request() {
         -d "$payload" --max-time 10 2>/dev/null || echo "000")
 
     local end_ms
-    end_ms=$(date +%s%3N 2>/dev/null || python3 -c "import time; print(int(time.time()*1000))")
+    end_ms=$(date +%s%3N 2>/dev/null || python -c "import time; print(int(time.time()*1000))")
 
     local latency=$((end_ms - start_ms))
     echo "$latency $http_code" > "$RESULTS_DIR/$id.txt"
@@ -138,7 +137,7 @@ echo ""
 
 STARTED=0
 ACTIVE=0
-START_TIME=$(date +%s%3N 2>/dev/null || python3 -c "import time; print(int(time.time()*1000))")
+START_TIME=$(date +%s%3N 2>/dev/null || python -c "import time; print(int(time.time()*1000))")
 
 for ((i=0; i<TOTAL_REQUESTS; i++)); do
     make_request "$i" &
@@ -158,7 +157,7 @@ done
 
 wait
 
-END_TIME=$(date +%s%3N 2>/dev/null || python3 -c "import time; print(int(time.time()*1000))")
+END_TIME=$(date +%s%3N 2>/dev/null || python -c "import time; print(int(time.time()*1000))")
 TOTAL_MS=$((END_TIME - START_TIME))
 
 # Collect results
@@ -197,7 +196,7 @@ if [ "$N" -gt 0 ]; then
     echo ""
     echo "=== Results ==="
     echo "Total time:   ${TOTAL_MS}ms"
-    echo "Throughput:   $(python3 -c "print(f'{$N / ($TOTAL_MS / 1000):.1f}')" 2>/dev/null || echo "N/A") req/s"
+    echo "Throughput:   $(python -c "print(f'{$N / ($TOTAL_MS / 1000):.1f}')" 2>/dev/null || echo "N/A") req/s"
     echo ""
     echo "Latency:"
     echo "  Min:  ${MIN}ms"
@@ -210,7 +209,7 @@ if [ "$N" -gt 0 ]; then
     echo "Status:"
     echo "  Success: $SUCCESS"
     echo "  Errors:  $ERRORS"
-    echo "  Rate:    $(python3 -c "print(f'{$SUCCESS / $N * 100:.1f}')" 2>/dev/null || echo "N/A")%"
+    echo "  Rate:    $(python -c "print(f'{$SUCCESS / $N * 100:.1f}')" 2>/dev/null || echo "N/A")%"
 else
     echo ""
     echo "ERROR: No results collected"
