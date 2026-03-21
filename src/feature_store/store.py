@@ -497,18 +497,26 @@ class FeatureStore:
         feature_group: str,
         event_timestamp: datetime,
         ttl_timestamp: datetime,
+        max_retries: int = 3,
     ) -> None:
         """Persist features for multiple entities using batch upsert.
 
         JSONB model: one row per entity (not per feature), with all features
         stored as a single JSON object. Uses INSERT ... ON CONFLICT with JSONB
         merge (||) for PostgreSQL, or ORM merge for other dialects.
+
+        Entities are sorted by entity_id to ensure consistent lock ordering
+        and prevent deadlocks when multiple Beam workers write concurrently.
+        Retries with exponential backoff on deadlock detection.
         """
         import json as json_mod
         import uuid
 
+        # Sort by entity_id for consistent lock ordering (prevents deadlocks)
+        sorted_entities = sorted(entities, key=lambda x: x[0])
+
         rows = []
-        for entity_id, features in entities:
+        for entity_id, features in sorted_entities:
             rows.append(
                 {
                     "id": str(uuid.uuid4()),
@@ -529,41 +537,63 @@ class FeatureStore:
 
         chunk_size = 5000  # 1 row per entity now (up from 500)
 
-        with get_session() as session:
-            bind = session.get_bind()
-            dialect = bind.dialect.name if hasattr(bind, "dialect") else "unknown"
-
-            if dialect == "postgresql":
-                stmt = text(
-                    """
-                    INSERT INTO feature_store (
-                        id, entity_id, feature_group, features,
-                        event_timestamp, ingestion_timestamp, ttl_timestamp,
-                        is_active, feature_version, tags
-                    ) VALUES (
-                        :id, :entity_id, :feature_group,
-                        CAST(:features AS jsonb), :event_timestamp,
-                        :ingestion_timestamp, :ttl_timestamp,
-                        :is_active, :feature_version, CAST(:tags AS jsonb)
+        for attempt in range(max_retries):
+            try:
+                with get_session() as session:
+                    bind = session.get_bind()
+                    dialect = (
+                        bind.dialect.name if hasattr(bind, "dialect") else "unknown"
                     )
-                    ON CONFLICT (entity_id, feature_group)
-                    DO UPDATE SET
-                        features = feature_store.features || EXCLUDED.features,
-                        event_timestamp = EXCLUDED.event_timestamp,
-                        ingestion_timestamp = EXCLUDED.ingestion_timestamp,
-                        ttl_timestamp = EXCLUDED.ttl_timestamp,
-                        is_active = true
-                """
-                )
-                for i in range(0, len(rows), chunk_size):
-                    session.execute(stmt, rows[i : i + chunk_size])
-            else:
-                # Fallback for SQLite / other dialects: use ORM merge
-                for row in rows:
-                    row["features"] = json_mod.loads(row["features"])
-                    row["tags"] = {}
-                    record = FeatureStoreModel(**row)
-                    session.merge(record)
+
+                    if dialect == "postgresql":
+                        stmt = text(
+                            """
+                            INSERT INTO feature_store (
+                                id, entity_id, feature_group, features,
+                                event_timestamp, ingestion_timestamp, ttl_timestamp,
+                                is_active, feature_version, tags
+                            ) VALUES (
+                                :id, :entity_id, :feature_group,
+                                CAST(:features AS jsonb), :event_timestamp,
+                                :ingestion_timestamp, :ttl_timestamp,
+                                :is_active, :feature_version, CAST(:tags AS jsonb)
+                            )
+                            ON CONFLICT (entity_id, feature_group)
+                            DO UPDATE SET
+                                features = feature_store.features || EXCLUDED.features,
+                                event_timestamp = EXCLUDED.event_timestamp,
+                                ingestion_timestamp = EXCLUDED.ingestion_timestamp,
+                                ttl_timestamp = EXCLUDED.ttl_timestamp,
+                                is_active = true
+                        """
+                        )
+                        for i in range(0, len(rows), chunk_size):
+                            session.execute(stmt, rows[i : i + chunk_size])
+                    else:
+                        # Fallback for SQLite / other dialects: use ORM merge
+                        for row in rows:
+                            row["features"] = json_mod.loads(row["features"])
+                            row["tags"] = {}
+                            record = FeatureStoreModel(**row)
+                            session.merge(record)
+                return  # Success
+            except Exception as e:
+                is_deadlock = "deadlock" in str(e).lower()
+                if is_deadlock and attempt < max_retries - 1:
+                    wait = 0.1 * (2**attempt)  # 0.1s, 0.2s, 0.4s
+                    self.logger.warning(
+                        "Deadlock detected, retrying",
+                        feature_group=feature_group,
+                        attempt=attempt + 1,
+                        max_retries=max_retries,
+                        wait_seconds=wait,
+                    )
+                    time.sleep(wait)
+                    # Regenerate UUIDs for retry
+                    for row in rows:
+                        row["id"] = str(uuid.uuid4())
+                else:
+                    raise
 
     def _build_cache_key(self, entity_id: str, feature_group: str) -> str:
         """Build Redis cache key.
