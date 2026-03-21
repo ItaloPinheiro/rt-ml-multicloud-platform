@@ -414,7 +414,7 @@ class AggregateFeatures(beam.DoFn):
 
             # Compute aggregations
             aggregated = {
-                "key": key,
+                "user_id": key,
                 "window_start": min(f.get("timestamp", "") for f in features_list),
                 "window_end": max(f.get("timestamp", "") for f in features_list),
                 "record_count": len(features_list),

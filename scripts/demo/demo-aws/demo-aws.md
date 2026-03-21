@@ -69,6 +69,10 @@ Once the script completes, ensure the platform pods are running:
 ```bash
 ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl get pods -n ml-pipeline"
 ```
+```bash
+ssh -t -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP "watch -n 5 'sudo k3s kubectl get pods -n ml-pipeline'"
+```
+
 *   You should see `ml-pipeline-api` and `ml-pipeline-mlflow` with status `Running`.
 
 ### 4. Run Feature Engineering Pipeline (Kinesis + Beam)
@@ -76,7 +80,7 @@ ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP "sudo k3s kubectl g
 Publish mock transaction events to Kinesis, then run the Apache Beam pipeline to extract features and store them in the Feature Store (Redis + PostgreSQL).
 
 ```bash
-./scripts/demo/demo-aws/trigger-ingestion.sh --total-events 100
+./scripts/demo/demo-aws/trigger-ingestion.sh --total-events 500
 ```
 
 **What happens:**
@@ -96,31 +100,60 @@ Publish mock transaction events to Kinesis, then run the Apache Beam pipeline to
 Verify that the Feature Store was populated by the Beam pipeline.
 
 **Via API:**
+
 ```bash
 # List feature groups and entity counts
 curl -s "$API_URL/features/groups" | python -m json.tool
 
-# View features for a specific entity (pick any entity_id from the groups output)
-curl -s "$API_URL/features/$ENTITY_ID" | python -m json.tool
-
-# Feature group statistics
+# Feature group statistics (column names, row counts)
 curl -s "$API_URL/features/stats/transaction_features" | python -m json.tool
+curl -s "$API_URL/features/stats/aggregated_features" | python -m json.tool
 ```
 
-**Via CLI:**
+**Via PostgreSQL (direct database query):**
+
 ```bash
-python scripts/demo/utilities/list_features.py --summary --redis-host $INSTANCE_IP --db-host $INSTANCE_IP
+# Feature groups summary (groups, unique entities, total rows)
+ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP \
+  "sudo k3s kubectl exec deployment/postgres -n ml-pipeline -- psql -U mlflow -d mlflow -c \
+  \"SELECT feature_group, COUNT(DISTINCT entity_id) AS entities, COUNT(*) AS rows FROM feature_store GROUP BY feature_group\""
+
+# Sample entity from transaction_features (pretty-printed JSONB)
+ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP \
+  "sudo k3s kubectl exec deployment/postgres -n ml-pipeline -- psql -U mlflow -d mlflow -c \
+  \"SELECT entity_id, jsonb_pretty(features) FROM feature_store WHERE feature_group = 'transaction_features' LIMIT 1\""
+
+# Transaction features: extract key columns as a readable table
+ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP \
+  "sudo k3s kubectl exec deployment/postgres -n ml-pipeline -- psql -U mlflow -d mlflow -c \
+  \"SELECT entity_id,
+    features->>'merchant_category' AS merchant,
+    features->>'amount' AS amount,
+    features->>'hour_of_day' AS hour,
+    features->>'day_of_week' AS dow,
+    features->>'is_weekend' AS weekend,
+    features->>'payment_method' AS payment,
+    features->>'risk_score' AS risk
+  FROM feature_store
+  WHERE feature_group = 'transaction_features'
+  LIMIT 10\""
+
+# Check aggregated_features (record_count, avg_amount per user)
+ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP \
+  "sudo k3s kubectl exec deployment/postgres -n ml-pipeline -- psql -U mlflow -d mlflow -c \
+  \"SELECT entity_id, jsonb_pretty(features) FROM feature_store WHERE feature_group = 'aggregated_features' LIMIT 1\""
 ```
 
-*   **Success Criteria**: Feature groups `transaction_features` and `aggregated_features` appear with entities populated.
+*   **Success Criteria**: Feature group `transaction_features` appears with entities populated. `aggregated_features` contains per-user aggregates (record_count, avg_amount).
 
-Pick an entity ID from the Feature Store output for use in the prediction steps:
+**Pick an entity ID** from the Feature Store output for use in the prediction steps:
 ```bash
-ENTITY_ID=$(curl -s "$API_URL/features/stats/transaction_features" | python -c "import sys,json; d=json.load(sys.stdin); print(list(d.get('feature_counts',{}).keys())[0] if d else '')" 2>/dev/null || echo "")
-
 ENTITY_ID=$(ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP \
   "sudo k3s kubectl exec deployment/postgres -n ml-pipeline -- psql -U mlflow -d mlflow -t -A -c 'SELECT entity_id FROM feature_store LIMIT 1'")
 echo "Using entity: $ENTITY_ID"
+
+# View all features for that entity via API
+curl -s "$API_URL/features/$ENTITY_ID" | python -m json.tool
 ```
 
 ### 6. Train Model Version 1 (Baseline)
