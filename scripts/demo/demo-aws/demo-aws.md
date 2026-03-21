@@ -152,7 +152,6 @@ ENTITY_ID=$(ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP \
   "sudo k3s kubectl exec deployment/postgres -n ml-pipeline -- psql -U mlflow -d mlflow -t -A -c 'SELECT entity_id FROM feature_store LIMIT 1'")
 echo "Using entity: $ENTITY_ID"
 
-# View all features for that entity via API
 curl -s "$API_URL/features/$ENTITY_ID" | python -m json.tool
 ```
 
@@ -174,7 +173,7 @@ We start with a **weak baseline** model: few estimators and shallow trees (max d
 3. Model v1 is registered in MLflow and auto-promoted (no prior champion).
 4. API auto-detects the new production model within 10 seconds.
 
-### 7. Verify API Prediction (Version 1)
+### 7. Verify API Prediction (Version 1 — Weak Baseline)
 
 The API can now serve predictions by looking up features directly from the Feature Store using an `entity_id`:
 
@@ -186,7 +185,7 @@ curl -s -X POST "$API_URL/predict" \
 
 *   **Success Criteria**: Response contains `"model_version": "1"` and `"features_used"` shows the features fetched from the Feature Store.
 
-**Test both outcomes** — send explicit features to demonstrate the model distinguishes fraud from legitimate transactions:
+**Test both scenarios** — v1 is a weak model (10 trees, max depth 1), so it predicts **both cases as not-fraud**. This is intentional — it demonstrates why a better model is needed:
 
 **Legitimate transaction** (grocery, business hours, low amount — expect `prediction: 0`):
 ```bash
@@ -195,14 +194,14 @@ curl -s -X POST "$API_URL/predict" \
   -d @data/sample/demo/requests/legitimate_transaction.json | python -m json.tool
 ```
 
-**Fraudulent transaction** (cash advance, 3 AM weekend, high amount — expect `prediction: 1`):
+**Fraudulent transaction** (cash advance, 3 AM weekend, high amount — also `prediction: 0` with v1):
 ```bash
 curl -s -X POST "$API_URL/predict" \
   -H "Content-Type: application/json" \
   -d @data/sample/demo/requests/fraud_transaction.json | python -m json.tool
 ```
 
-> **Note:** v1 (shallow trees) may misclassify some fraud cases. The upgrade to v2 should improve fraud recall significantly.
+> **Key insight:** v1 classifies **everything as not-fraud** (prediction: 0). The shallow trees (depth 1) cannot learn complex fraud patterns — they achieve ~80-90% accuracy simply by predicting the majority class. This is why the f1_score for fraud is near 0. The upgrade to v2 fixes this.
 
 ### 8. Train & Upgrade Model (Version 2 — Improved)
 
@@ -224,28 +223,33 @@ Now train a **stronger model** with more estimators and unlimited tree depth:
 
 ### 9. Verify Auto-Promotion (Zero-Downtime Deployment)
 
-The API polls MLflow every **10 seconds** for changes to the "production" alias.
-
-Re-run the same predictions to verify the model upgrade and compare results:
+The API polls MLflow every **10 seconds** for changes to the "production" alias. After v2 is promoted, re-run the **exact same predictions** to demonstrate the improvement.
 
 ```bash
-# Feature Store lookup — should now show model_version: 2
 curl -s -X POST "$API_URL/predict" \
   -H "Content-Type: application/json" \
   -d "{\"entity_id\": \"$ENTITY_ID\"}" | python -m json.tool
+```
 
-# Legitimate transaction — should remain prediction: 0 with higher confidence
+*   **Success Criteria**: Response now contains `"model_version": "2"` — the API picked up the new model automatically, zero downtime.
+
+**Re-run the same payloads** from step 7 to demonstrate v2's improved fraud detection:
+
+**Legitimate transaction** (grocery, business hours, low amount — still `prediction: 0`, same as v1):
+```bash
 curl -s -X POST "$API_URL/predict" \
   -H "Content-Type: application/json" \
   -d @data/sample/demo/requests/legitimate_transaction.json | python -m json.tool
+```
 
-# Fraud transaction — should now correctly return prediction: 1
+**Fraudulent transaction** (cash advance, 3 AM weekend, high amount — now `prediction: 1`, v2 catches the fraud that v1 missed):
+```bash
 curl -s -X POST "$API_URL/predict" \
   -H "Content-Type: application/json" \
   -d @data/sample/demo/requests/fraud_transaction.json | python -m json.tool
 ```
 
-*   **Success Criteria**: All responses show `"model_version": "2"`. The fraud transaction is correctly flagged. The legitimate transaction remains not-fraud.
+> **Key insight:** Same API, same payloads, better results. v2 (200 trees, unlimited depth) correctly flags the fraudulent transaction that v1 (10 trees, depth 1) missed. This is the zero-downtime model upgrade in action — the evaluation gate verified v2 beats v1 on both accuracy and f1_score before promoting it.
 
 ### End-to-End Pipeline Architecture
 

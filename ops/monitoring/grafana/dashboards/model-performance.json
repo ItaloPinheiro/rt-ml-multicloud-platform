@@ -48,17 +48,17 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.50, rate(ml_prediction_duration_seconds_bucket[5m]))",
+          "expr": "histogram_quantile(0.50, sum(rate(ml_prediction_duration_seconds_bucket[5m])) by (le))",
           "legendFormat": "P50",
           "refId": "A"
         },
         {
-          "expr": "histogram_quantile(0.95, rate(ml_prediction_duration_seconds_bucket[5m]))",
+          "expr": "histogram_quantile(0.95, sum(rate(ml_prediction_duration_seconds_bucket[5m])) by (le))",
           "legendFormat": "P95",
           "refId": "B"
         },
         {
-          "expr": "histogram_quantile(0.99, rate(ml_prediction_duration_seconds_bucket[5m]))",
+          "expr": "histogram_quantile(0.99, sum(rate(ml_prediction_duration_seconds_bucket[5m])) by (le))",
           "legendFormat": "P99",
           "refId": "C"
         }
@@ -103,7 +103,9 @@
       ],
       "options": {
         "reduceOptions": {
-          "calcs": ["lastNotNull"]
+          "calcs": [
+            "lastNotNull"
+          ]
         },
         "pieType": "pie",
         "tooltip": {
@@ -153,5 +155,22 @@
   ],
   "schemaVersion": 36,
   "timezone": "browser",
-  "refresh": "1m"
+  "refresh": "1m",
+  "templating": {
+    "list": [
+      {
+        "name": "model_name",
+        "type": "query",
+        "label": "Model",
+        "query": "label_values(ml_predictions_total, model_name)",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "includeAll": true,
+        "multi": true,
+        "refresh": 2
+      }
+    ]
+  }
 }

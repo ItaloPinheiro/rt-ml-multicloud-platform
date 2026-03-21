@@ -55,5 +55,22 @@
   ],
   "schemaVersion": 36,
   "timezone": "browser",
-  "refresh": "1m"
+  "refresh": "1m",
+  "templating": {
+    "list": [
+      {
+        "name": "model_name",
+        "type": "query",
+        "label": "Model",
+        "query": "label_values(ml_predictions_total, model_name)",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "includeAll": true,
+        "multi": true,
+        "refresh": 2
+      }
+    ]
+  }
 }

@@ -104,15 +104,15 @@ model_perf = create_dashboard(
             0,
             [
                 {
-                    "expr": "histogram_quantile(0.50, rate(ml_prediction_duration_seconds_bucket[5m]))",
+                    "expr": "histogram_quantile(0.50, sum(rate(ml_prediction_duration_seconds_bucket[5m])) by (le))",
                     "legend": "P50",
                 },
                 {
-                    "expr": "histogram_quantile(0.95, rate(ml_prediction_duration_seconds_bucket[5m]))",
+                    "expr": "histogram_quantile(0.95, sum(rate(ml_prediction_duration_seconds_bucket[5m])) by (le))",
                     "legend": "P95",
                 },
                 {
-                    "expr": "histogram_quantile(0.99, rate(ml_prediction_duration_seconds_bucket[5m]))",
+                    "expr": "histogram_quantile(0.99, sum(rate(ml_prediction_duration_seconds_bucket[5m])) by (le))",
                     "legend": "P99",
                 },
             ],
@@ -151,7 +151,7 @@ feature_store = create_dashboard(
             "Cache Hit Rate",
             0,
             0,
-            "(rate(redis_keyspace_hits_total[5m]) / (rate(redis_keyspace_hits_total[5m]) + rate(redis_keyspace_misses_total[5m]))) * 100",
+            "(sum(rate(ml_pipeline_feature_cache_hits_total[5m])) / (sum(rate(ml_pipeline_feature_cache_hits_total[5m])) + sum(rate(ml_pipeline_feature_cache_misses_total[5m])))) * 100",
             unit="percent",
             decimals=2,
             thresholds={
@@ -188,9 +188,9 @@ feature_store = create_dashboard(
             0,
             6,
             [
-                {"expr": "sum(rate(redis_keyspace_hits_total[5m]))", "legend": "Hits"},
+                {"expr": "sum(rate(ml_pipeline_feature_cache_hits_total[5m]))", "legend": "Hits"},
                 {
-                    "expr": "sum(rate(redis_keyspace_misses_total[5m]))",
+                    "expr": "sum(rate(ml_pipeline_feature_cache_misses_total[5m]))",
                     "legend": "Misses",
                 },
             ],
@@ -263,41 +263,18 @@ system_resources = create_dashboard(
             "Postgres Connections",
             0,
             8,
-            [{"expr": "pg_stat_database_numbackends", "legend": "{{datname}}"}],
+            [{"expr": 'pg_stat_database_numbackends{datname!~"template.*"}', "legend": "{{datname}}"}],
         ),
         timeseries_panel(
             "Postgres DB Size (MB)",
             12,
             8,
-            [{"expr": "pg_database_size_bytes / 1024 / 1024", "legend": "{{datname}}"}],
+            [{"expr": 'pg_database_size_bytes{datname!~"template.*"} / 1024 / 1024', "legend": "{{datname}}"}],
         ),
     ],
 )
 
-# 4. Data Ingestion Dashboard (Stub, waiting for Redpanda)
-data_ingestion = create_dashboard(
-    "data-ingestion",
-    "4. Data Ingestion",
-    [
-        stat_panel(
-            "Redpanda Status",
-            0,
-            0,
-            'max(up{job="redpanda"})',
-            mappings=[
-                {
-                    "type": "value",
-                    "options": {
-                        "1": {"text": "UP", "color": "green"},
-                        "0": {"text": "DOWN", "color": "red"},
-                    },
-                }
-            ],
-        )
-    ],
-)
-
-# 5. Error Tracking Dashboard
+# 4. Error Tracking Dashboard (was 5, Data Ingestion removed)
 error_tracking = create_dashboard(
     "error-tracking",
     "5. Error Tracking",
@@ -413,7 +390,6 @@ dashboards = {
     "model-performance.json": model_perf,
     "feature-store.json": feature_store,
     "system-resources.json": system_resources,
-    "data-ingestion.json": data_ingestion,
     "error-tracking.json": error_tracking,
     "apps-uptime.json": apps_uptime,
 }

@@ -13,7 +13,7 @@
       },
       "targets": [
         {
-          "expr": "(rate(redis_keyspace_hits_total[5m]) / (rate(redis_keyspace_hits_total[5m]) + rate(redis_keyspace_misses_total[5m]))) * 100",
+          "expr": "(sum(rate(ml_pipeline_feature_cache_hits_total[5m])) / (sum(rate(ml_pipeline_feature_cache_hits_total[5m])) + sum(rate(ml_pipeline_feature_cache_misses_total[5m])))) * 100",
           "refId": "A"
         }
       ],
@@ -49,24 +49,248 @@
       }
     },
     {
-      "type": "timeseries",
-      "title": "Cache Hits vs Misses",
+      "type": "stat",
+      "title": "Total Entities",
       "gridPos": {
         "x": 6,
         "y": 0,
-        "w": 18,
+        "w": 6,
+        "h": 6
+      },
+      "targets": [
+        {
+          "expr": "sum(ml_pipeline_feature_store_entities_total)",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Total Features",
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 6,
+        "h": 6
+      },
+      "targets": [
+        {
+          "expr": "sum(ml_pipeline_feature_store_features_total)",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Ingestion Rate",
+      "gridPos": {
+        "x": 18,
+        "y": 0,
+        "w": 6,
+        "h": 6
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(ml_pipeline_feature_ingestion_total{status=\"success\"}[5m]))",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "decimals": 1,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Cache Hits vs Misses",
+      "gridPos": {
+        "x": 0,
+        "y": 6,
+        "w": 12,
         "h": 8
       },
       "targets": [
         {
-          "expr": "sum(rate(redis_keyspace_hits_total[5m]))",
+          "expr": "sum(rate(ml_pipeline_feature_cache_hits_total[5m]))",
           "legendFormat": "Hits",
           "refId": "A"
         },
         {
-          "expr": "sum(rate(redis_keyspace_misses_total[5m]))",
+          "expr": "sum(rate(ml_pipeline_feature_cache_misses_total[5m]))",
           "legendFormat": "Misses",
           "refId": "B"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Feature Ingestion Throughput",
+      "gridPos": {
+        "x": 12,
+        "y": 6,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(ml_pipeline_feature_ingestion_total{method=\"put\"}[5m])) by (feature_group)",
+          "legendFormat": "put {{feature_group}}",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(ml_pipeline_feature_ingestion_total{method=\"bulk_put\"}[5m])) by (feature_group)",
+          "legendFormat": "bulk_put {{feature_group}}",
+          "refId": "B"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Ingestion Latency (P95)",
+      "gridPos": {
+        "x": 0,
+        "y": 14,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(ml_pipeline_feature_ingestion_duration_seconds_bucket[5m])) by (le, feature_group))",
+          "legendFormat": "{{feature_group}}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Entities per Feature Group",
+      "gridPos": {
+        "x": 12,
+        "y": 14,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "ml_pipeline_feature_store_entities_total",
+          "legendFormat": "{{feature_group}}",
+          "refId": "A"
         }
       ],
       "options": {
@@ -91,5 +315,22 @@
   ],
   "schemaVersion": 36,
   "timezone": "browser",
-  "refresh": "1m"
+  "refresh": "1m",
+  "templating": {
+    "list": [
+      {
+        "name": "model_name",
+        "type": "query",
+        "label": "Model",
+        "query": "label_values(ml_predictions_total, model_name)",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "includeAll": true,
+        "multi": true,
+        "refresh": 2
+      }
+    ]
+  }
 }

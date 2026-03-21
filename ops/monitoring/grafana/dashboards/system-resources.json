@@ -83,7 +83,7 @@
       },
       "targets": [
         {
-          "expr": "pg_stat_database_numbackends",
+          "expr": "pg_stat_database_numbackends{datname!~\"template.*\"}",
           "legendFormat": "{{datname}}",
           "refId": "A"
         }
@@ -118,7 +118,7 @@
       },
       "targets": [
         {
-          "expr": "pg_database_size_bytes / 1024 / 1024",
+          "expr": "pg_database_size_bytes{datname!~\"template.*\"} / 1024 / 1024",
           "legendFormat": "{{datname}}",
           "refId": "A"
         }
@@ -145,5 +145,22 @@
   ],
   "schemaVersion": 36,
   "timezone": "browser",
-  "refresh": "1m"
+  "refresh": "1m",
+  "templating": {
+    "list": [
+      {
+        "name": "model_name",
+        "type": "query",
+        "label": "Model",
+        "query": "label_values(ml_predictions_total, model_name)",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "includeAll": true,
+        "multi": true,
+        "refresh": 2
+      }
+    ]
+  }
 }
