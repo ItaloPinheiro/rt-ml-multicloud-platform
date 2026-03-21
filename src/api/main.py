@@ -960,6 +960,31 @@ if dependency_health_gauge is not None:
                         pass  # Non-critical: Redis health probe failure is expected during transient connectivity issues
                 dependency_health_gauge.labels(dependency="redis").set(redis_status)
 
+                # Update Feature Store gauges
+                if feature_store_client:
+                    try:
+                        from src.database.session import get_session
+                        from sqlalchemy import text as sa_text
+
+                        def _query_feature_store_stats():
+                            with get_session() as session:
+                                rows = session.execute(sa_text(
+                                    "SELECT feature_group, COUNT(DISTINCT entity_id) AS entities, COUNT(*) AS rows "
+                                    "FROM feature_store GROUP BY feature_group"
+                                )).fetchall()
+                                return rows
+
+                        rows = await run_in_threadpool(_query_feature_store_stats)
+                        for row in rows:
+                            feature_store_entities_gauge.labels(
+                                feature_group=row[0]
+                            ).set(row[1])
+                            feature_store_features_gauge.labels(
+                                feature_group=row[0]
+                            ).set(row[2])
+                    except Exception:
+                        pass
+
             except Exception as e:
                 if logger:
                     logger.error(
