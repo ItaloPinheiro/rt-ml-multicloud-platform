@@ -47,7 +47,6 @@ import structlog
 import yaml
 
 from src import __version__
-from src.feature_engineering.transforms import transform_features
 from src.api.model_updater import ModelUpdateManager, handle_model_webhook
 from src.api.schemas import (
     BatchPredictionRequest,
@@ -63,6 +62,7 @@ from src.api.schemas import (
     PredictionRequest,
     PredictionResponse,
 )
+from src.feature_engineering.transforms import transform_features
 
 # Import simple predict router
 try:
@@ -944,8 +944,9 @@ if dependency_health_gauge is not None:
                 # Update Feature Store entity counts
                 if feature_store_client:
                     try:
-                        from src.database.session import get_session
                         from sqlalchemy import text as sa_text
+
+                        from src.database.session import get_session
 
                         def _query_feature_store_stats():
                             with get_session() as session:

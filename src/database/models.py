@@ -19,11 +19,40 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB as PG_JSONB
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import declarative_base, relationship, validates
+from sqlalchemy.types import TypeDecorator
 
 # Portable types: use PostgreSQL-specific JSONB/UUID when available,
 # fall back to JSON/String(36) on SQLite and other dialects.
 JSONB = JSON().with_variant(PG_JSONB(), "postgresql")
-UUID = PG_UUID(as_uuid=True).with_variant(String(36), "sqlite")
+
+
+class PortableUUID(TypeDecorator):
+    """UUID type that works on both PostgreSQL (native UUID) and SQLite (String)."""
+
+    impl = String(36)
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name == "postgresql":
+            return dialect.type_descriptor(PG_UUID(as_uuid=True))
+        return dialect.type_descriptor(String(36))
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return value
+        if dialect.name == "postgresql":
+            return value if isinstance(value, uuid.UUID) else uuid.UUID(str(value))
+        return str(value)
+
+    def process_result_value(self, value, dialect):
+        if value is None:
+            return value
+        if not isinstance(value, uuid.UUID):
+            return uuid.UUID(str(value))
+        return value
+
+
+UUID = PortableUUID()
 
 Base = declarative_base()
 
