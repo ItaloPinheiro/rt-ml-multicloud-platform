@@ -4,11 +4,11 @@
   "panels": [
     {
       "type": "timeseries",
-      "title": "Service Health Status",
+      "title": "API",
       "gridPos": {
         "x": 0,
         "y": 0,
-        "w": 24,
+        "w": 8,
         "h": 8
       },
       "targets": [
@@ -16,16 +16,6 @@
           "expr": "max(up{job=\"ml-pipeline-api-service\"}) or vector(0)",
           "legendFormat": "API",
           "refId": "A"
-        },
-        {
-          "expr": "(max(ml_dependency_health{dependency=\"mlflow\"}) or vector(0)) * on() group_left() (max(up{job=\"ml-pipeline-api-service\"}) or vector(0))",
-          "legendFormat": "MLflow",
-          "refId": "B"
-        },
-        {
-          "expr": "(max(ml_dependency_health{dependency=\"redis\"}) or vector(0)) * on() group_left() (max(up{job=\"ml-pipeline-api-service\"}) or vector(0))",
-          "legendFormat": "Redis",
-          "refId": "C"
         }
       ],
       "options": {
@@ -46,21 +36,93 @@
             "fillOpacity": 20,
             "showPoints": "never"
           },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "red",
-                "value": null
-              },
-              {
-                "color": "green",
-                "value": 1
-              }
-            ]
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "green"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "MLflow",
+      "gridPos": {
+        "x": 8,
+        "y": 0,
+        "w": 8,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "(max(ml_dependency_health{dependency=\"mlflow\"}) or vector(0)) * on() group_left() (max(up{job=\"ml-pipeline-api-service\"}) or vector(0))",
+          "legendFormat": "MLflow",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 1,
+          "decimals": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 2,
+            "fillOpacity": 20,
+            "showPoints": "never"
           },
           "color": {
-            "mode": "thresholds"
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Redis",
+      "gridPos": {
+        "x": 16,
+        "y": 0,
+        "w": 8,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "(max(ml_dependency_health{dependency=\"redis\"}) or vector(0)) * on() group_left() (max(up{job=\"ml-pipeline-api-service\"}) or vector(0))",
+          "legendFormat": "Redis",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 1,
+          "decimals": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 2,
+            "fillOpacity": 20,
+            "showPoints": "never"
+          },
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "orange"
           }
         },
         "overrides": []
