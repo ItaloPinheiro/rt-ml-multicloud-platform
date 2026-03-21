@@ -306,58 +306,56 @@ error_tracking = create_dashboard(
     ],
 )
 
+def health_panel(title, x, expr, color):
+    """Individual service health panel (0/1 over time) with a fixed color."""
+    return {
+        "type": "timeseries",
+        "title": title,
+        "gridPos": {"x": x, "y": 0, "w": 8, "h": 8},
+        "targets": [{"expr": expr, "legendFormat": title, "refId": "A"}],
+        "options": {"legend": {"displayMode": "list", "placement": "bottom"}},
+        "fieldConfig": {
+            "defaults": {
+                "min": 0,
+                "max": 1,
+                "decimals": 0,
+                "custom": {
+                    "drawStyle": "line",
+                    "lineInterpolation": "stepAfter",
+                    "lineWidth": 2,
+                    "fillOpacity": 20,
+                    "showPoints": "never",
+                },
+                "color": {"mode": "fixed", "fixedColor": color},
+            },
+            "overrides": [],
+        },
+    }
+
+
 # 6. Applications Uptime (Custom)
 apps_uptime = create_dashboard(
     "apps-uptime",
     "Applications Uptime & Health",
     [
-        # Service Health Status (0/1 over time)
-        {
-            "type": "timeseries",
-            "title": "Service Health Status",
-            "gridPos": {"x": 0, "y": 0, "w": 24, "h": 8},
-            "targets": [
-                {
-                    "expr": 'max(up{job="ml-pipeline-api-service"}) or vector(0)',
-                    "legendFormat": "API",
-                    "refId": "A",
-                },
-                {
-                    "expr": '(max(ml_dependency_health{dependency="mlflow"}) or vector(0)) * on() group_left() (max(up{job="ml-pipeline-api-service"}) or vector(0))',
-                    "legendFormat": "MLflow",
-                    "refId": "B",
-                },
-                {
-                    "expr": '(max(ml_dependency_health{dependency="redis"}) or vector(0)) * on() group_left() (max(up{job="ml-pipeline-api-service"}) or vector(0))',
-                    "legendFormat": "Redis",
-                    "refId": "C",
-                },
-            ],
-            "options": {"legend": {"displayMode": "list", "placement": "bottom"}},
-            "fieldConfig": {
-                "defaults": {
-                    "min": 0,
-                    "max": 1,
-                    "decimals": 0,
-                    "custom": {
-                        "drawStyle": "line",
-                        "lineInterpolation": "stepAfter",
-                        "lineWidth": 2,
-                        "fillOpacity": 20,
-                        "showPoints": "never",
-                    },
-                    "thresholds": {
-                        "mode": "absolute",
-                        "steps": [
-                            {"color": "red", "value": None},
-                            {"color": "green", "value": 1},
-                        ],
-                    },
-                    "color": {"mode": "thresholds"},
-                },
-                "overrides": [],
-            },
-        },
+        health_panel(
+            "API",
+            0,
+            'max(up{job="ml-pipeline-api-service"}) or vector(0)',
+            "green",
+        ),
+        health_panel(
+            "MLflow",
+            8,
+            '(max(ml_dependency_health{dependency="mlflow"}) or vector(0)) * on() group_left() (max(up{job="ml-pipeline-api-service"}) or vector(0))',
+            "blue",
+        ),
+        health_panel(
+            "Redis",
+            16,
+            '(max(ml_dependency_health{dependency="redis"}) or vector(0)) * on() group_left() (max(up{job="ml-pipeline-api-service"}) or vector(0))',
+            "orange",
+        ),
         # API Uptime %
         stat_panel(
             "API Uptime (24h%)",
