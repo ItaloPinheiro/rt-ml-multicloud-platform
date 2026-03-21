@@ -38,11 +38,9 @@ kust["configMapGenerator"].extend(
             "name": "grafana-dashboards",
             "namespace": "ml-pipeline",
             "files": [
-                "../../monitoring/grafana/dashboards/model-performance.json",
-                "../../monitoring/grafana/dashboards/feature-store.json",
-                "../../monitoring/grafana/dashboards/system-resources.json",
-                "../../monitoring/grafana/dashboards/error-tracking.json",
                 "../../monitoring/grafana/dashboards/apps-uptime.json",
+                "../../monitoring/grafana/dashboards/model-performance.json",
+                "../../monitoring/grafana/dashboards/system-resources.json",
             ],
         },
     ]
