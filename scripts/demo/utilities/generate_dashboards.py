@@ -168,9 +168,9 @@ apps_uptime = create_dashboard(
             "Cache Hit Rate",
             12,
             8,
-            "(sum(rate(ml_pipeline_feature_cache_hits_total[5m])) / "
-            "clamp_min(sum(rate(ml_pipeline_feature_cache_hits_total[5m])) + "
-            "sum(rate(ml_pipeline_feature_cache_misses_total[5m])), 1)) * 100",
+            "((sum(rate(ml_pipeline_feature_cache_hits_total[5m])) or vector(0)) / "
+            "clamp_min((sum(rate(ml_pipeline_feature_cache_hits_total[5m])) or vector(0)) + "
+            "(sum(rate(ml_pipeline_feature_cache_misses_total[5m])) or vector(0)), 0.001)) * 100",
             unit="percent",
             decimals=1,
             thresholds={
