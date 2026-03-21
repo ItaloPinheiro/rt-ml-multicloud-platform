@@ -120,6 +120,37 @@ if Counter is not None:
         "Health status of dependencies (1=Healthy, 0=Unhealthy)",
         ["dependency"],
     )
+    feature_cache_hits_counter = Counter(
+        "ml_pipeline_feature_cache_hits_total",
+        "Feature Store cache hits (Redis)",
+        ["feature_group"],
+    )
+    feature_cache_misses_counter = Counter(
+        "ml_pipeline_feature_cache_misses_total",
+        "Feature Store cache misses (fallback to PostgreSQL)",
+        ["feature_group"],
+    )
+    feature_store_entities_gauge = Gauge(
+        "ml_pipeline_feature_store_entities_total",
+        "Total unique entities in the Feature Store",
+        ["feature_group"],
+    )
+    feature_store_features_gauge = Gauge(
+        "ml_pipeline_feature_store_features_total",
+        "Total features stored per group",
+        ["feature_group"],
+    )
+    feature_ingestion_counter = Counter(
+        "ml_pipeline_feature_ingestion_total",
+        "Feature ingestion operations",
+        ["feature_group", "method", "status"],
+    )
+    feature_ingestion_duration = Histogram(
+        "ml_pipeline_feature_ingestion_duration_seconds",
+        "Feature ingestion duration",
+        ["feature_group", "method"],
+        buckets=[0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0],
+    )
 else:
     # Create dummy metrics if Prometheus is not available
     class DummyMetric:
@@ -141,6 +172,13 @@ else:
     model_load_counter = DummyMetric()
     active_models_gauge = DummyMetric()
     api_requests_counter = DummyMetric()
+    dependency_health_gauge = DummyMetric()
+    feature_cache_hits_counter = DummyMetric()
+    feature_cache_misses_counter = DummyMetric()
+    feature_store_entities_gauge = DummyMetric()
+    feature_store_features_gauge = DummyMetric()
+    feature_ingestion_counter = DummyMetric()
+    feature_ingestion_duration = DummyMetric()
 
 
 class ModelManager:
@@ -722,7 +760,7 @@ async def lifespan(app: FastAPI):
     # Initialize Feature Store client (non-blocking — API starts even if unavailable)
     try:
         from src.feature_store.client import FeatureStoreClient
-        from src.feature_store.store import FeatureStore
+        from src.feature_store.store import FeatureStore, set_cache_metrics
 
         fs_redis = None
         if redis is not None:
@@ -740,6 +778,7 @@ async def lifespan(app: FastAPI):
                 fs_redis = None
 
         store = FeatureStore(redis_client=fs_redis)
+        set_cache_metrics(feature_cache_hits_counter, feature_cache_misses_counter)
         feature_store_client = FeatureStoreClient(feature_store=store)
         logger.info("Feature Store client initialized")
     except Exception as e:

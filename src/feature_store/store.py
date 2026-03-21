@@ -17,12 +17,21 @@ logger = structlog.get_logger()
 
 # Optional Prometheus metrics
 _prometheus_metrics = None
+_cache_hits_counter = None
+_cache_misses_counter = None
 
 
 def set_prometheus_metrics(metrics) -> None:
     """Set the PrometheusMetrics instance for feature store instrumentation."""
     global _prometheus_metrics
     _prometheus_metrics = metrics
+
+
+def set_cache_metrics(hits_counter, misses_counter) -> None:
+    """Set Prometheus counters for cache hit/miss tracking."""
+    global _cache_hits_counter, _cache_misses_counter
+    _cache_hits_counter = hits_counter
+    _cache_misses_counter = misses_counter
 
 
 class FeatureStore:
@@ -162,6 +171,9 @@ class FeatureStore:
                                 if name in features
                             }
 
+                        if _cache_hits_counter:
+                            _cache_hits_counter.labels(feature_group=feature_group).inc()
+
                         self.logger.debug(
                             "Features retrieved from cache",
                             entity_id=entity_id,
@@ -188,6 +200,8 @@ class FeatureStore:
                 )
 
             # Fallback to database
+            if _cache_misses_counter:
+                _cache_misses_counter.labels(feature_group=feature_group).inc()
             return self._get_features_from_db(entity_id, feature_group, feature_names)
 
         except Exception as e:
