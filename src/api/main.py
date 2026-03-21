@@ -949,10 +949,12 @@ if dependency_health_gauge is not None:
 
                         def _query_feature_store_stats():
                             with get_session() as session:
-                                return session.execute(sa_text(
-                                    "SELECT feature_group, COUNT(DISTINCT entity_id) "
-                                    "FROM feature_store GROUP BY feature_group"
-                                )).fetchall()
+                                return session.execute(
+                                    sa_text(
+                                        "SELECT feature_group, COUNT(DISTINCT entity_id) "
+                                        "FROM feature_store GROUP BY feature_group"
+                                    )
+                                ).fetchall()
 
                         rows = await run_in_threadpool(_query_feature_store_stats)
                         for row in rows:
@@ -1057,9 +1059,7 @@ async def predict(request: PredictionRequest, background_tasks: BackgroundTasks)
             features = store_features
 
             # Transform raw Feature Store features to match model schema
-            features = _transform_features_for_model(
-                features, request.model_name
-            )
+            features = _transform_features_for_model(features, request.model_name)
 
         if not features:
             raise HTTPException(
