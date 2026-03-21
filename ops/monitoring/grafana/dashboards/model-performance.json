@@ -1,6 +1,6 @@
 {
   "uid": "model-performance",
-  "title": "1. Model Performance",
+  "title": "2. Model Performance",
   "panels": [
     {
       "type": "timeseries",
@@ -120,7 +120,7 @@
       "gridPos": {
         "x": 8,
         "y": 8,
-        "w": 6,
+        "w": 4,
         "h": 6
       },
       "targets": [
@@ -147,6 +147,51 @@
                 "value": null
               }
             ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Error Rate",
+      "gridPos": {
+        "x": 12,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(ml_predictions_total{status=\"error\"}[5m]))",
+          "legendFormat": "Prediction Errors",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(ml_model_loads_total{status=\"error\"}[5m]))",
+          "legendFormat": "Model Load Errors",
+          "refId": "B"
+        },
+        {
+          "expr": "sum(rate(ml_api_requests_total{status=~\"5..\"}[5m]))",
+          "legendFormat": "HTTP 5xx",
+          "refId": "C"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 10
           }
         },
         "overrides": []

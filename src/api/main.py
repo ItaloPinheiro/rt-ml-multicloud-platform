@@ -135,22 +135,6 @@ if Counter is not None:
         "Total unique entities in the Feature Store",
         ["feature_group"],
     )
-    feature_store_features_gauge = Gauge(
-        "ml_pipeline_feature_store_features_total",
-        "Total features stored per group",
-        ["feature_group"],
-    )
-    feature_ingestion_counter = Counter(
-        "ml_pipeline_feature_ingestion_total",
-        "Feature ingestion operations",
-        ["feature_group", "method", "status"],
-    )
-    feature_ingestion_duration = Histogram(
-        "ml_pipeline_feature_ingestion_duration_seconds",
-        "Feature ingestion duration",
-        ["feature_group", "method"],
-        buckets=[0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0],
-    )
 else:
     # Create dummy metrics if Prometheus is not available
     class DummyMetric:
@@ -176,9 +160,6 @@ else:
     feature_cache_hits_counter = DummyMetric()
     feature_cache_misses_counter = DummyMetric()
     feature_store_entities_gauge = DummyMetric()
-    feature_store_features_gauge = DummyMetric()
-    feature_ingestion_counter = DummyMetric()
-    feature_ingestion_duration = DummyMetric()
 
 
 class ModelManager:
@@ -959,6 +940,27 @@ if dependency_health_gauge is not None:
                     except Exception:
                         pass  # Non-critical: Redis health probe failure is expected during transient connectivity issues
                 dependency_health_gauge.labels(dependency="redis").set(redis_status)
+
+                # Update Feature Store entity counts
+                if feature_store_client:
+                    try:
+                        from src.database.session import get_session
+                        from sqlalchemy import text as sa_text
+
+                        def _query_feature_store_stats():
+                            with get_session() as session:
+                                return session.execute(sa_text(
+                                    "SELECT feature_group, COUNT(DISTINCT entity_id) "
+                                    "FROM feature_store GROUP BY feature_group"
+                                )).fetchall()
+
+                        rows = await run_in_threadpool(_query_feature_store_stats)
+                        for row in rows:
+                            feature_store_entities_gauge.labels(
+                                feature_group=row[0]
+                            ).set(row[1])
+                    except Exception:
+                        pass
 
             except Exception as e:
                 if logger:

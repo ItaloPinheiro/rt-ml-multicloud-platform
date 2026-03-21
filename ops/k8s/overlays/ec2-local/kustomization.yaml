@@ -37,11 +37,9 @@ configMapGenerator:
       - ../../../monitoring/grafana/dashboards/dashboards.yaml
   - name: grafana-dashboards
     files:
-      - ../../../monitoring/grafana/dashboards/model-performance.json
-      - ../../../monitoring/grafana/dashboards/feature-store.json
-      - ../../../monitoring/grafana/dashboards/system-resources.json
-      - ../../../monitoring/grafana/dashboards/error-tracking.json
       - ../../../monitoring/grafana/dashboards/apps-uptime.json
+      - ../../../monitoring/grafana/dashboards/model-performance.json
+      - ../../../monitoring/grafana/dashboards/system-resources.json
 
 generatorOptions:
   disableNameSuffixHash: true
