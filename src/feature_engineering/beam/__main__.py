@@ -72,7 +72,7 @@ def main():
 
     try:
         pipeline = FeatureEngineeringPipeline(config)
-        print(f"\nExecuting feature engineering pipeline...")
+        print("\nExecuting feature engineering pipeline...")
         print(f"Initial position: {args.initial_position} | Runner: {args.runner}")
 
         pipeline.run_streaming_pipeline()

@@ -147,10 +147,10 @@ class TestAPIIntegration:
 
     def test_prediction_validation_error(self, client):
         """Test prediction endpoint with validation errors."""
-        # Missing required fields
+        # model_name must be a string — send wrong type to trigger 422
         invalid_request = {
-            "model_name": "fraud_detector"
-            # Missing features
+            "model_name": 12345,
+            "features": "not_a_dict",
         }
 
         response = client.post("/predict", json=invalid_request)

@@ -47,7 +47,6 @@ import structlog
 import yaml
 
 from src import __version__
-from src.feature_engineering.transforms import transform_features
 from src.api.model_updater import ModelUpdateManager, handle_model_webhook
 from src.api.schemas import (
     BatchPredictionRequest,
@@ -63,6 +62,7 @@ from src.api.schemas import (
     PredictionRequest,
     PredictionResponse,
 )
+from src.feature_engineering.transforms import transform_features
 
 # Import simple predict router
 try:
@@ -944,15 +944,18 @@ if dependency_health_gauge is not None:
                 # Update Feature Store entity counts
                 if feature_store_client:
                     try:
-                        from src.database.session import get_session
                         from sqlalchemy import text as sa_text
+
+                        from src.database.session import get_session
 
                         def _query_feature_store_stats():
                             with get_session() as session:
-                                return session.execute(sa_text(
-                                    "SELECT feature_group, COUNT(DISTINCT entity_id) "
-                                    "FROM feature_store GROUP BY feature_group"
-                                )).fetchall()
+                                return session.execute(
+                                    sa_text(
+                                        "SELECT feature_group, COUNT(DISTINCT entity_id) "
+                                        "FROM feature_store GROUP BY feature_group"
+                                    )
+                                ).fetchall()
 
                         rows = await run_in_threadpool(_query_feature_store_stats)
                         for row in rows:
@@ -1057,9 +1060,7 @@ async def predict(request: PredictionRequest, background_tasks: BackgroundTasks)
             features = store_features
 
             # Transform raw Feature Store features to match model schema
-            features = _transform_features_for_model(
-                features, request.model_name
-            )
+            features = _transform_features_for_model(features, request.model_name)
 
         if not features:
             raise HTTPException(

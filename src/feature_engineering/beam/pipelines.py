@@ -223,9 +223,7 @@ class FeatureEngineeringPipeline:
             windowed_features
             | "GroupByKey" >> beam.GroupBy(lambda x: x.get("user_id", "unknown"))
             | "AggregateFeatures"
-            >> beam.ParDo(AggregateFeatures()).with_outputs(
-                "errors", main="aggregated"
-            )
+            >> beam.ParDo(AggregateFeatures()).with_outputs("errors", main="aggregated")
         )
 
         final_aggregated = aggregated_features["aggregated"]

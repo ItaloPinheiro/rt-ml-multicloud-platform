@@ -303,9 +303,7 @@ def assemble_training_data(
             raw = yaml.safe_load(f)
 
         fs_config = raw.get("feature_store", {})
-        feature_groups = fs_config.get(
-            "feature_groups", ["transaction_features"]
-        )
+        feature_groups = fs_config.get("feature_groups", ["transaction_features"])
         feature_schema = fs_config.get("schema", {})
 
         logger.info("Reading features from feature store: groups=%s", feature_groups)
@@ -317,9 +315,7 @@ def assemble_training_data(
         # reliably persisted to the Feature Store due to Beam pipeline
         # write ordering / deadlocks).
         if aggregated_path:
-            logger.info(
-                "Reading aggregated features from S3: %s", aggregated_path
-            )
+            logger.info("Reading aggregated features from S3: %s", aggregated_path)
             aggregated_raw = _read_jsonl(aggregated_path)
             aggregated_df = pd.DataFrame(aggregated_raw)
     else:

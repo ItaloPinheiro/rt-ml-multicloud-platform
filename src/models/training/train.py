@@ -179,9 +179,7 @@ class ModelTrainer:
         from src.database.models import FeatureStore as FeatureStoreModel
         from src.database.session import get_session
 
-        logger.info(
-            f"Loading from feature store: groups={feature_groups}"
-        )
+        logger.info(f"Loading from feature store: groups={feature_groups}")
 
         # JSONB model: select entity_id + features JSON per row
         stmt = select(

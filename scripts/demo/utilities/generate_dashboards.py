@@ -168,9 +168,9 @@ apps_uptime = create_dashboard(
             "Cache Hit Rate",
             12,
             8,
-            "(sum(rate(ml_pipeline_feature_cache_hits_total[5m])) / "
-            "clamp_min(sum(rate(ml_pipeline_feature_cache_hits_total[5m])) + "
-            "sum(rate(ml_pipeline_feature_cache_misses_total[5m])), 1)) * 100",
+            "((sum(rate(ml_pipeline_feature_cache_hits_total[5m])) or vector(0)) / "
+            "clamp_min((sum(rate(ml_pipeline_feature_cache_hits_total[5m])) or vector(0)) + "
+            "(sum(rate(ml_pipeline_feature_cache_misses_total[5m])) or vector(0)), 0.001)) * 100",
             unit="percent",
             decimals=1,
             thresholds={
@@ -194,8 +194,14 @@ apps_uptime = create_dashboard(
             0,
             14,
             [
-                {"expr": "sum(rate(ml_pipeline_feature_cache_hits_total[5m]))", "legend": "Hits"},
-                {"expr": "sum(rate(ml_pipeline_feature_cache_misses_total[5m]))", "legend": "Misses"},
+                {
+                    "expr": "sum(rate(ml_pipeline_feature_cache_hits_total[5m]))",
+                    "legend": "Hits",
+                },
+                {
+                    "expr": "sum(rate(ml_pipeline_feature_cache_misses_total[5m]))",
+                    "legend": "Misses",
+                },
             ],
             unit="ops",
         ),
@@ -292,7 +298,12 @@ system_resources = create_dashboard(
             "Redis Memory (MB)",
             0,
             0,
-            [{"expr": "redis_memory_used_bytes / 1024 / 1024", "legend": "Memory Used"}],
+            [
+                {
+                    "expr": "redis_memory_used_bytes / 1024 / 1024",
+                    "legend": "Memory Used",
+                }
+            ],
         ),
         timeseries_panel(
             "Redis Connections",
@@ -304,13 +315,23 @@ system_resources = create_dashboard(
             "Postgres Connections",
             0,
             8,
-            [{"expr": 'pg_stat_database_numbackends{datname!~"template.*"}', "legend": "{{datname}}"}],
+            [
+                {
+                    "expr": 'pg_stat_database_numbackends{datname!~"template.*"}',
+                    "legend": "{{datname}}",
+                }
+            ],
         ),
         timeseries_panel(
             "Postgres DB Size (MB)",
             12,
             8,
-            [{"expr": 'pg_database_size_bytes{datname!~"template.*"} / 1024 / 1024', "legend": "{{datname}}"}],
+            [
+                {
+                    "expr": 'pg_database_size_bytes{datname!~"template.*"} / 1024 / 1024',
+                    "legend": "{{datname}}",
+                }
+            ],
         ),
     ],
 )

@@ -235,7 +235,9 @@ def main():
             if should_promote:
                 promote_best_model(args.model_name, experiment_names)
             elif not sys.stdin.isatty():
-                print("\nSkipping promotion (non-interactive mode). Use --promote to auto-promote.")
+                print(
+                    "\nSkipping promotion (non-interactive mode). Use --promote to auto-promote."
+                )
     else:
         print("\nNo experiments found. Train some models first!")
 

@@ -236,7 +236,9 @@ def _run_batch_mode(
     total = args.total_events if args.total_events > 0 else float("inf")
 
     while events_published < total:
-        remaining = int(total - events_published) if total != float("inf") else MAX_BATCH_SIZE
+        remaining = (
+            int(total - events_published) if total != float("inf") else MAX_BATCH_SIZE
+        )
         records, events = _build_batch(min(remaining, args.batch_size))
 
         if not records:

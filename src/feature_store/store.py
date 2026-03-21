@@ -172,7 +172,9 @@ class FeatureStore:
                             }
 
                         if _cache_hits_counter:
-                            _cache_hits_counter.labels(feature_group=feature_group).inc()
+                            _cache_hits_counter.labels(
+                                feature_group=feature_group
+                            ).inc()
 
                         self.logger.debug(
                             "Features retrieved from cache",
@@ -782,4 +784,3 @@ class FeatureStore:
                 result[record.entity_id] = features
 
             return result
-

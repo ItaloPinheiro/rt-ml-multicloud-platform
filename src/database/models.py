@@ -16,8 +16,43 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import JSONB as PG_JSONB
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import declarative_base, relationship, validates
+from sqlalchemy.types import TypeDecorator
+
+# Portable types: use PostgreSQL-specific JSONB/UUID when available,
+# fall back to JSON/String(36) on SQLite and other dialects.
+JSONB = JSON().with_variant(PG_JSONB(), "postgresql")
+
+
+class PortableUUID(TypeDecorator):
+    """UUID type that works on both PostgreSQL (native UUID) and SQLite (String)."""
+
+    impl = String(36)
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name == "postgresql":
+            return dialect.type_descriptor(PG_UUID(as_uuid=True))
+        return dialect.type_descriptor(String(36))
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return value
+        if dialect.name == "postgresql":
+            return value if isinstance(value, uuid.UUID) else uuid.UUID(str(value))
+        return str(value)
+
+    def process_result_value(self, value, dialect):
+        if value is None:
+            return value
+        if not isinstance(value, uuid.UUID):
+            return uuid.UUID(str(value))
+        return value
+
+
+UUID = PortableUUID()
 
 Base = declarative_base()
 
@@ -27,7 +62,7 @@ class Experiment(Base):
 
     __tablename__ = "ml_experiments"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(UUID, primary_key=True, default=uuid.uuid4)
     name = Column(String(255), nullable=False, unique=True)
     description = Column(Text)
     created_at = Column(
@@ -65,10 +100,8 @@ class ModelRun(Base):
 
     __tablename__ = "model_runs"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    experiment_id = Column(
-        UUID(as_uuid=True), ForeignKey("ml_experiments.id"), nullable=False
-    )
+    id = Column(UUID, primary_key=True, default=uuid.uuid4)
+    experiment_id = Column(UUID, ForeignKey("ml_experiments.id"), nullable=False)
 
     # Run metadata
     run_name = Column(String(255))
@@ -144,7 +177,7 @@ class FeatureStore(Base):
 
     __tablename__ = "feature_store"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(UUID, primary_key=True, default=uuid.uuid4)
 
     # Feature identification
     entity_id = Column(String(255), nullable=False)
@@ -188,8 +221,8 @@ class PredictionLog(Base):
 
     __tablename__ = "prediction_logs"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    model_run_id = Column(UUID(as_uuid=True), ForeignKey("model_runs.id"))
+    id = Column(UUID, primary_key=True, default=uuid.uuid4)
+    model_run_id = Column(UUID, ForeignKey("model_runs.id"))
 
     # Request metadata
     request_id = Column(String(255))
@@ -263,7 +296,7 @@ class DataDriftMonitoring(Base):
 
     __tablename__ = "data_drift_monitoring"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(UUID, primary_key=True, default=uuid.uuid4)
 
     # Model and time information
     model_name = Column(String(255), nullable=False)
