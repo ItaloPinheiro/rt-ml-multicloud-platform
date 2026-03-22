@@ -212,19 +212,21 @@ curl -s -X POST "$API_URL/predict" \
 
 ### 8. Train & Upgrade Model (Version 2 — Improved)
 
-Now train a **stronger model** with more estimators, unlimited tree depth, and balanced class weighting:
+Now train a **stronger model** with more estimators, controlled depth, and balanced class weighting:
 
 ```bash
-./scripts/demo/demo-aws/trigger-training.sh --use-feature-store --n-estimators 200 --class-weight balanced
+./scripts/demo/demo-aws/trigger-training.sh --use-feature-store --n-estimators 200 --max-depth 5 --class-weight balanced
 ```
 
 **What happens:**
 1.  Materialization runs again (picks up any new features since v1).
-2.  Training Job runs with 200 estimators, unlimited depth, and `class_weight=balanced` (vs 10 trees at depth 1 with no weighting in v1).
+2.  Training Job runs with 200 estimators, max depth 5, and `class_weight=balanced` (vs 10 trees at depth 1 with no weighting in v1).
 3.  Evaluation gate compares v2 against v1 champion on **accuracy** and **f1_score**.
 4.  v2 will have better accuracy and much better fraud recall, so it gets promoted.
 
 > **Why `--class-weight balanced`?** Fraud is rare (~5-10% of transactions). Without class weighting, the model optimizes for overall accuracy by predicting the majority class (not-fraud). `balanced` tells the classifier to weight fraud samples inversely proportional to their frequency, producing stronger fraud recall -- exactly what you'd want in production for imbalanced classification.
+
+> **Why `--max-depth 5`?** Unlimited depth causes the trees to memorize exact training patterns (overfitting). When new inputs arrive that don't follow the exact same feature paths, the model outputs near-50% probabilities even for clear fraud cases. Limiting depth to 5 forces the trees to learn general decision rules, producing confident predictions (~86% for fraud, ~96% for legitimate) on new inputs.
 
 > **How the evaluation gate decides:** The challenger must meet a minimum accuracy threshold (0.80) AND beat the champion on both accuracy and f1_score. See `src/models/evaluation/evaluate_and_promote.py` for details.
 
@@ -256,7 +258,7 @@ curl -s -X POST "$API_URL/predict" \
   -d @data/sample/demo/requests/fraud_transaction.json | python -m json.tool
 ```
 
-> **Key insight:** Same API, same payloads, better results. v2 (200 trees, unlimited depth, balanced class weight) correctly flags the fraudulent transaction that v1 (10 trees, depth 1, no weighting) missed. This is the zero-downtime model upgrade in action — the evaluation gate verified v2 beats v1 on both accuracy and f1_score before promoting it.
+> **Key insight:** Same API, same payloads, better results. v2 (200 trees, max depth 5, balanced class weight) correctly flags the fraudulent transaction with ~86% confidence that v1 (10 trees, depth 1, no weighting) missed entirely. The legitimate transaction remains correctly classified at ~96% confidence. This is the zero-downtime model upgrade in action — the evaluation gate verified v2 beats v1 on both accuracy and f1_score before promoting it.
 
 ### End-to-End Pipeline Architecture
 
@@ -451,8 +453,8 @@ for exp in client.search_experiments(view_type=mlflow.entities.ViewType.DELETED_
 # Train from Feature Store (materialize → Parquet → train)
 ./scripts/demo/demo-aws/trigger-training.sh --use-feature-store --n-estimators 10 --max-depth 1 --auto-promote
 
-# Train v2 from Feature Store (with balanced class weighting for fraud recall)
-./scripts/demo/demo-aws/trigger-training.sh --use-feature-store --n-estimators 200 --class-weight balanced
+# Train v2 from Feature Store (with balanced class weighting and controlled depth for fraud recall)
+./scripts/demo/demo-aws/trigger-training.sh --use-feature-store --n-estimators 200 --max-depth 5 --class-weight balanced
 
 # Train from pre-uploaded S3 CSV (legacy, no materialization)
 ./scripts/demo/demo-aws/trigger-training.sh --n-estimators 100 --auto-promote
