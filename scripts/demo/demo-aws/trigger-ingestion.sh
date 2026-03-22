@@ -26,6 +26,7 @@ TOTAL_EVENTS=100
 EVENTS_PER_SECOND=0
 OUTPUT_PREFIX="features"
 SSH_KEY="${SSH_KEY:-}"
+EVENTS_FILE=""
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
@@ -38,8 +39,10 @@ while [[ $# -gt 0 ]]; do
     --events-per-second) EVENTS_PER_SECOND="$2"; shift 2 ;;
     --output-prefix)     OUTPUT_PREFIX="$2"; shift 2 ;;
     --ssh-key)           SSH_KEY="$2"; shift 2 ;;
+    --events-file)       EVENTS_FILE="$2"; shift 2 ;;
     -h|--help)
-      echo "Usage: $0 [--total-events N] [--events-per-second N] [--output-prefix PREFIX] [--ssh-key PATH]"
+      echo "Usage: $0 [--total-events N] [--events-per-second N] [--output-prefix PREFIX] [--ssh-key PATH] [--events-file PATH]"
+      echo "  --events-file: Path to a JSONL file of pre-generated events (uploaded to S3, used instead of random)"
       echo "  SSH key: set SSH_KEY env var or use --ssh-key (default: ~/.ssh/rt-ml-platform-aws-ec2.pem)"
       exit 0
       ;;
@@ -105,6 +108,22 @@ if [ -z "$BUCKET" ]; then
   exit 1
 fi
 
+# Upload events file to S3 if specified
+S3_EVENTS_FILE=""
+if [ -n "$EVENTS_FILE" ]; then
+  if [ ! -f "$EVENTS_FILE" ]; then
+    echo "ERROR: Events file not found: $EVENTS_FILE"
+    exit 1
+  fi
+  EVENT_COUNT=$(wc -l < "$EVENTS_FILE" | tr -d ' ')
+  TOTAL_EVENTS="$EVENT_COUNT"
+  S3_EVENTS_KEY="events/demo_events.jsonl"
+  S3_EVENTS_FILE="s3://${BUCKET}/${S3_EVENTS_KEY}"
+  echo "Uploading events file to S3..."
+  aws s3 cp "$EVENTS_FILE" "$S3_EVENTS_FILE"
+  echo "  Uploaded $EVENT_COUNT events -> $S3_EVENTS_FILE"
+fi
+
 echo "============================================"
 echo "  Ingestion Pipeline - AWS Demo"
 echo "============================================"
@@ -112,7 +131,11 @@ echo "  Instance:     $INSTANCE_IP"
 echo "  Stream:       $STREAM_NAME"
 echo "  S3 bucket:    $BUCKET"
 echo "  Region:       $REGION"
-echo "  Events:       $TOTAL_EVENTS at $([ "$EVENTS_PER_SECOND" = "0" ] && echo "max throughput (batch)" || echo "${EVENTS_PER_SECOND}/s")"
+if [ -n "$EVENTS_FILE" ]; then
+echo "  Source:       $EVENTS_FILE ($TOTAL_EVENTS events, deterministic)"
+else
+echo "  Source:       random ($TOTAL_EVENTS events at $([ "$EVENTS_PER_SECOND" = "0" ] && echo "max throughput" || echo "${EVENTS_PER_SECOND}/s"))"
+fi
 echo "  Output:       s3://${BUCKET}/${OUTPUT_PREFIX}"
 echo "============================================"
 
@@ -130,13 +153,29 @@ remote "sudo k3s crictl pull ghcr.io/italopinheiro/rt-ml-multicloud-platform/bea
 # Step 2: Run Kinesis producer (wait for completion)
 # ---------------------------------------------------------------------------
 echo ""
-echo "[2/5] Running Kinesis producer ($TOTAL_EVENTS events, $([ "$EVENTS_PER_SECOND" = "0" ] && echo "batch mode" || echo "${EVENTS_PER_SECOND}/s"))..."
+if [ -n "$EVENTS_FILE" ]; then
+  echo "[2/5] Running Kinesis producer ($TOTAL_EVENTS deterministic events from S3)..."
+else
+  echo "[2/5] Running Kinesis producer ($TOTAL_EVENTS events, $([ "$EVENTS_PER_SECOND" = "0" ] && echo "batch mode" || echo "${EVENTS_PER_SECOND}/s"))..."
+fi
 
 # Patch the manifest with CLI overrides and apply via stdin
 # Use awk for precise env-var patching (sed single-line is fragile with generic values)
-awk -v eps="$EVENTS_PER_SECOND" -v total="$TOTAL_EVENTS" '
+# When --events-file is set, inject EVENTS_FILE_S3 env var so the producer
+# downloads the pre-generated JSONL from S3 instead of generating random events.
+awk -v eps="$EVENTS_PER_SECOND" -v total="$TOTAL_EVENTS" -v s3file="$S3_EVENTS_FILE" '
   /name: EVENTS_PER_SECOND/ { print; getline; sub(/"[^"]*"/, "\"" eps "\""); print; next }
   /name: TOTAL_EVENTS/      { print; getline; sub(/"[^"]*"/, "\"" total "\""); print; next }
+  # After the last env var, inject EVENTS_FILE_S3 if set
+  /name: TOTAL_EVENTS/ && s3file != "" {
+    # Already handled above, now add the extra env var after the value line
+  }
+  # Inject --events-file arg into the command args when s3file is set
+  /--stream-name/ && s3file != "" {
+    print
+    print "        - \"--events-file=" s3file "\""
+    next
+  }
   { print }
 ' "$MANIFESTS_DIR/job-kinesis-producer.yaml" \
   | ssh "${SSH_OPTS[@]}" ubuntu@"$INSTANCE_IP" "sudo k3s kubectl apply -f -"

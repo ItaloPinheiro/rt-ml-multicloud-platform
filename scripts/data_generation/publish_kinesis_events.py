@@ -69,19 +69,33 @@ def generate_transaction() -> dict:
 
 def _build_batch(
     events_remaining: int,
-) -> tuple[List[dict], List[dict]]:
+    source_events: list[dict] | None = None,
+    offset: int = 0,
+) -> tuple[List[dict], List[dict], int]:
     """Build a batch of Kinesis records respecting size limits.
 
+    Args:
+        events_remaining: Max events to include in this batch.
+        source_events: Pre-loaded events list (None = generate random).
+        offset: Current read position in source_events.
+
     Returns:
-        Tuple of (kinesis_records, source_events) for the batch.
+        Tuple of (kinesis_records, source_events, new_offset).
     """
     records: List[dict] = []
     events: List[dict] = []
     batch_bytes = 0
     batch_count = min(events_remaining, MAX_BATCH_SIZE)
 
-    for _ in range(batch_count):
-        event = generate_transaction()
+    for i in range(batch_count):
+        if source_events is not None:
+            idx = offset + i
+            if idx >= len(source_events):
+                break
+            event = source_events[idx]
+        else:
+            event = generate_transaction()
+
         data = json.dumps(event).encode("utf-8")
         partition_key = event["user_id"]
         # Each record overhead: partition key + data
@@ -94,7 +108,8 @@ def _build_batch(
         events.append(event)
         batch_bytes += record_bytes
 
-    return records, events
+    new_offset = offset + len(events)
+    return records, events, new_offset
 
 
 def _publish_batch(
@@ -177,18 +192,56 @@ def main() -> None:
         default=MAX_BATCH_SIZE,
         help=f"Records per put_records call (max {MAX_BATCH_SIZE})",
     )
+    parser.add_argument(
+        "--events-file",
+        default=None,
+        help="Path to a JSONL file of pre-generated events. "
+        "When set, events are read from this file instead of randomly generated. "
+        "--total-events is ignored (all events in the file are published).",
+    )
 
     args = parser.parse_args()
     args.batch_size = min(args.batch_size, MAX_BATCH_SIZE)
 
+    # Load pre-generated events from file if specified
+    file_events: List[dict] = []
+    if args.events_file:
+        path = args.events_file
+        if path.startswith("s3://"):
+            # Download from S3 to a temp file
+            import tempfile
+
+            bucket_key = path[len("s3://") :]
+            bucket, _, key = bucket_key.partition("/")
+            logger.info("Downloading events from S3", bucket=bucket, key=key)
+            s3 = boto3.client("s3")
+            tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False)
+            s3.download_file(bucket, key, tmp.name)
+            path = tmp.name
+
+        with open(path) as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    file_events.append(json.loads(line))
+        logger.info(
+            "Loaded events from file",
+            source=args.events_file,
+            count=len(file_events),
+        )
+        # Override total_events with file length
+        args.total_events = len(file_events)
+
     use_batch = args.events_per_second == 0 or args.events_per_second >= 50
     mode = "batch" if use_batch else "single"
+    source = args.events_file or "random"
 
     logger.info(
         "Starting Kinesis Data Generator",
         stream_name=args.stream_name,
         region=args.region,
         mode=mode,
+        source=source,
         rate_limit_eps=args.events_per_second if not use_batch else "unlimited",
         batch_size=args.batch_size if use_batch else 1,
     )
@@ -214,9 +267,13 @@ def main() -> None:
 
     try:
         if use_batch:
-            _run_batch_mode(kinesis, args, events_published, start_time)
+            _run_batch_mode(
+                kinesis, args, events_published, start_time, file_events or None
+            )
         else:
-            _run_single_mode(kinesis, args, events_published, start_time)
+            _run_single_mode(
+                kinesis, args, events_published, start_time, file_events or None
+            )
     except KeyboardInterrupt:
         elapsed = time.monotonic() - start_time
         logger.info(
@@ -231,15 +288,19 @@ def _run_batch_mode(
     args: argparse.Namespace,
     events_published: int,
     start_time: float,
+    file_events: list[dict] | None = None,
 ) -> None:
     """Publish events using put_records batching."""
     total = args.total_events if args.total_events > 0 else float("inf")
+    offset = 0
 
     while events_published < total:
         remaining = (
             int(total - events_published) if total != float("inf") else MAX_BATCH_SIZE
         )
-        records, events = _build_batch(min(remaining, args.batch_size))
+        records, events, offset = _build_batch(
+            min(remaining, args.batch_size), file_events, offset
+        )
 
         if not records:
             break
@@ -272,12 +333,19 @@ def _run_single_mode(
     args: argparse.Namespace,
     events_published: int,
     start_time: float,
+    file_events: list[dict] | None = None,
 ) -> None:
     """Publish events one at a time with rate limiting."""
     sleep_interval = 1.0 / args.events_per_second if args.events_per_second > 0 else 0
 
     while True:
-        event = generate_transaction()
+        if file_events is not None:
+            if events_published >= len(file_events):
+                break
+            event = file_events[events_published]
+        else:
+            event = generate_transaction()
+
         partition_key = event["user_id"]
 
         try:
@@ -288,7 +356,7 @@ def _run_single_mode(
             )
             logger.info(
                 "Published event",
-                event_id=event["event_id"],
+                event_id=event.get("event_id", "unknown"),
                 shard_id=response["ShardId"],
                 seq_number=response["SequenceNumber"],
             )

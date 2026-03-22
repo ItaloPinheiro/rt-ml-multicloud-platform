@@ -285,7 +285,6 @@ jobs:
   terraform-plan:
     name: Terraform Plan # Validates infrastructure changes on PRs
     runs-on: ubuntu-latest
-    needs: [lint] # Run early to catch syntax errors
 
     defaults:
       run:
