@@ -77,21 +77,28 @@ ssh -t -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP "watch -n 5 'sud
 
 ### 4. Run Feature Engineering Pipeline (Kinesis + Beam)
 
-Publish mock transaction events to Kinesis, then run the Apache Beam pipeline to extract features and store them in the Feature Store (Redis + PostgreSQL).
+Generate deterministic demo events and publish them to Kinesis, then run the Apache Beam pipeline to extract features and store them in the Feature Store (Redis + PostgreSQL).
 
 ```bash
-./scripts/demo/demo-aws/trigger-ingestion.sh --total-events 500
+# Generate the deterministic demo events (425 curated transactions, ~15% fraud)
+python scripts/demo/demo-aws/generate_demo_events.py
+
+# Run the full ingestion pipeline with the pre-generated events
+./scripts/demo/demo-aws/trigger-ingestion.sh --events-file data/sample/demo/events/demo_events.jsonl
 ```
 
 **What happens:**
-1. A Kinesis producer Job publishes 100 mock transaction events to the `rt-ml-platform-demo-kds-stream`.
+1. The events file is uploaded to S3 and the Kinesis producer Job publishes all 425 events to the `rt-ml-platform-demo-kds-stream`.
 2. An Apache Beam Job (DirectRunner) reads all events from the stream using `TRIM_HORIZON`.
 3. Features are extracted, validated, windowed (60s fixed), and aggregated by `user_id`.
 4. Features are written to the Feature Store (Redis for hot cache, PostgreSQL for cold storage).
 
+> **Why deterministic events?** Random data produces inconsistent fraud rates across runs, which can cause v2 to fail at detecting fraud in the demo. The curated dataset has a controlled ~15% fraud rate with clear patterns (night + high-risk merchant + high amount) that v1 reliably misses and v2 reliably catches.
+
 **Options:**
-- `--total-events N` — number of events to produce (default: 100)
-- `--events-per-second N` — publishing rate (default: 5.0)
+- `--events-file PATH` — use pre-generated JSONL events instead of random (recommended for demos)
+- `--total-events N` — number of random events to produce (default: 100, ignored with `--events-file`)
+- `--events-per-second N` — publishing rate (default: batch mode)
 
 > See `docs/pipeline/kds-apache-beam-deployment.md` for full architecture details and production deployment guidance.
 
@@ -205,19 +212,19 @@ curl -s -X POST "$API_URL/predict" \
 
 ### 8. Train & Upgrade Model (Version 2 — Improved)
 
-Now train a **stronger model** with more estimators and unlimited tree depth:
+Now train a **stronger model** with more estimators, unlimited tree depth, and balanced class weighting:
 
 ```bash
-./scripts/demo/demo-aws/trigger-training.sh --use-feature-store --n-estimators 200
+./scripts/demo/demo-aws/trigger-training.sh --use-feature-store --n-estimators 200 --class-weight balanced
 ```
 
 **What happens:**
 1.  Materialization runs again (picks up any new features since v1).
-2.  Training Job runs with 200 estimators and unlimited depth (vs 10 trees at depth 1 in v1).
+2.  Training Job runs with 200 estimators, unlimited depth, and `class_weight=balanced` (vs 10 trees at depth 1 with no weighting in v1).
 3.  Evaluation gate compares v2 against v1 champion on **accuracy** and **f1_score**.
-4.  v2 will have better accuracy (~95% vs ~89%) and much better fraud recall, so it gets promoted.
+4.  v2 will have better accuracy and much better fraud recall, so it gets promoted.
 
-> **Tip:** You can also try `--class-weight balanced` to tell the classifier to pay more attention to the minority fraud class, trading some accuracy for better recall.
+> **Why `--class-weight balanced`?** Fraud is rare (~5-10% of transactions). Without class weighting, the model optimizes for overall accuracy by predicting the majority class (not-fraud). `balanced` tells the classifier to weight fraud samples inversely proportional to their frequency, producing stronger fraud recall -- exactly what you'd want in production for imbalanced classification.
 
 > **How the evaluation gate decides:** The challenger must meet a minimum accuracy threshold (0.80) AND beat the champion on both accuracy and f1_score. See `src/models/evaluation/evaluate_and_promote.py` for details.
 
@@ -249,7 +256,7 @@ curl -s -X POST "$API_URL/predict" \
   -d @data/sample/demo/requests/fraud_transaction.json | python -m json.tool
 ```
 
-> **Key insight:** Same API, same payloads, better results. v2 (200 trees, unlimited depth) correctly flags the fraudulent transaction that v1 (10 trees, depth 1) missed. This is the zero-downtime model upgrade in action — the evaluation gate verified v2 beats v1 on both accuracy and f1_score before promoting it.
+> **Key insight:** Same API, same payloads, better results. v2 (200 trees, unlimited depth, balanced class weight) correctly flags the fraudulent transaction that v1 (10 trees, depth 1, no weighting) missed. This is the zero-downtime model upgrade in action — the evaluation gate verified v2 beats v1 on both accuracy and f1_score before promoting it.
 
 ### End-to-End Pipeline Architecture
 
@@ -444,10 +451,7 @@ for exp in client.search_experiments(view_type=mlflow.entities.ViewType.DELETED_
 # Train from Feature Store (materialize → Parquet → train)
 ./scripts/demo/demo-aws/trigger-training.sh --use-feature-store --n-estimators 10 --max-depth 1 --auto-promote
 
-# Train v2 from Feature Store
-./scripts/demo/demo-aws/trigger-training.sh --use-feature-store --n-estimators 200
-
-# Train with class weighting (better fraud recall)
+# Train v2 from Feature Store (with balanced class weighting for fraud recall)
 ./scripts/demo/demo-aws/trigger-training.sh --use-feature-store --n-estimators 200 --class-weight balanced
 
 # Train from pre-uploaded S3 CSV (legacy, no materialization)
@@ -457,10 +461,16 @@ for exp in client.search_experiments(view_type=mlflow.entities.ViewType.DELETED_
 ### Ingestion (Kinesis + Beam)
 
 ```bash
-# Run ingestion with defaults (100 events)
+# Generate deterministic demo events (recommended for reproducible demos)
+python scripts/demo/demo-aws/generate_demo_events.py
+
+# Run ingestion with deterministic events
+./scripts/demo/demo-aws/trigger-ingestion.sh --events-file data/sample/demo/events/demo_events.jsonl
+
+# Run ingestion with random events (100 by default)
 ./scripts/demo/demo-aws/trigger-ingestion.sh
 
-# Run with more events at higher rate
+# Run with more random events at higher rate
 ./scripts/demo/demo-aws/trigger-ingestion.sh --total-events 500 --events-per-second 10
 
 # Verify S3 output
