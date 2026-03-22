@@ -6,7 +6,7 @@ when processed through the Beam pipeline and labeled by RuleBasedLabeling,
 yield a training dataset where:
 
   - v1 (10 trees, depth 1, no class weight) predicts everything as not-fraud
-  - v2 (200 trees, unlimited depth, class_weight=balanced) catches fraud
+  - v2 (200 trees, depth 5, class_weight=balanced) catches fraud
 
 The events match the exact schema expected by the Kinesis producer
 (publish_kinesis_events.py) so they can be published to Kinesis or
@@ -50,7 +50,7 @@ LEGITIMATE_PROFILES = [
         "hours": (8, 18),
         "weekend_ratio": 0.3,
         "payment_methods": ["credit_card", "debit_card"],
-        "count": 80,
+        "count": 95,
     },
     {
         "merchant_category": "gas_station",
@@ -58,7 +58,7 @@ LEGITIMATE_PROFILES = [
         "hours": (6, 20),
         "weekend_ratio": 0.4,
         "payment_methods": ["credit_card", "debit_card"],
-        "count": 40,
+        "count": 50,
     },
     {
         "merchant_category": "restaurant",
@@ -66,7 +66,7 @@ LEGITIMATE_PROFILES = [
         "hours": (11, 22),
         "weekend_ratio": 0.5,
         "payment_methods": ["credit_card", "digital_wallet"],
-        "count": 50,
+        "count": 55,
     },
     {
         "merchant_category": "pharmacy",
@@ -74,7 +74,7 @@ LEGITIMATE_PROFILES = [
         "hours": (8, 20),
         "weekend_ratio": 0.2,
         "payment_methods": ["debit_card", "credit_card"],
-        "count": 30,
+        "count": 35,
     },
     {
         "merchant_category": "clothing",
@@ -82,7 +82,7 @@ LEGITIMATE_PROFILES = [
         "hours": (10, 19),
         "weekend_ratio": 0.6,
         "payment_methods": ["credit_card", "digital_wallet"],
-        "count": 30,
+        "count": 35,
     },
     {
         "merchant_category": "online_retail",
@@ -90,7 +90,7 @@ LEGITIMATE_PROFILES = [
         "hours": (7, 23),
         "weekend_ratio": 0.4,
         "payment_methods": ["credit_card", "digital_wallet"],
-        "count": 35,
+        "count": 40,
     },
     {
         "merchant_category": "electronics",
@@ -98,7 +98,7 @@ LEGITIMATE_PROFILES = [
         "hours": (9, 20),
         "weekend_ratio": 0.4,
         "payment_methods": ["credit_card", "bank_transfer"],
-        "count": 20,
+        "count": 25,
     },
     {
         "merchant_category": "travel",
@@ -106,7 +106,7 @@ LEGITIMATE_PROFILES = [
         "hours": (8, 22),
         "weekend_ratio": 0.3,
         "payment_methods": ["credit_card", "bank_transfer"],
-        "count": 20,
+        "count": 25,
     },
     # Confusing cases: high amounts that are NOT fraud (daytime, safe merchant)
     # These force v1 to fail — depth-1 trees that split on amount will
@@ -126,7 +126,7 @@ LEGITIMATE_PROFILES = [
         "hours": (9, 17),
         "weekend_ratio": 0.3,
         "payment_methods": ["credit_card"],
-        "count": 10,
+        "count": 12,
         "description": "high-amount legitimate travel (daytime)",
     },
     # Confusing cases: night transactions that are NOT fraud (low amounts)
@@ -136,7 +136,7 @@ LEGITIMATE_PROFILES = [
         "hours": (22, 5),
         "weekend_ratio": 0.3,
         "payment_methods": ["debit_card"],
-        "count": 10,
+        "count": 12,
         "description": "night pharmacy runs (low amount, not fraud)",
     },
     {
@@ -145,10 +145,13 @@ LEGITIMATE_PROFILES = [
         "hours": (22, 5),
         "weekend_ratio": 0.3,
         "payment_methods": ["credit_card"],
-        "count": 10,
+        "count": 12,
         "description": "night gas station (low amount, not fraud)",
     },
 ]
+
+# Total legitimate: 411  |  Total fraud: 89  |  Grand total: 500
+# Fraud rate: ~17.8% (RuleBasedLabeling will produce ~15% after noise)
 
 FRAUD_PROFILES = [
     # Cash advance at night with high amount
@@ -159,7 +162,7 @@ FRAUD_PROFILES = [
         "hours": (0, 5),
         "weekend_ratio": 0.6,
         "payment_methods": ["credit_card", "debit_card"],
-        "count": 25,
+        "count": 30,
     },
     # Weekend cash advance with high amount (any hour)
     # Risk: 0.25 + 0.4 + 0.3 (weekend) + 0.3 (amount) = 1.25
@@ -169,7 +172,7 @@ FRAUD_PROFILES = [
         "hours": (6, 21),
         "weekend_ratio": 1.0,  # always weekend
         "payment_methods": ["credit_card"],
-        "count": 15,
+        "count": 18,
     },
     # Jewelry at night with high amount
     # Risk: 0.15 + 0.4 + 0.2 (night) + 0.3 (amount) = 1.05
@@ -179,7 +182,7 @@ FRAUD_PROFILES = [
         "hours": (0, 5),
         "weekend_ratio": 0.5,
         "payment_methods": ["credit_card"],
-        "count": 15,
+        "count": 18,
     },
     # Cash advance at night, moderate amount (still fraud without high-amount bonus)
     # Risk: 0.25 + 0.4 + 0.2 (night) = 0.85 > 0.65
@@ -189,7 +192,7 @@ FRAUD_PROFILES = [
         "hours": (0, 5),
         "weekend_ratio": 0.4,
         "payment_methods": ["debit_card"],
-        "count": 10,
+        "count": 12,
     },
     # Jewelry at night, moderate amount
     # Risk: 0.15 + 0.4 + 0.2 (night) = 0.75 > 0.65
@@ -199,7 +202,7 @@ FRAUD_PROFILES = [
         "hours": (22, 4),
         "weekend_ratio": 0.5,
         "payment_methods": ["credit_card"],
-        "count": 10,
+        "count": 11,
     },
 ]
 
@@ -236,7 +239,7 @@ def generate_events() -> list[dict]:
     events = []
     base_time = datetime(2026, 3, 20, 12, 0, 0, tzinfo=timezone.utc)
     event_idx = 0
-    user_pool_size = 100
+    user_pool_size = 200
 
     all_profiles = [(profile, False) for profile in LEGITIMATE_PROFILES] + [
         (profile, True) for profile in FRAUD_PROFILES
@@ -247,7 +250,9 @@ def generate_events() -> list[dict]:
             seed = event_idx * 7919 + i * 131  # deterministic seed
 
             # Deterministic user assignment (spread across user pool)
-            user_num = (event_idx * 37 + i * 13) % user_pool_size + 1
+            # 37 is coprime with 200, so this cycles through all user IDs
+            # before repeating, giving each user 2-3 events on average.
+            user_num = (event_idx * 37) % user_pool_size + 1
             user_id = f"user_{user_num}"
 
             # Deterministic timestamp spread across 30 days
