@@ -80,7 +80,7 @@ ssh -t -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP "watch -n 5 'sud
 Generate deterministic demo events and publish them to Kinesis, then run the Apache Beam pipeline to extract features and store them in the Feature Store (Redis + PostgreSQL).
 
 ```bash
-# Generate the deterministic demo events (425 curated transactions, ~15% fraud)
+# Generate the deterministic demo events (500 curated transactions, ~15% fraud)
 python scripts/demo/demo-aws/generate_demo_events.py
 
 # Run the full ingestion pipeline with the pre-generated events
@@ -88,7 +88,7 @@ python scripts/demo/demo-aws/generate_demo_events.py
 ```
 
 **What happens:**
-1. The events file is uploaded to S3 and the Kinesis producer Job publishes all 425 events to the `rt-ml-platform-demo-kds-stream`.
+1. The events file is uploaded to S3 and the Kinesis producer Job publishes all 500 events to the `rt-ml-platform-demo-kds-stream`.
 2. An Apache Beam Job (DirectRunner) reads all events from the stream using `TRIM_HORIZON`.
 3. Features are extracted, validated, windowed (60s fixed), and aggregated by `user_id`.
 4. Features are written to the Feature Store (Redis for hot cache, PostgreSQL for cold storage).
