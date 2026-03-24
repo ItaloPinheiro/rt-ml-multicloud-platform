@@ -88,7 +88,7 @@ python scripts/demo/demo-aws/generate_demo_events.py
 ```
 
 **What happens:**
-1. The events file is uploaded to S3 and the Kinesis producer Job publishes all 500 events to the `rt-ml-platform-demo-kds-stream`.
+1. The events file is uploaded to S3 and the Kinesis producer Job publishes all 1050 events to the `rt-ml-platform-demo-kds-stream`.
 2. An Apache Beam Job (DirectRunner) reads all events from the stream using `TRIM_HORIZON`.
 3. Features are extracted, validated, windowed (60s fixed), and aggregated by `user_id`.
 4. Features are written to the Feature Store (Redis for hot cache, PostgreSQL for cold storage).
@@ -201,7 +201,7 @@ curl -s -X POST "$API_URL/predict" \
   -d @data/sample/demo/requests/legitimate_transaction.json | python -m json.tool
 ```
 
-**Fraudulent transaction** (cash advance, 3 AM weekend, high amount — also `prediction: 0` with v1):
+**Fraudulent transaction** (cash advance, 1 AM weekday, moderate amount — also `prediction: 0` with v1):
 ```bash
 curl -s -X POST "$API_URL/predict" \
   -H "Content-Type: application/json" \
@@ -226,7 +226,7 @@ Now train a **stronger model** with more estimators, controlled depth, and balan
 
 > **Why `--class-weight balanced`?** Fraud is rare (~5-10% of transactions). Without class weighting, the model optimizes for overall accuracy by predicting the majority class (not-fraud). `balanced` tells the classifier to weight fraud samples inversely proportional to their frequency, producing stronger fraud recall -- exactly what you'd want in production for imbalanced classification.
 
-> **Why `--max-depth 5`?** Unlimited depth causes the trees to memorize exact training patterns (overfitting). When new inputs arrive that don't follow the exact same feature paths, the model outputs near-50% probabilities even for clear fraud cases. Limiting depth to 5 forces the trees to learn general decision rules, producing confident predictions (~86% for fraud, ~96% for legitimate) on new inputs.
+> **Why `--max-depth 5`?** Unlimited depth causes the trees to memorize exact training patterns (overfitting). When new inputs arrive that don't follow the exact same feature paths, the model outputs near-50% probabilities even for clear fraud cases. Limiting depth to 5 forces the trees to learn general decision rules, producing confident predictions (~91% for fraud, ~97% for legitimate) on new inputs.
 
 > **How the evaluation gate decides:** The challenger must meet a minimum accuracy threshold (0.80) AND beat the champion on both accuracy and f1_score. See `src/models/evaluation/evaluate_and_promote.py` for details.
 
@@ -251,14 +251,14 @@ curl -s -X POST "$API_URL/predict" \
   -d @data/sample/demo/requests/legitimate_transaction.json | python -m json.tool
 ```
 
-**Fraudulent transaction** (cash advance, 3 AM weekend, high amount — now `prediction: 1`, v2 catches the fraud that v1 missed):
+**Fraudulent transaction** (cash advance, 1 AM weekday, moderate amount — now `prediction: 1`, v2 catches the fraud that v1 missed):
 ```bash
 curl -s -X POST "$API_URL/predict" \
   -H "Content-Type: application/json" \
   -d @data/sample/demo/requests/fraud_transaction.json | python -m json.tool
 ```
 
-> **Key insight:** Same API, same payloads, better results. v2 (200 trees, max depth 5, balanced class weight) correctly flags the fraudulent transaction with ~86% confidence that v1 (10 trees, depth 1, no weighting) missed entirely. The legitimate transaction remains correctly classified at ~96% confidence. This is the zero-downtime model upgrade in action — the evaluation gate verified v2 beats v1 on both accuracy and f1_score before promoting it.
+> **Key insight:** Same API, same payloads, better results. v2 (200 trees, max depth 5, balanced class weight) correctly flags the fraudulent transaction with ~91% confidence that v1 (10 trees, depth 1, no weighting) missed entirely. The legitimate transaction remains correctly classified at ~97% confidence. This is the zero-downtime model upgrade in action — the evaluation gate verified v2 beats v1 on both accuracy and f1_score before promoting it.
 
 ### End-to-End Pipeline Architecture
 
@@ -618,7 +618,7 @@ SageMaker Model Registry ties the model lifecycle to AWS, creating vendor lock-i
 
 ### Why DirectRunner for Apache Beam (Not FlinkRunner)
 
-The Beam feature engineering pipeline runs as a K8s Job using `DirectRunner` on the single t3.large EC2 instance. This avoids standing up a dedicated Apache Flink cluster for the demo, keeping infrastructure minimal. The `DirectRunner` processes events in-process using multi-threading, which is sufficient for the bounded demo workload (100-500 events).
+The Beam feature engineering pipeline runs as a K8s Job using `DirectRunner` on the single t3.large EC2 instance. This avoids standing up a dedicated Apache Flink cluster for the demo, keeping infrastructure minimal. The `DirectRunner` processes events in-process using multi-threading, which is sufficient for the bounded demo workload (100-1050 events).
 
 For production, the same pipeline code switches to `FlinkRunner` targeting AWS Managed Service for Apache Flink — no code changes required, only the `--runner` flag changes. See `docs/pipeline/kds-apache-beam-deployment.md` for the production deployment path.
 
