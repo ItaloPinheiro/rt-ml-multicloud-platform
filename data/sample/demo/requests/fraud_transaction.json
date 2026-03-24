@@ -2,10 +2,10 @@
   "features": {
     "hour_of_day": 1,
     "day_of_week": 3,
-    "is_weekend": 0,
+    "is_weekend": 1,
     "transaction_count_24h": 1,
     "avg_amount_30d": 1000.0,
-    "amount": 300.0,
+    "amount": 3000.0,
     "merchant_category_encoded": 63,
     "payment_method_encoded": 5
   },

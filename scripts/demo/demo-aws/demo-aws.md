@@ -201,7 +201,7 @@ curl -s -X POST "$API_URL/predict" \
   -d @data/sample/demo/requests/legitimate_transaction.json | python -m json.tool
 ```
 
-**Fraudulent transaction** (cash advance, 1 AM weekday, moderate amount — also `prediction: 0` with v1):
+**Fraudulent transaction** (cash advance, 1 AM weekend, high amount — also `prediction: 0` with v1):
 ```bash
 curl -s -X POST "$API_URL/predict" \
   -H "Content-Type: application/json" \
@@ -251,7 +251,7 @@ curl -s -X POST "$API_URL/predict" \
   -d @data/sample/demo/requests/legitimate_transaction.json | python -m json.tool
 ```
 
-**Fraudulent transaction** (cash advance, 1 AM weekday, moderate amount — now `prediction: 1`, v2 catches the fraud that v1 missed):
+**Fraudulent transaction** (cash advance, 1 AM weekend, high amount — now `prediction: 1`, v2 catches the fraud that v1 missed):
 ```bash
 curl -s -X POST "$API_URL/predict" \
   -H "Content-Type: application/json" \
