@@ -6,7 +6,7 @@ when processed through the Beam pipeline and labeled by RuleBasedLabeling,
 yield a training dataset where:
 
   - v1 (10 trees, depth 1, no class weight) predicts everything as not-fraud
-  - v2 (200 trees, depth 5, class_weight=balanced) catches fraud
+  - v2 (200 trees, max depth 5, class_weight=balanced) catches fraud
 
 The events match the exact schema expected by the Kinesis producer
 (publish_kinesis_events.py) so they can be published to Kinesis or
@@ -50,7 +50,7 @@ LEGITIMATE_PROFILES = [
         "hours": (8, 18),
         "weekend_ratio": 0.3,
         "payment_methods": ["credit_card", "debit_card"],
-        "count": 95,
+        "count": 205,
     },
     {
         "merchant_category": "gas_station",
@@ -58,7 +58,7 @@ LEGITIMATE_PROFILES = [
         "hours": (6, 20),
         "weekend_ratio": 0.4,
         "payment_methods": ["credit_card", "debit_card"],
-        "count": 50,
+        "count": 115,
     },
     {
         "merchant_category": "restaurant",
@@ -66,7 +66,7 @@ LEGITIMATE_PROFILES = [
         "hours": (11, 22),
         "weekend_ratio": 0.5,
         "payment_methods": ["credit_card", "digital_wallet"],
-        "count": 55,
+        "count": 120,
     },
     {
         "merchant_category": "pharmacy",
@@ -74,7 +74,7 @@ LEGITIMATE_PROFILES = [
         "hours": (8, 20),
         "weekend_ratio": 0.2,
         "payment_methods": ["debit_card", "credit_card"],
-        "count": 35,
+        "count": 60,
     },
     {
         "merchant_category": "clothing",
@@ -82,7 +82,7 @@ LEGITIMATE_PROFILES = [
         "hours": (10, 19),
         "weekend_ratio": 0.6,
         "payment_methods": ["credit_card", "digital_wallet"],
-        "count": 35,
+        "count": 60,
     },
     {
         "merchant_category": "online_retail",
@@ -90,7 +90,7 @@ LEGITIMATE_PROFILES = [
         "hours": (7, 23),
         "weekend_ratio": 0.4,
         "payment_methods": ["credit_card", "digital_wallet"],
-        "count": 40,
+        "count": 70,
     },
     {
         "merchant_category": "electronics",
@@ -98,7 +98,7 @@ LEGITIMATE_PROFILES = [
         "hours": (9, 20),
         "weekend_ratio": 0.4,
         "payment_methods": ["credit_card", "bank_transfer"],
-        "count": 25,
+        "count": 45,
     },
     {
         "merchant_category": "travel",
@@ -106,7 +106,7 @@ LEGITIMATE_PROFILES = [
         "hours": (8, 22),
         "weekend_ratio": 0.3,
         "payment_methods": ["credit_card", "bank_transfer"],
-        "count": 25,
+        "count": 45,
     },
     # Confusing cases: high amounts that are NOT fraud (daytime, safe merchant)
     # These force v1 to fail — depth-1 trees that split on amount will
@@ -117,7 +117,7 @@ LEGITIMATE_PROFILES = [
         "hours": (10, 16),
         "weekend_ratio": 0.2,
         "payment_methods": ["credit_card", "bank_transfer"],
-        "count": 15,
+        "count": 30,
         "description": "high-amount legitimate electronics (daytime)",
     },
     {
@@ -126,7 +126,7 @@ LEGITIMATE_PROFILES = [
         "hours": (9, 17),
         "weekend_ratio": 0.3,
         "payment_methods": ["credit_card"],
-        "count": 12,
+        "count": 25,
         "description": "high-amount legitimate travel (daytime)",
     },
     # Confusing cases: night transactions that are NOT fraud (low amounts)
@@ -136,7 +136,7 @@ LEGITIMATE_PROFILES = [
         "hours": (22, 5),
         "weekend_ratio": 0.3,
         "payment_methods": ["debit_card"],
-        "count": 12,
+        "count": 25,
         "description": "night pharmacy runs (low amount, not fraud)",
     },
     {
@@ -145,13 +145,35 @@ LEGITIMATE_PROFILES = [
         "hours": (22, 5),
         "weekend_ratio": 0.3,
         "payment_methods": ["credit_card"],
-        "count": 12,
+        "count": 25,
         "description": "night gas station (low amount, not fraud)",
+    },
+    # Confusing cases: cash_advance/jewelry that are NOT fraud (daytime, moderate amounts)
+    # These prevent the model from learning "merchant=cash_advance => always fraud",
+    # forcing it to combine merchant + time + amount signals.
+    {
+        "merchant_category": "cash_advance",
+        "amount_range": (100, 500),
+        "hours": (9, 17),
+        "weekend_ratio": 0.2,
+        "payment_methods": ["debit_card", "credit_card"],
+        "count": 30,
+        "description": "daytime cash advance (low amount, not fraud)",
+    },
+    {
+        "merchant_category": "jewelry",
+        "amount_range": (50, 400),
+        "hours": (10, 18),
+        "weekend_ratio": 0.4,
+        "payment_methods": ["credit_card"],
+        "count": 20,
+        "description": "daytime jewelry purchase (moderate amount, not fraud)",
     },
 ]
 
-# Total legitimate: 411  |  Total fraud: 89  |  Grand total: 500
-# Fraud rate: ~17.8% (RuleBasedLabeling will produce ~15% after noise)
+# Total legitimate: 875  |  Total fraud: 175  |  Grand total: 1050
+# Event fraud rate: ~17.5%
+# Per-user fraud rate after aggregation: ~25% (80 fraud users / 300 total)
 
 FRAUD_PROFILES = [
     # Cash advance at night with high amount
@@ -162,7 +184,7 @@ FRAUD_PROFILES = [
         "hours": (0, 5),
         "weekend_ratio": 0.6,
         "payment_methods": ["credit_card", "debit_card"],
-        "count": 30,
+        "count": 55,
     },
     # Weekend cash advance with high amount (any hour)
     # Risk: 0.25 + 0.4 + 0.3 (weekend) + 0.3 (amount) = 1.25
@@ -172,7 +194,7 @@ FRAUD_PROFILES = [
         "hours": (6, 21),
         "weekend_ratio": 1.0,  # always weekend
         "payment_methods": ["credit_card"],
-        "count": 18,
+        "count": 35,
     },
     # Jewelry at night with high amount
     # Risk: 0.15 + 0.4 + 0.2 (night) + 0.3 (amount) = 1.05
@@ -182,7 +204,7 @@ FRAUD_PROFILES = [
         "hours": (0, 5),
         "weekend_ratio": 0.5,
         "payment_methods": ["credit_card"],
-        "count": 18,
+        "count": 35,
     },
     # Cash advance at night, moderate amount (still fraud without high-amount bonus)
     # Risk: 0.25 + 0.4 + 0.2 (night) = 0.85 > 0.65
@@ -192,7 +214,7 @@ FRAUD_PROFILES = [
         "hours": (0, 5),
         "weekend_ratio": 0.4,
         "payment_methods": ["debit_card"],
-        "count": 12,
+        "count": 25,
     },
     # Jewelry at night, moderate amount
     # Risk: 0.15 + 0.4 + 0.2 (night) = 0.75 > 0.65
@@ -202,7 +224,7 @@ FRAUD_PROFILES = [
         "hours": (22, 4),
         "weekend_ratio": 0.5,
         "payment_methods": ["credit_card"],
-        "count": 11,
+        "count": 25,
     },
 ]
 
@@ -239,20 +261,29 @@ def generate_events() -> list[dict]:
     events = []
     base_time = datetime(2026, 3, 20, 12, 0, 0, tzinfo=timezone.utc)
     event_idx = 0
-    user_pool_size = 200
+    # Fraud events are concentrated onto a smaller user pool so that
+    # after per-user aggregation the fraud rate stays around 25%.
+    # This makes v1 (depth-1) default to "not fraud" as the majority class,
+    # while v2 (depth-5) still has enough fraud examples to learn patterns.
+    fraud_user_pool_size = 80
+    legit_user_pool_size = 220  # users 1-220 for legitimate events
 
     all_profiles = [(profile, False) for profile in LEGITIMATE_PROFILES] + [
         (profile, True) for profile in FRAUD_PROFILES
     ]
 
-    for profile, _is_fraud_profile in all_profiles:
+    fraud_event_idx = 0
+    for profile, is_fraud_profile in all_profiles:
         for i in range(profile["count"]):
             seed = event_idx * 7919 + i * 131  # deterministic seed
 
-            # Deterministic user assignment (spread across user pool)
-            # 37 is coprime with 200, so this cycles through all user IDs
-            # before repeating, giving each user 2-3 events on average.
-            user_num = (event_idx * 37) % user_pool_size + 1
+            if is_fraud_profile:
+                # Concentrate fraud on users 221-300 (dedicated fraud pool)
+                user_num = (fraud_event_idx * 37) % fraud_user_pool_size + 221
+                fraud_event_idx += 1
+            else:
+                # Spread legitimate across users 1-220
+                user_num = (event_idx * 37) % legit_user_pool_size + 1
             user_id = f"user_{user_num}"
 
             # Deterministic timestamp spread across 30 days
@@ -277,8 +308,12 @@ def generate_events() -> list[dict]:
 
             day_offset = max(0, min(day_offset, 29))
 
-            timestamp = base_time - timedelta(
-                days=day_offset, hours=24 - hour, minutes=minute, seconds=second
+            # Build timestamp: go back day_offset days, then set the hour
+            day_base = (base_time - timedelta(days=day_offset)).replace(
+                hour=0, minute=0, second=0, microsecond=0
+            )
+            timestamp = day_base + timedelta(
+                hours=hour, minutes=minute, seconds=second
             )
 
             amount = _deterministic_value(
