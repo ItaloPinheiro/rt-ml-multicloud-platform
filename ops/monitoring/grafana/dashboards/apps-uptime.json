@@ -130,7 +130,7 @@
     },
     {
       "type": "stat",
-      "title": "API Uptime (24h%)",
+      "title": "API Uptime",
       "gridPos": {
         "x": 0,
         "y": 8,
@@ -139,7 +139,7 @@
       },
       "targets": [
         {
-          "expr": "avg_over_time(up{job=\"ml-pipeline-api-service\"}[24h]) * 100",
+          "expr": "avg_over_time(up{job=\"ml-pipeline-api-service\"}[$__range:]) * 100",
           "refId": "A"
         }
       ],
