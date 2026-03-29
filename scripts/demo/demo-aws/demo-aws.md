@@ -210,7 +210,33 @@ curl -s -X POST "$API_URL/predict" \
 
 > **Key insight:** v1 classifies **everything as not-fraud** (prediction: 0). The shallow trees (depth 1) cannot learn complex fraud patterns — they achieve ~80-90% accuracy simply by predicting the majority class. This is why the f1_score for fraud is near 0. The upgrade to v2 fixes this.
 
-### 8. Train & Upgrade Model (Version 2 — Improved)
+### 8. Live Deployment — Code Change in Background
+
+Before training v2, trigger a **real code deployment** that runs through the full CI/CD pipeline while we continue the demo. This proves the pipeline is automated and zero-downtime.
+
+**Check current version:**
+```bash
+curl -s "$API_URL/health" | python -m json.tool | grep version
+# Shows: "version": "1.0.0"
+```
+
+**Make a code change, commit, and merge** (triggers CD pipeline):
+```bash
+# Bump version: 1.0.0 → 1.0.1 in src/__init__.py
+git checkout main && git pull origin main
+git checkout -b fix/version-bump
+sed -i 's/__version__ = "1.0.0"/__version__ = "1.0.1"/' src/__init__.py
+git add src/__init__.py && git commit -m "chore: bump version to 1.0.1"
+git push -u origin fix/version-bump
+gh pr create --title "chore: bump version to 1.0.1" --body "Version bump to demonstrate live CI/CD deployment."
+gh pr merge --merge --delete-branch
+```
+
+> The merge to `main` triggers the CD workflow (`.github/workflows/cd.yml`). It builds new Docker images, pushes to GHCR, and deploys to the EC2 instance — all automatically. Monitor progress at the repository's **Actions** tab.
+
+**While the deployment runs in the background, let's continue with model training...**
+
+### 9. Train & Upgrade Model (Version 2 — Improved)
 
 Now train a **stronger model** with more estimators, controlled depth, and balanced class weighting:
 
@@ -230,7 +256,7 @@ Now train a **stronger model** with more estimators, controlled depth, and balan
 
 > **How the evaluation gate decides:** The challenger must meet a minimum accuracy threshold (0.80) AND beat the champion on both accuracy and f1_score. See `src/models/evaluation/evaluate_and_promote.py` for details.
 
-### 9. Verify Auto-Promotion (Zero-Downtime Deployment)
+### 10. Verify Auto-Promotion (Zero-Downtime Model Upgrade)
 
 The API polls MLflow every **10 seconds** for changes to the "production" alias. After v2 is promoted, re-run the **exact same predictions** to demonstrate the improvement.
 
@@ -259,6 +285,21 @@ curl -s -X POST "$API_URL/predict" \
 ```
 
 > **Key insight:** Same API, same payloads, better results. v2 (200 trees, max depth 5, balanced class weight) correctly flags the fraudulent transaction with ~91% confidence that v1 (10 trees, depth 1, no weighting) missed entirely. The legitimate transaction remains correctly classified at ~97% confidence. This is the zero-downtime model upgrade in action — the evaluation gate verified v2 beats v1 on both accuracy and f1_score before promoting it.
+
+### 11. Verify Live Deployment (Code Change from Step 8)
+
+By now, the CD pipeline triggered in step 8 should have completed. Verify the deployment landed:
+
+```bash
+# Check the CD workflow status
+gh run list --workflow=cd.yml --limit=1
+
+# Verify the new version is live
+curl -s "$API_URL/health" | python -m json.tool | grep version
+# Shows: "version": "1.0.1" (was "1.0.0" before step 8)
+```
+
+> **Key insight:** While we trained and upgraded the ML model (steps 9-10), the CI/CD pipeline independently built new Docker images, pushed them to GHCR, and deployed the updated API to the cluster — all without interrupting the running service. The version changed from `1.0.0` to `1.0.1` with zero downtime.
 
 ### End-to-End Pipeline Architecture
 
