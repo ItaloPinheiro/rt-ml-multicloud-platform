@@ -75,7 +75,33 @@ ssh -t -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP "watch -n 5 'sud
 
 *   You should see `ml-pipeline-api` and `ml-pipeline-mlflow` with status `Running`.
 
-### 4. Run Feature Engineering Pipeline (Kinesis + Beam)
+### 4. Trigger Live Deployment (Runs in Background)
+
+Before diving into the ML pipeline, trigger a **real code deployment** so it runs through CI/CD while we continue the demo. This proves the pipeline is automated and zero-downtime.
+
+**Check current version:**
+```bash
+curl -s "$API_URL/health" | python -m json.tool | grep version
+# Shows: "version": "1.0.0"
+```
+
+**Make a code change, commit, and merge** (triggers CD pipeline):
+```bash
+# Bump version: 1.0.0 → 1.0.1 in src/__init__.py
+git checkout main && git pull origin main
+git checkout -b fix/version-bump
+sed -i 's/__version__ = "1.0.0"/__version__ = "1.0.1"/' src/__init__.py
+git add src/__init__.py && git commit -m "chore: bump version to 1.0.1"
+git push -u origin fix/version-bump
+gh pr create --title "chore: bump version to 1.0.1" --body "Version bump to demonstrate live CI/CD deployment."
+gh pr merge --merge --delete-branch
+```
+
+> The merge to `main` triggers the CD workflow (`.github/workflows/cd.yml`). It builds new Docker images, pushes to GHCR, and deploys to the EC2 instance — all automatically. Monitor progress at the repository's **Actions** tab.
+
+**While the deployment runs in the background, let's continue with the ML pipeline...**
+
+### 5. Run Feature Engineering Pipeline (Kinesis + Beam)
 
 Generate deterministic demo events and publish them to Kinesis, then run the Apache Beam pipeline to extract features and store them in the Feature Store (Redis + PostgreSQL).
 
@@ -102,7 +128,7 @@ python scripts/demo/demo-aws/generate_demo_events.py
 
 > See `docs/pipeline/kds-apache-beam-deployment.md` for full architecture details and production deployment guidance.
 
-### 5. Inspect Feature Store
+### 6. Inspect Feature Store
 
 Verify that the Feature Store was populated by the Beam pipeline.
 
@@ -162,7 +188,7 @@ echo "Using entity: $ENTITY_ID"
 curl -s "$API_URL/features/$ENTITY_ID" | python -m json.tool
 ```
 
-### 6. Train Model Version 1 (Baseline)
+### 7. Train Model Version 1 (Baseline)
 
 Training runs as **K8s Jobs inside the cluster**. With `--use-feature-store`, the script first materializes Feature Store data to a Parquet file on S3, then runs the training Job which downloads and trains from that Parquet file.
 
@@ -180,7 +206,7 @@ We start with a **weak baseline** model: few estimators and shallow trees (max d
 3. Model v1 is registered in MLflow and auto-promoted (no prior champion).
 4. API auto-detects the new production model within 10 seconds.
 
-### 7. Verify API Prediction (Version 1 — Weak Baseline)
+### 8. Verify API Prediction (Version 1 — Weak Baseline)
 
 The API can now serve predictions by looking up features directly from the Feature Store using an `entity_id`:
 
@@ -209,32 +235,6 @@ curl -s -X POST "$API_URL/predict" \
 ```
 
 > **Key insight:** v1 classifies **everything as not-fraud** (prediction: 0). The shallow trees (depth 1) cannot learn complex fraud patterns — they achieve ~80-90% accuracy simply by predicting the majority class. This is why the f1_score for fraud is near 0. The upgrade to v2 fixes this.
-
-### 8. Live Deployment — Code Change in Background
-
-Before training v2, trigger a **real code deployment** that runs through the full CI/CD pipeline while we continue the demo. This proves the pipeline is automated and zero-downtime.
-
-**Check current version:**
-```bash
-curl -s "$API_URL/health" | python -m json.tool | grep version
-# Shows: "version": "1.0.0"
-```
-
-**Make a code change, commit, and merge** (triggers CD pipeline):
-```bash
-# Bump version: 1.0.0 → 1.0.1 in src/__init__.py
-git checkout main && git pull origin main
-git checkout -b fix/version-bump
-sed -i 's/__version__ = "1.0.0"/__version__ = "1.0.1"/' src/__init__.py
-git add src/__init__.py && git commit -m "chore: bump version to 1.0.1"
-git push -u origin fix/version-bump
-gh pr create --title "chore: bump version to 1.0.1" --body "Version bump to demonstrate live CI/CD deployment."
-gh pr merge --merge --delete-branch
-```
-
-> The merge to `main` triggers the CD workflow (`.github/workflows/cd.yml`). It builds new Docker images, pushes to GHCR, and deploys to the EC2 instance — all automatically. Monitor progress at the repository's **Actions** tab.
-
-**While the deployment runs in the background, let's continue with model training...**
 
 ### 9. Train & Upgrade Model (Version 2 — Improved)
 
@@ -268,7 +268,7 @@ curl -s -X POST "$API_URL/predict" \
 
 *   **Success Criteria**: Response now contains `"model_version": "2"` — the API picked up the new model automatically, zero downtime.
 
-**Re-run the same payloads** from step 7 to demonstrate v2's improved fraud detection:
+**Re-run the same payloads** from step 8 to demonstrate v2's improved fraud detection:
 
 **Legitimate transaction** (grocery, business hours, low amount — still `prediction: 0`, same as v1):
 ```bash
@@ -288,7 +288,7 @@ curl -s -X POST "$API_URL/predict" \
 
 ### 11. Verify Live Deployment (Code Change from Step 8)
 
-By now, the CD pipeline triggered in step 8 should have completed. Verify the deployment landed:
+By now, the CD pipeline triggered in step 4 should have completed. Verify the deployment landed:
 
 ```bash
 # Check the CD workflow status
@@ -296,10 +296,10 @@ gh run list --workflow=cd.yml --limit=1
 
 # Verify the new version is live
 curl -s "$API_URL/health" | python -m json.tool | grep version
-# Shows: "version": "1.0.1" (was "1.0.0" before step 8)
+# Shows: "version": "1.0.1" (was "1.0.0" before step 4)
 ```
 
-> **Key insight:** While we trained and upgraded the ML model (steps 9-10), the CI/CD pipeline independently built new Docker images, pushed them to GHCR, and deployed the updated API to the cluster — all without interrupting the running service. The version changed from `1.0.0` to `1.0.1` with zero downtime.
+> **Key insight:** While we ran the ML pipeline (steps 5-10), the CI/CD pipeline independently built new Docker images, pushed them to GHCR, and deployed the updated API to the cluster — all without interrupting the running service. The version changed from `1.0.0` to `1.0.1` with zero downtime.
 
 ### End-to-End Pipeline Architecture
 
