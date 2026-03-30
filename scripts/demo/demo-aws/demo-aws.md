@@ -486,6 +486,10 @@ for exp in client.search_experiments(view_type=mlflow.entities.ViewType.DELETED_
     client.restore_experiment(exp.experiment_id)
     print(f'Restored: {exp.name}')
 "
+
+# Query MLflow REST API directly (runs, params, metrics)
+ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP \
+  "curl -s http://localhost:30500/api/2.0/mlflow/runs/search -H 'Content-Type: application/json' -d '{\"experiment_ids\":[\"1\"]}' | python3 -m json.tool"
 ```
 
 ### Training
@@ -605,6 +609,38 @@ ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP \
 # List MLflow experiments (MLflow-owned table)
 ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP \
   "sudo k3s kubectl exec deployment/postgres -n ml-pipeline -- psql -U mlflow -d mlflow -c 'SELECT experiment_id, name, lifecycle_stage FROM experiments'"
+```
+
+### Redis (Hot Cache Inspection)
+
+```bash
+# Get Redis password from K8s secret
+REDIS_PASS=$(ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP \
+  "sudo k3s kubectl -n ml-pipeline get secret ml-pipeline-secrets -o jsonpath='{.data.REDIS_PASSWORD}' | base64 -d")
+
+# Count all keys
+ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP \
+  "sudo k3s kubectl -n ml-pipeline exec deploy/redis -- redis-cli -a '$REDIS_PASS' DBSIZE"
+
+# List feature keys (transaction_features and aggregated_features)
+ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP \
+  "sudo k3s kubectl -n ml-pipeline exec deploy/redis -- redis-cli -a '$REDIS_PASS' KEYS 'features:*' | head -20"
+
+# Inspect a specific entity's cached features
+ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP \
+  "sudo k3s kubectl -n ml-pipeline exec deploy/redis -- redis-cli -a '$REDIS_PASS' GET 'features:transaction_features:user_1'"
+
+# List prediction cache keys
+ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP \
+  "sudo k3s kubectl -n ml-pipeline exec deploy/redis -- redis-cli -a '$REDIS_PASS' KEYS 'pred:*'"
+
+# Flush prediction cache (useful after retraining to avoid stale results)
+ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP \
+  "sudo k3s kubectl -n ml-pipeline exec deploy/redis -- redis-cli -a '$REDIS_PASS' EVAL \"local keys = redis.call('keys', 'pred:*'); for i=1,#keys do redis.call('del', keys[i]) end; return #keys\" 0"
+
+# Check Redis memory usage
+ssh -i ~/.ssh/rt-ml-platform-aws-ec2.pem ubuntu@$INSTANCE_IP \
+  "sudo k3s kubectl -n ml-pipeline exec deploy/redis -- redis-cli -a '$REDIS_PASS' INFO memory | grep -E 'used_memory_human|maxmemory_human'"
 ```
 
 ### S3 Data
